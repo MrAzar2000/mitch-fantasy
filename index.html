@@ -1745,6 +1745,7 @@ VIEWS.faab=function(){
 
 /* ---- PARLAY (live, Supabase-backed) ---- */
 let parlayPicks=[], parlayWeek=1, __sb=null;
+const parlayWk=()=>D.meta.currentScoringPeriod||(ST.started?Math.max(...ST.weeks)+1:1);
 function __pt(ts){if(!ts)return"";try{return new Date(ts).toLocaleString(undefined,{weekday:"short",hour:"numeric",minute:"2-digit"});}catch(e){return"";}}
 function renderPicksList(){
   const box=document.getElementById("plList"); if(!box) return;
@@ -1759,6 +1760,7 @@ function renderPicksList(){
       +'<div style="flex:0 0 auto;font-size:11px;color:var(--ink-3);white-space:nowrap">'+__pt(p.created_at)+'</div></div>';}).join("");
 }
 VIEWS.parlay=function(){
+  const pw=parlayWk();if(pw!==parlayWeek){parlayWeek=pw;parlayPicks=[];if(__sb)__initParlay(__sb);}
   let html=shead("This Week","Week "+parlayWeek+" Parlay","The weekly low scorer's $10 rides on this \u2014 one leg each \ud83c\udfb0");
   html+='<div class="card card-p"><div class="sub-h" style="margin-top:0">Add your leg</div>'
     +'<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">'
@@ -1786,7 +1788,7 @@ VIEWS.parlay=function(){
   return v;
 };
 async function __initParlay(sb){
-  __sb=sb; parlayWeek=D.meta.currentScoringPeriod||(ST.started?Math.max(...ST.weeks)+1:1);
+  __sb=sb; parlayWeek=parlayWk();
   try{ const {data}=await sb.from("parlay_picks").select("*").eq("week",parlayWeek).order("created_at",{ascending:true}); parlayPicks=data||[]; renderPicksList(); }catch(e){console.error("picks load",e);}
   try{ sb.channel("parlay-"+parlayWeek).on("postgres_changes",{event:"INSERT",schema:"public",table:"parlay_picks",filter:"week=eq."+parlayWeek},(p)=>{parlayPicks.push(p.new);renderPicksList();}).subscribe(); }catch(e){console.error("rt",e);}
 }
