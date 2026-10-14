@@ -82,7 +82,11 @@ button{font-family:inherit}
 .sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:49}
 main{padding:24px 24px 72px;min-height:60vh}
 @media(max-width:860px){
-  .sidebar{position:fixed;left:0;top:0;transform:translateX(-100%);transition:transform .22s ease;box-shadow:var(--shadow-lg)}
+  .sidebar{position:fixed;left:0;top:0;bottom:0;height:100vh;height:100dvh;width:min(300px,84vw);overflow:hidden;overscroll-behavior:contain;transform:translateX(-100%);transition:transform .22s ease;box-shadow:var(--shadow-lg);padding-top:env(safe-area-inset-top,0px)}
+  .sb-nav{min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y}
+  .sb-item{min-height:44px;font-size:15px;touch-action:manipulation}
+  .sb-foot{padding-bottom:calc(11px + env(safe-area-inset-bottom,0px))}
+  body.navopen{overflow:hidden}
   body.navopen .sidebar{transform:none}
   body.navopen .sb-overlay{display:block}
   .topslim{display:flex}
@@ -403,7 +407,7 @@ input.txt:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
 /* ============ PHONE LAYOUT (body.phone: small screen or phone browser) ============ */
 .bnav{display:none}
 body.phone .bnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:45;background:color-mix(in srgb,var(--surface) 94%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px))}
-.bnav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;border:none;background:none;color:var(--ink-3);font:inherit;font-size:10.5px;font-weight:700;padding:5px 0;cursor:pointer;position:relative}
+.bnav button{touch-action:manipulation;flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;border:none;background:none;color:var(--ink-3);font:inherit;font-size:10.5px;font-weight:700;padding:5px 0;cursor:pointer;position:relative}
 .bnav button svg{width:21px;height:21px}
 .bnav button.active{color:var(--accent)}
 .bnav .nbadge{position:absolute;top:0;left:calc(50% + 6px);margin:0;height:16px;min-width:16px;font-size:9.5px}
@@ -630,7 +634,10 @@ function setTab(id){
   const keepY=sameView?(window.scrollY||document.documentElement.scrollTop||0):0;
   cur=id; renderNav();
   document.body.classList.remove("navopen");
-  const el=document.getElementById("app"); el.innerHTML=""; el.appendChild(VIEWS[id]()); paintView(el);
+  const el=document.getElementById("app"); el.innerHTML="";
+  let node;try{node=VIEWS[id]();}catch(e){console.error(id,e);node=document.createElement("div");node.className="view";
+    node.innerHTML=emptyState("flag","This page didn't load",`Something went wrong drawing ${esc(LABELS[id]||id)}. Refresh to try again; if it keeps happening, the error was: ${esc(e&&e.message||e)}`);}
+  el.appendChild(node); try{paintView(el);}catch(e){console.error(e);}
   window.scrollTo({top:keepY,behavior:"instant"});
   // shareable link to this page, e.g. mitch-fantasy.netlify.app/#chat
   try{ if(location.hash!=="#"+id) history.replaceState(null,"",id==="dash"?location.pathname:"#"+id); }catch(e){}
@@ -950,6 +957,64 @@ function winProb(x){
 function wpBar(x,a,h){const p=winProb(x);if(!p)return"";const pa=Math.round(p.pa*100),ph=100-pa;
   return `<div class="wp" title="Win probability"><span class="wp-a" style="width:${pa}%"></span><span class="wp-h"></span></div><div class="wp-l"><span><b>${pa}%</b> ${esc(a.abbrev||"")}</span><span>win probability</span><span>${esc(h.abbrev||"")} <b>${ph}%</b></span></div>`;}
 
+/* ---------- exact clinch / elimination (max-flow over every possible remaining result) ---------- */
+// wins: {id: wins so far}; games: [[homeId, awayId], ...] still to play; P: playoff spots.
+// Eliminated = in EVERY possible outcome at least P other teams finish with strictly more wins.
+// Clinched   = in EVERY possible outcome fewer than P other teams finish with at least as many wins.
+// Ties on wins are decided by points, which can't be known ahead, so both checks assume the tie goes against the team.
+function maxFlow(n,cap,s,t){
+  let flow=0;const par=new Array(n);
+  for(;;){
+    par.fill(-1);par[s]=s;const q=[s];
+    for(let qi=0;qi<q.length&&par[t]<0;qi++){const u=q[qi];const row=cap[u];for(let v=0;v<n;v++)if(par[v]<0&&row[v]>0){par[v]=u;q.push(v);}}
+    if(par[t]<0)return flow;
+    let f=Infinity;for(let v=t;v!==s;v=par[v])f=Math.min(f,cap[par[v]][v]);
+    for(let v=t;v!==s;v=par[v]){cap[par[v]][v]-=f;cap[v][par[v]]+=f;}
+    flow+=f;
+  }
+}
+function subsetsOf(arr,k,fn){const pick=[];const rec=i=>{if(pick.length===k){return fn(pick.slice());}
+  for(let j=i;j<=arr.length-(k-pick.length);j++){pick.push(arr[j]);if(rec(j+1))return true;pick.pop();}return false;};return rec(0);}
+// can the games among `others` be decided so team x gets at most lim[x] more wins (lim Infinity = no limit)?
+function canCap(others,games,lim){
+  const g=games.filter(([a,b])=>others.includes(a)&&others.includes(b));
+  if(!g.length)return true;
+  const n=2+g.length+others.length,s=0,t=n-1,cap=Array.from({length:n},()=>new Array(n).fill(0));
+  g.forEach(([a,b],i)=>{cap[s][1+i]=1;cap[1+i][1+g.length+others.indexOf(a)]=1;cap[1+i][1+g.length+others.indexOf(b)]=1;});
+  others.forEach((x,j)=>{cap[1+g.length+j][t]=lim[x]===Infinity?g.length:Math.max(0,lim[x]);});
+  return maxFlow(n,cap,s,t)===g.length;
+}
+// can the games among `others` give every team x at least need[x] more wins?
+function canReach(others,games,need){
+  const total=others.reduce((a,x)=>a+need[x],0);if(!total)return true;
+  const g=games.filter(([a,b])=>others.includes(a)&&others.includes(b));
+  const n=2+g.length+others.length,s=0,t=n-1,cap=Array.from({length:n},()=>new Array(n).fill(0));
+  g.forEach(([a,b],i)=>{cap[s][1+i]=1;cap[1+i][1+g.length+others.indexOf(a)]=1;cap[1+i][1+g.length+others.indexOf(b)]=1;});
+  others.forEach((x,j)=>{cap[1+g.length+j][t]=need[x];});
+  return maxFlow(n,cap,s,t)===total;
+}
+function isEliminated(T,ids,wins,games,P){
+  const left=games.filter(([a,b])=>a===T||b===T).length,maxW=wins[T]+left;
+  const others=ids.filter(x=>x!==T),rest=games.filter(([a,b])=>a!==T&&b!==T);
+  const forced=others.filter(x=>wins[x]>maxW);
+  if(forced.length>=P)return true;
+  const free=others.filter(x=>!forced.includes(x)),k=P-1-forced.length;
+  // T wins out; look for a way to keep all but P-1 teams at or below T's total
+  const ok=subsetsOf(free,Math.min(k,free.length),S=>{
+    const lim={};others.forEach(x=>{lim[x]=(forced.includes(x)||S.includes(x))?Infinity:Math.floor(maxW-wins[x]);});
+    return canCap(others,rest,lim);});
+  return !ok;
+}
+function isClinched(T,ids,wins,games,P){
+  const minW=wins[T],others=ids.filter(x=>x!==T);
+  const base={};others.forEach(x=>{base[x]=wins[x]+games.filter(([a,b])=>(a===T&&b===x)||(b===T&&a===x)).length;}); // T loses out
+  const rest=games.filter(([a,b])=>a!==T&&b!==T);
+  if(others.length<P)return true;
+  // look for P teams that can all reach T's total
+  const beaten=subsetsOf(others,P,S=>{const need={};others.forEach(x=>{need[x]=S.includes(x)?Math.max(0,Math.ceil(minW-base[x])):0;});return canReach(others,rest,need);});
+  return !beaten;
+}
+
 /* ---------- playoff odds: simulate the rest of the regular season ---------- */
 let __ODDS=null;
 function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
@@ -969,7 +1034,12 @@ function playoffOdds(){
     ord.forEach((id,i)=>{const r=R[id];r.w+=w[id];if(i<P)r.po++;if(i<2)r.top2++;if(i===0)r.first++;});
   }
   const games=id=>ST.S[id].gp+rem.filter(o=>o.x.homeTeamId===id||o.x.awayTeamId===id).length;
-  const v=ids.map(id=>{const r=R[id],g=games(id),ew=r.w/N;return {id,team:teamById[id],po:r.po/N,top2:r.top2/N,first:r.first/N,ew,el:g-ew,lock:r.po===N,out:r.po===0};})
+  // exact checks over every possible result of the remaining games (not the simulation)
+  const wins={};ids.forEach(id=>{const s=ST.S[id];wins[id]=s.w+s.tie*0.5;});
+  const left=rem.map(o=>[o.x.homeTeamId,o.x.awayTeamId]);
+  const v=ids.map(id=>{const r=R[id],g=games(id),ew=r.w/N;
+    return {id,team:teamById[id],po:r.po/N,top2:r.top2/N,first:r.first/N,ew,el:g-ew,
+      clinched:isClinched(id,ids,wins,left,P),eliminated:isEliminated(id,ids,wins,left,P)};})
     .sort((a,b)=>(b.po-a.po)||(b.ew-a.ew));
   __ODDS={key:D.meta.lastUpdated,v:{rows:v,N,remaining:rem.length,P}};return __ODDS.v;
 }
@@ -1634,15 +1704,15 @@ VIEWS.odds=function(){
     <div class="ex-item"><h4>${O.N.toLocaleString()} simulated seasons</h4><p>Every remaining regular-season game (${O.remaining} left) is played out ${O.N.toLocaleString()} times with random scores, and we count how often each team finishes in the top ${O.P}.</p></div>
     <div class="ex-item"><h4>Scores</h4><p>Each team's random score is centered on its scoring average, with its own week-to-week spread. Early in the season both are pulled toward the league average so one big week doesn't dominate. This week's games start from ESPN's projected totals and live scores.</p></div>
     <div class="ex-item"><h4>Seeding</h4><p>Teams are ranked by wins (ties count half), then total points, the same order as the Standings page. ESPN's own tiebreakers can differ in rare ties.</p></div>
-    <div class="ex-item"><h4>"In" and "out"</h4><p>"In every sim" / "out every sim" means it happened in all ${O.N.toLocaleString()} simulations. That is very likely, not a mathematical clinch.</p></div>
+    <div class="ex-item"><h4>Clinched and Eliminated</h4><p>These are exact, not simulated: every possible win/loss result of the remaining games is checked. <b>Eliminated</b> = in every possible outcome at least ${O.P} teams finish with more wins. <b>Clinched</b> = no possible outcome puts ${O.P} other teams level with or ahead of them. Ties on wins count against the team, since points can't be known ahead.</p></div>
   </div></details>`;
   html+=`<div class="twrap"><table><thead><tr><th class="no-sort">#</th><th class="no-sort">Team</th><th class="no-sort">Record</th><th class="no-sort">Proj. record</th><th class="no-sort" style="text-align:left">Make playoffs</th><th class="no-sort">Top 2</th><th class="no-sort">#1 seed</th></tr></thead><tbody>`;
   O.rows.forEach((r,i)=>{const s=ST.S[r.id];
     html+=`<tr class="${i===O.P-1?"playoff-line":""}"><td class="rankcol ${i<3?"top":""}">${i+1}</td><td>${teamLine(r.team)}</td>
       <td class="num">${s.w}-${s.l}${s.tie?"-"+s.tie:""}</td><td class="num">${fmt(r.ew,1)}-${fmt(r.el,1)}</td>
-      <td style="text-align:left;min-width:170px"><div style="display:flex;align-items:center;gap:9px"><div class="oddbar"><span style="width:${Math.max(1.5,r.po*100)}%"></span></div><b class="num" style="width:46px;text-align:right">${r.lock?'<span class="tag-in">IN</span>':r.out?'<span class="tag-out">OUT</span>':fmt(r.po*100,r.po>0.995||r.po<0.005?1:0)+"%"}</b></div></td>
+      <td style="text-align:left;min-width:170px"><div style="display:flex;align-items:center;gap:9px"><div class="oddbar"><span style="width:${Math.max(1.5,r.po*100)}%"></span></div><b class="num" style="width:78px;text-align:right">${r.clinched?'<span class="tag-in">Clinched</span>':r.eliminated?'<span class="tag-out">Eliminated</span>':r.po>=0.999?">99.9%":r.po<=0.001?"<0.1%":fmt(r.po*100,r.po>0.995||r.po<0.005?1:0)+"%"}</b></div></td>
       <td class="num">${fmt(r.top2*100,0)}%</td><td class="num">${fmt(r.first*100,0)}%</td></tr>`;});
-  html+=`</tbody></table></div><div class="metricnote"><b>Proj. record</b> = average final record across the simulations. <b>IN</b> / <b>OUT</b> = made / missed the top ${O.P} in every simulation. Odds update whenever new scores arrive.</div>`;
+  html+=`</tbody></table></div><div class="metricnote"><b>Proj. record</b> = average final record across the simulations. <b>&lt;0.1%</b> / <b>&gt;99.9%</b> = missed / made the top ${O.P} in almost every simulation but still mathematically alive / not yet locked. <b>Clinched</b> / <b>Eliminated</b> are exact. Odds update whenever new scores arrive.</div>`;
   return el(html);
 };
 
