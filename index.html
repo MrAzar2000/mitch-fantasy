@@ -436,7 +436,7 @@ body.phone .lowbar{padding:13px 14px}
 body.phone .chat{height:calc(100dvh - 300px);min-height:340px}
 body.phone .seg button{padding:7px 10px}
 body.phone .helpbox{padding:11px 13px;font-size:12.5px}
-body.phone .recap-row .rl{width:96px}
+body.phone .recap-row{flex-wrap:wrap;row-gap:2px}body.phone .recap-row .rl{width:100%}
 body.phone .toast{bottom:calc(78px + env(safe-area-inset-bottom,0px));right:12px;left:12px;justify-content:center}
 
 /* ============ MATCHUP DETAIL (sheet over the page) ============ */
@@ -1951,8 +1951,8 @@ function awardsCard(){
   if(D.faab){const ids={};D.faab.teams.forEach(ft=>ft.pickups.forEach(p=>{ids[ft.teamId+"_"+p.playerId]=1;}));
     const wh=top(st.filter(r=>ids[r.t.id+"_"+r.pid]),r=>r.pts);if(wh&&wh.pts>0)h+=row("Waiver hero",nm(wh)+` <span style="color:var(--ink-3)">waiver pickup</span>`,fmt(wh.pts,1));}
   const G=ST.played.filter(m=>m.week===W).map(m=>{const hw=m.homeScore>m.awayScore;return {w:teamById[hw?m.homeTeamId:m.awayTeamId],l:teamById[hw?m.awayTeamId:m.homeTeamId],ws:Math.max(m.homeScore,m.awayScore),ls:Math.min(m.homeScore,m.awayScore)};});
-  const hb=top(G,g=>g.ls);if(hb)h+=row("Heartbreaker",`<span class="nm">${esc(hb.l.name)}</span> <span style="color:var(--ink-3)">lost to ${esc(hb.w.name)} anyway</span>`,fmt(hb.ls,1));
-  const lw=top(G,g=>-g.ws);if(lw)h+=row("Lucky win",`<span class="nm">${esc(lw.w.name)}</span> <span style="color:var(--ink-3)">beat ${esc(lw.l.name)} with just</span>`,fmt(lw.ws,1));
+  const hb=top(G,g=>g.ls);if(hb)h+=row("Heartbreaker",`<span class="nm">${esc(hb.l.name)}</span> <span style="color:var(--ink-3)">lost to ${esc(hb.w.name)} by ${fmt(hb.ws-hb.ls,1)}, most points in a loss</span>`,fmt(hb.ls,1));
+  const lw=top(G,g=>-g.ws);if(lw)h+=row("Lucky win",`<span class="nm">${esc(lw.w.name)}</span> <span style="color:var(--ink-3)">beat ${esc(lw.l.name)} by ${fmt(lw.ws-lw.ls,1)}, lowest winning score</span>`,fmt(lw.ws,1));
   return h+`<div style="font-size:11px;color:var(--ink-3);margin-top:6px">Boom / Bust compare a starter's points with ESPN's projection for that week.</div></div>`;
 }
 
