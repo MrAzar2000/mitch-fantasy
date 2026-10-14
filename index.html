@@ -10,6 +10,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MFL">
+<script data-goatcounter="https://mrazar2000.goatcounter.com/count" data-goatcounter-settings='{"no_onload": true}'
+        async src="https://gc.zgo.at/count.js" onload="(window.__gcq||[]).forEach(function(v){window.goatcounter.count(v)});window.__gcq=null"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap">
@@ -639,6 +641,9 @@ function setTab(id){
     node.innerHTML=emptyState("flag","This page didn't load",`Something went wrong drawing ${esc(LABELS[id]||id)}. Refresh to try again; if it keeps happening, the error was: ${esc(e&&e.message||e)}`);}
   el.appendChild(node); try{paintView(el);}catch(e){console.error(e);}
   window.scrollTo({top:keepY,behavior:"instant"});
+  // visitor stats: each tab counts as its own page (/chat, /odds, ...); re-sorting a page doesn't count again
+  if(id!==setTab.counted){setTab.counted=id;const v={path:"/"+(id==="dash"?"":id),title:LABELS[id]||id};
+    try{if(window.goatcounter&&window.goatcounter.count)window.goatcounter.count(v);else(window.__gcq=window.__gcq||[]).push(v);}catch(e){}}
   // shareable link to this page, e.g. mitch-fantasy.netlify.app/#chat
   try{ if(location.hash!=="#"+id) history.replaceState(null,"",id==="dash"?location.pathname:"#"+id); }catch(e){}
 }
