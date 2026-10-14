@@ -1,4 +1,4 @@
--- League-wide counter for the Useless Features "The Button". Run once in Supabase -> SQL Editor.
+-- League-wide counter for the Useless Features "Punch Nate" button. Run once in Supabase -> SQL Editor.
 -- Visitors can read the total and add clicks only through useless_click(), capped at 200 per call;
 -- nobody can set or reset the number from the site.
 create table if not exists public.useless_counter (
