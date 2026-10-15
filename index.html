@@ -2115,22 +2115,22 @@ function nateSVG(m){const F=NATE_FACE[m]||NATE_FACE.neutral;
 const pickOne=a=>a[Math.floor(Math.random()*a.length)];
 // what Nate says after a hand; he gets angrier the more you win and the longer your streak runs
 const NATE_SAYS={
-  annoyed:["Lucky. Pure dumb luck.","Ugh. Fine. Take it.","Enjoy it. It won't last.","Whatever. The shoe's still warm.","Don't get cocky."],
-  angry:["Oh come ON. This is bullshit.","What the hell is this shoe?","Son of a bitch.","Are you fucking kidding me right now?","Damn it. Who shuffled this? Oh. Me.","Keep smiling. I dare you."],
-  furious:["THIS DECK IS RIGGED. I'M CALLING THE PIT BOSS.","I swear to God I'm flipping this fucking table.","GET THE FUCK OUT OF MY CASINO.","That's it. I'm counting cards now. Watch me.","I'M NOT EVEN MAD. I'M FUCKING FURIOUS.","Unbelievable. Absolutely fucking unbelievable."],
-  smug:["Thank you for your donation.","Read 'em and weep.","That's going straight into my Venmo.","Easiest money of my life.","Mmm. Tastes like your money.","House always wins, baby."],
-  bust:["BUST! Hahaha. Sit down.","Too greedy. Love that for me.","Busted. Pathetic. Again?"],
-  nateBJ:["BLACKJACK, BABY! Pay up.","Twenty-one. Say thank you, Nate.","Natural. Like my talent."],
-  push:["Push. Boring. Bet more.","A push. Nobody wins. Mostly you."],
-  nateBust:["I busted. Don't tell the group chat.","Shit. I busted. Doesn't count.","Dealer bust. Shut up."]
+  annoyed:["Congrats, jackass. Even a blind squirrel finds a nut.","Wow, you won a hand. Want a participation trophy, dipshit?","Enjoy it. This is the highlight of your week and we both know it.","Cool. Now do that in your actual fantasy matchup, jackass.","Take your chips and shut up about it.","Lucky. You're not good, you're lucky."],
+  angry:["Are you fucking kidding me, you absolute schmuck?","The chutzpah on this jackass.","Oy vey. Who let this putz sit at my table?","You're not good, you're LUCKY. There's a difference, dumbass.","Hit on 16 again. I fucking dare you.","I've seen better decisions from Reggie's lineup."],
+  furious:["THAT'S IT. YOU'RE BANNED. GET THE FUCK OUT, JACKASS.","I'M FLIPPING THIS TABLE AND THEN I'M FLIPPING YOUR CAR.","OY GEVALT. THIS MESHUGGENEH SHOE IS GOING IN THE TRASH.","YOU'RE A FUCKING CHEATER AND I'M TELLING THE GROUP CHAT.","I hope your kicker misses every extra point for the rest of your life.","I'M NOT MAD. I'M JUST GOING TO SCREAM INTO THIS CHIP TRAY."],
+  smug:["Thanks for the chips, jackass. Same time next week?","That was embarrassing. For you.","Sit down, schmuck. The adults are playing.","You play blackjack like you set your lineup. Badly.","Should've stayed in, putz.","Beautiful. Do it again, genius."],
+  bust:["22? You absolute jackass.","You hit on WHAT? Unreal. Sit down.","Bust. Couldn't have happened to a dumber guy."],
+  nateBJ:["BLACKJACK, BITCH! Pay up.","Twenty-one. Kiss the ring, schmuck.","Natural. Like my talent. Unlike yours."],
+  push:["A push. Thrilling. Bet like you mean it.","Push. Nobody wins. Mostly you."],
+  nateBust:["I busted. Tell the group chat and you're dead.","Shit. Dealer bust. That doesn't count, shut up.","I busted on purpose. Charity. You're welcome."]
 };
 function nateLine(){
   if(BJ.co)return BJ.co.step==="confirm"?"You sure? Like, really sure? Fine. Confirm it.":"A cash out? From me? Sure, buddy. Fill out the form.";
   if(BJ.nate)return BJ.nate;
   if(BJ.phase==="play"){const n=BJ.hands.reduce((t,h)=>t+h.cards.length,0);
-    return ["Hit or stand. Take your time. Actually, don't.","I've got a really good feeling about my hole card.","You sure about that?","The house always wins. I am the house."][n%4];}
-  if(bjStore().bank>=3000)return "You're up big. You're not leaving here with that. Bet.";
-  return BJ.hands.length?"Again? Place your bet.":"Place your bet. I'm Nate, I'll be your dealer tonight.";
+    return ["Hit or stand, jackass. Clock's ticking.","Take your time. Actually don't, I have a life.","You sure about that, genius?","I can smell the fear from here."][n%4];}
+  if(bjStore().bank>=3000)return "You're up big. That's adorable. Bet it all, coward.";
+  return BJ.hands.length?"Again? Glutton for punishment. Bet.":"Sit down, put your chips up, and try not to cry. I'm Nate.";
 }
 function bjRender(){
   const box=document.getElementById("bj");if(!box)return;const st=bjStore();
@@ -2182,7 +2182,7 @@ function bjAct(a){
   const st=bjStore();
   if(a==="cashout"){if(BJ.phase==="play"||st.bank<=0)return;BJ.co={step:"form",via:"Venmo"};return bjRender();}
   if(a==="clear"){BJ.bet=0;return bjRender();}
-  if(a==="rebuy"){st.bank=1000;bjSave(st);BJ.msg="Fresh 1,000. Try not to Reggie it.";BJ.mood="smug";BJ.nate="Back for more? I love this for me.";return bjRender();}
+  if(a==="rebuy"){st.bank=1000;bjSave(st);BJ.msg="Fresh 1,000. Try not to Reggie it.";BJ.mood="smug";BJ.nate="Back for more? You're a sick puppy. I love it.";return bjRender();}
   if(a==="deal"){if(!BJ.bet||st.bank<BJ.bet)return;st.bank-=BJ.bet;bjSave(st);
     BJ.dealer=[bjDraw(),bjDraw()];BJ.hands=[{cards:[bjDraw(),bjDraw()],bet:BJ.bet}];BJ.act=0;BJ.hide=true;BJ.phase="play";BJ.msg="";BJ.nate=null;BJ.mood="neutral";BJ.co=null;
     if(bjNatural(BJ.hands[0].cards)||bjNatural(BJ.dealer))return bjFinish();return bjRender();}
