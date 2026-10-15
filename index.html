@@ -2536,7 +2536,7 @@ function tbBoardByPlayer(rows){
   if(TB_POS.some(p=>needMap[p].length)){
     h+=`<div class="card card-p" style="margin-bottom:16px"><div class="fieldlbl" style="margin:0 0 8px">Who's looking for what</div><div style="display:flex;flex-direction:column;gap:7px">`;
     TB_POS.forEach(p=>{if(!needMap[p].length)return;
-      h+=`<div style="display:flex;gap:9px;align-items:center;font-size:13px"><span class="tag-in" style="min-width:42px;text-align:center">${p}</span><span style="color:var(--ink-2)">${needMap[p].map(tid=>esc((teamById[tid]||{}).name||"")).join(", ")}</span></div>`;});
+      h+=`<div style="display:flex;gap:10px;align-items:flex-start;font-size:13px"><span class="tag-in" style="min-width:42px;text-align:center;flex:0 0 auto;margin-top:1px">${p}</span><div style="display:flex;flex-direction:column;gap:5px;min-width:0">${needMap[p].map(tid=>{const t=teamById[tid];return t?`<div style="display:flex;align-items:center;gap:7px">${badge(t)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.name)}</span></div>`:"";}).join("")}</div></div>`;});
     h+=`</div></div>`;
   }
   let any=false;
