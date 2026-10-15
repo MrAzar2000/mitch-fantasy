@@ -556,6 +556,12 @@ body.phone .lu .wx{white-space:normal}
 .dealer-row{display:flex;align-items:flex-end;gap:12px;margin-bottom:10px}
 .nate{flex:0 0 auto;text-align:center}
 .nate svg{display:block;width:80px;height:108px}
+.nate{position:relative}
+.nate.dance svg{animation:ndance .32s ease-in-out 8 alternate;transform-origin:50% 90%}
+@keyframes ndance{from{transform:translateY(0) rotate(-9deg)}to{transform:translateY(-7px) rotate(9deg)}}
+.nate .cash{position:absolute;top:30px;font-weight:900;font-size:16px;color:#7dff9b;text-shadow:0 1px 2px rgba(0,0,0,.5);opacity:0;animation:ncash 1.6s ease-out forwards;pointer-events:none}
+.nate .c1{left:4px}.nate .c2{left:34px;animation-delay:.35s}.nate .c3{left:62px;animation-delay:.7s}
+@keyframes ncash{0%{opacity:0;transform:translateY(10px)}20%{opacity:1}100%{opacity:0;transform:translateY(-46px)}}
 .nate.m-furious svg{animation:nshake .12s linear 6}
 .nate.m-angry svg{animation:nshake .16s linear 3}
 @keyframes nshake{0%,100%{transform:translateX(0)}25%{transform:translateX(-3px) rotate(-2deg)}75%{transform:translateX(3px) rotate(2deg)}}
@@ -2115,29 +2121,28 @@ function nateSVG(m){const F=NATE_FACE[m]||NATE_FACE.neutral;
 const pickOne=a=>a[Math.floor(Math.random()*a.length)];
 // what Nate says after a hand; he gets angrier the more you win and the longer your streak runs
 const NATE_SAYS={
-  annoyed:["ok jackass, even a blind squirrel finds a nut","wow you won one hand. want a participation trophy?","enjoy it, this is the highlight of your week and we both know it","cool. now do that in your actual fantasy matchup","mazel tov. want me to throw you a bar mitzvah too?","my bubbe plays better than you and she's 91"],
-  angry:["are you fucking kidding me. i left shabbat dinner for this","bro got lucky once and thinks he's a genius","nah this is actually bullshit","you're not good, you're lucky. learn the difference, dumbass","hit on 16 again. i fucking dare you","i've seen better decisions from reggie's lineup"],
-  furious:["i'm actually crashing out rn","bro i swear to god i'm flipping this table","this shoe is rigged and you're a fucking cheater","get the fuck out of my casino. you're banned. forever","i hope your kicker misses every extra point for the rest of your life","screenshotting this so the group chat knows you cheated"],
-  smug:["skill issue","thanks for the chips, jackass. same time next week?","L + ratio + you're broke","you play blackjack like you set your lineup. badly","sit down, the adults are playing","-1000 aura. couldn't be me","you're cooked bro"],
-  bust:["22? you absolute jackass","who let bro cook","bust. go touch grass"],
-  nateBJ:["blackjack. kiss the ring","21. read it and weep, dumbass","natural. like my talent. unlike yours"],
-  push:["a push. thrilling. bet like you mean it","push. nobody wins. mostly you"],
-  nateBust:["i busted. tell the group chat and you're dead","dealer bust doesn't count, shut up","i let you have that one. charity"]
+  annoyed:["ok jackass, even a blind squirrel finds a nut","wow you won one hand. want a fucking trophy?","enjoy it, this is the highlight of your shitty week","cool. now do that in your actual fantasy matchup, dipshit","mazel tov. want me to throw you a bar mitzvah too?"],
+  angry:["are you fucking kidding me. i left shabbat dinner for this","hit on 16 again. i fucking dare you","i've seen better decisions from reggie's lineup","son of a bitch"],
+  furious:["i hope your kicker misses every extra point for the rest of your life",...["are you fucking kidding me. i left shabbat dinner for this","hit on 16 again. i fucking dare you","i've seen better decisions from reggie's lineup","son of a bitch"]],
+  smug:["thanks for the chips, jackass. same time next week?","you play blackjack like you set your lineup. like shit","sit down, the adults are playing","god you're bad at this","keep 'em coming, dumbass","that's what you get, asshole"],
+  bust:["22? you absolute jackass","you hit on that? are you fucking stupid?","bust. sit your ass down"],
+  nateBJ:["blackjack. kiss the ring","21, bitch. pay up"],
+  push:["a push. thrilling. bet like you mean it","push. what a waste of my fucking time"],
+  nateBust:["shit. whatever. take it"]
 };
 function nateLine(){
-  if(BJ.co)return BJ.co.step==="confirm"?"you sure? like really sure? fine, confirm it":"a cash out? from me? sure buddy. fill out the form";
+  if(BJ.co)return "";
   if(BJ.nate)return BJ.nate;
   if(BJ.phase==="play"){const n=BJ.hands.reduce((t,h)=>t+h.cards.length,0);
-    return ["hit or stand, jackass. clock's ticking","take your time. actually don't, i have a life","you sure about that, genius?","i can smell the fear from here"][n%4];}
-  if(bjStore().bank>=3000)return "you're up big. that's cute. bet it all, coward";
-  return BJ.hands.length?"again? glutton for punishment. bet":"sit down, put your chips up and try not to cry";
+    return ["hit or stand, jackass. clock's ticking","you sure about that, genius?"][n%2];}
+  return "";
 }
 function bjRender(){
   const box=document.getElementById("bj");if(!box)return;const st=bjStore();
   const cardH=(c,hide)=>hide?`<div class="pcard back"></div>`:`<div class="pcard ${c.s==="♥"||c.s==="♦"?"red":""}"><span class="r">${c.r}</span><span class="s">${c.s}</span></div>`;
   const dv=BJ.dealer.length?(BJ.hide?bjCardVal(BJ.dealer[0]):bjVal(BJ.dealer).t):"";
   const mood=BJ.co?"smug":(BJ.mood||"neutral");
-  let h=`<div class="dealer-row"><div class="nate m-${mood}">${nateSVG(mood)}<div class="nate-name">Nate</div></div><div class="nate-say m-${mood}">${esc(nateLine())}</div></div>`;
+  let h=`<div class="dealer-row"><div class="nate m-${mood} ${BJ.dance?"dance":""}">${BJ.dance?`<span class="cash c1">$</span><span class="cash c2">$</span><span class="cash c3">$</span>`:""}${nateSVG(mood)}<div class="nate-name">Nate</div></div>${nateLine()?`<div class="nate-say m-${mood}">${esc(nateLine())}</div>`:""}</div>`;
   h+=`<div class="lbl">Dealer ${dv!==""?"· "+dv:""}</div><div class="cards">${BJ.dealer.map((c,i)=>cardH(c,BJ.hide&&i===1)).join("")}</div>`;
   h+=`<div class="lbl" style="margin-top:14px">You</div>`;
   if(!BJ.hands.length)h+=`<div class="cards"></div>`;
@@ -2160,7 +2165,7 @@ function bjRender(){
       <div class="co-btns"><button class="go" data-co="confirm">Yes, cash out</button><button data-co="back">Back</button></div></div>`;}
   h+=`<div class="bj-bank"><span>Bank <b>${st.bank.toLocaleString()}</b></span><span>Best <b>${st.best.toLocaleString()}</b></span><span>Hands <b>${st.hands}</b></span><span>Won <b>${st.won}</b></span></div>`;
   if((st.cashouts||[]).length)h+=`<div class="bj-pend"><div class="lbl">Cash-out requests</div>`+st.cashouts.slice().reverse().map(c=>`<div class="pi"><span class="tag">⏳ PENDING</span><b>$${(+c.amt).toLocaleString()}</b><span>to ${esc(c.name)} via ${esc(c.via)}</span><span class="ref">Ref #${esc(c.ref)} · requested ${new Date(c.ts).toLocaleDateString(undefined,{month:"short",day:"numeric"})}</span></div>`).join("")+`</div>`;
-  box.innerHTML=h;
+  box.innerHTML=h;BJ.dance=false;
   box.querySelectorAll("[data-co]").forEach(b=>b.onclick=()=>bjCashOut(b.dataset.co));
   box.querySelectorAll("[data-chip]").forEach(b=>b.onclick=()=>{BJ.bet+=+b.dataset.chip;bjRender();});
   box.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>bjAct(b.dataset.a));
@@ -2175,14 +2180,13 @@ function bjCashOut(a){
     if(!(amt>=1)||amt>st.bank){err.textContent=`Enter an amount from 1 to ${st.bank.toLocaleString()}.`;return;}
     c.step="confirm";return bjRender();}
   if(a==="confirm"){if(c.amt>st.bank)return;st.bank-=c.amt;(st.cashouts=st.cashouts||[]).push({name:c.name,amt:c.amt,via:c.via,ts:Date.now(),ref:"NC-"+Math.floor(100000+Math.random()*900000)});bjSave(st);
-    BJ.co=null;BJ.mood="smug";BJ.msg=`Cash out of $${(+c.amt).toLocaleString()} submitted. Status: pending.`;
-    BJ.nate=pickOne(["cash out received. it's pending. it'll be pending for a while","lmao. pending.","processing time is 3 to 5 business decades","i'll get right on that *puts it in a drawer*"]);return bjRender();}
+    BJ.co=null;BJ.mood="neutral";BJ.nate=null;BJ.msg=`Cash out of $${(+c.amt).toLocaleString()} submitted. Status: pending.`;return bjRender();}
 }
 function bjAct(a){
   const st=bjStore();
   if(a==="cashout"){if(BJ.phase==="play"||st.bank<=0)return;BJ.co={step:"form",via:"Venmo"};return bjRender();}
   if(a==="clear"){BJ.bet=0;return bjRender();}
-  if(a==="rebuy"){st.bank=1000;bjSave(st);BJ.msg="Fresh 1,000. Try not to Reggie it.";BJ.mood="smug";BJ.nate="back for more? you're a sick puppy. i love it";return bjRender();}
+  if(a==="rebuy"){st.bank=1000;bjSave(st);BJ.msg="Fresh 1,000. Try not to Reggie it.";BJ.mood="neutral";BJ.nate=null;return bjRender();}
   if(a==="deal"){if(!BJ.bet||st.bank<BJ.bet)return;st.bank-=BJ.bet;bjSave(st);
     BJ.dealer=[bjDraw(),bjDraw()];BJ.hands=[{cards:[bjDraw(),bjDraw()],bet:BJ.bet}];BJ.act=0;BJ.hide=true;BJ.phase="play";BJ.msg="";BJ.nate=null;BJ.mood="neutral";BJ.co=null;
     if(bjNatural(BJ.hands[0].cards)||bjNatural(BJ.dealer))return bjFinish();return bjRender();}
@@ -2216,8 +2220,8 @@ function bjFinish(){
   if(net>0){let lvl=(net>=250?3:net>=100?2:net>=40?1:0)+Math.min(2,BJ.streak-1);if(R.includes("Blackjack!"))lvl=Math.max(lvl,2);
     BJ.mood=lvl>=3?"furious":lvl===2?"angry":"annoyed";
     BJ.nate=d>21&&lvl<2?pickOne(NATE_SAYS.nateBust):pickOne(NATE_SAYS[BJ.mood]);
-    if(BJ.streak>=3)BJ.nate+=` (${BJ.streak} in a row?? bro)`;}
-  else if(net<0){BJ.mood="smug";BJ.nate=pickOne(dn?NATE_SAYS.nateBJ:R.every(r=>r==="Bust")?NATE_SAYS.bust:NATE_SAYS.smug);}
+  }
+  else if(net<0){BJ.mood="smug";BJ.dance=true;BJ.nate=pickOne(dn?NATE_SAYS.nateBJ:R.every(r=>r==="Bust")?NATE_SAYS.bust:NATE_SAYS.smug);}
   else{BJ.mood=dn?"shocked":"neutral";BJ.nate=pickOne(NATE_SAYS.push);}
   if(BJ.bet>st.bank)BJ.bet=0;
   bjRender();
