@@ -2677,6 +2677,14 @@ async function initTradeBlock(){
 }
 
 
+function lineupPPG(roster){
+  const byPos={QB:[],RB:[],WR:[],TE:[],K:[],DST:[]};
+  roster.forEach(p=>{if(byPos[p.pos])byPos[p.pos].push(playerSeason(p.playerId).avg);});
+  for(const k in byPos)byPos[k].sort((a,b)=>b-a);
+  const sum=(a,n)=>a.slice(0,n).reduce((x,y)=>x+y,0);
+  const flex=Math.max(byPos.RB[2]||0,byPos.WR[2]||0,byPos.TE[1]||0,0);
+  return sum(byPos.QB,1)+sum(byPos.RB,2)+sum(byPos.WR,2)+sum(byPos.TE,1)+flex+sum(byPos.K,1)+sum(byPos.DST,1);
+}
 VIEWS.trade=function(){
   let html=shead("What-if deals","Trade Analyzer","Pick two teams, then tick the players changing hands");
   if(TRADE.a==null){TRADE.a=D.teams[0].id;TRADE.b=D.teams[1].id;}
@@ -2686,13 +2694,20 @@ VIEWS.trade=function(){
   const sum=k=>{const ids=(D.rosters[TRADE[k]]||[]).filter(p=>TRADE.pick[p.playerId]);const o={n:ids.length,tot:0,avg:0,l3:0,proj:0,names:ids.map(p=>p.name)};
     ids.forEach(p=>{const ps=playerSeason(p.playerId);o.tot+=ps.tot;o.avg+=ps.avg;o.l3+=ps.l3;o.proj+=ps.proj||0;});return o;};
   const A=teamById[TRADE.a],B=teamById[TRADE.b],sa=sum("a"),sb=sum("b");
+  const aPicks=(D.rosters[TRADE.a]||[]).filter(p=>TRADE.pick[p.playerId]),bPicks=(D.rosters[TRADE.b]||[]).filter(p=>TRADE.pick[p.playerId]);
+  const aBefore=lineupPPG(D.rosters[TRADE.a]||[]),bBefore=lineupPPG(D.rosters[TRADE.b]||[]);
+  const aAfter=lineupPPG((D.rosters[TRADE.a]||[]).filter(p=>!TRADE.pick[p.playerId]).concat(bPicks)),bAfter=lineupPPG((D.rosters[TRADE.b]||[]).filter(p=>!TRADE.pick[p.playerId]).concat(aPicks));
+  const remW=Math.max(1,(D.meta.regularSeasonWeeks||14)-(D.meta.currentScoringPeriod||1)+1);
+  const posStr=ids=>{const c={};ids.forEach(p=>c[p.pos]=(c[p.pos]||0)+1);return Object.entries(c).map(([k,n])=>n+" "+k).join(", ")||"—";};
   html+=`<div class="trade-grid"><div class="card card-p"><div class="sub-h" style="margin-top:0">${esc(A.name)} gives</div>${sel("a")}<div style="margin-top:8px">${sideRows("a")}</div></div>
     <div class="card card-p"><div class="sub-h" style="margin-top:0">${esc(B.name)} gives</div>${sel("b")}<div style="margin-top:8px">${sideRows("b")}</div></div></div>`;
   if(sa.n||sb.n){const diff=sb.avg-sa.avg,row=(l,x,y)=>`<tr><td>${l}</td><td class="num">${x}</td><td class="num">${y}</td></tr>`;
     html+=`<div class="sub-h">Trade</div><div class="twrap"><table><thead><tr><th class="no-sort"></th><th class="no-sort">${esc(A.name)} gets</th><th class="no-sort">${esc(B.name)} gets</th></tr></thead><tbody>
-      ${row("Players",esc(sb.names.join(", "))||"—",esc(sa.names.join(", "))||"—")}${row("Season points",fmt(sb.tot,1),fmt(sa.tot,1))}${row("Points per week",fmt(sb.avg,1),fmt(sa.avg,1))}
-      ${row("Last 3 weeks (avg)",fmt(sb.l3,1),fmt(sa.l3,1))}${row("This week's projection",fmt(sb.proj,1),fmt(sa.proj,1))}</tbody></table></div>
-      <div class="card card-p" style="margin-top:12px;font-size:15px">${Math.abs(diff)<0.5?"Pretty even trade on points per week.":`<b>${esc((diff>0?A:B).name)}</b> comes out ahead by <b>${fmt(Math.abs(diff),1)}</b> points per week.`}</div>`;}
+      ${row("Players",esc(sb.names.join(", "))||"—",esc(sa.names.join(", "))||"—")}${row("Positions",posStr(bPicks),posStr(aPicks))}${row("Season points",fmt(sb.tot,1),fmt(sa.tot,1))}${row("Points per week",fmt(sb.avg,1),fmt(sa.avg,1))}
+      ${row("Last 3 weeks (avg)",fmt(sb.l3,1),fmt(sa.l3,1))}${row("This week's projection",fmt(sb.proj,1),fmt(sa.proj,1))}${row("Rest-of-season pts (est.)",fmt(sb.avg*remW,1),fmt(sa.avg*remW,1))}</tbody></table></div>
+      <div class="card card-p" style="margin-top:12px;font-size:15px">${Math.abs(diff)<0.5?"Pretty even trade on points per week.":`<b>${esc((diff>0?A:B).name)}</b> comes out ahead by <b>${fmt(Math.abs(diff),1)}</b> points per week.`}</div>`;
+    const imp=(t,bef,aft)=>{const d=aft-bef,col=d>0.3?"var(--win)":d<-0.3?"var(--loss)":"var(--ink-2)";return `<div class="card card-p"><div style="font-weight:700">${esc(t.name)}</div><div style="display:flex;align-items:baseline;gap:8px;margin-top:4px"><span class="num" style="font-size:22px;font-weight:800">${fmt(aft,1)}</span><span style="color:var(--ink-3);font-size:12px">was ${fmt(bef,1)}</span><span class="num" style="margin-left:auto;font-weight:800;color:${col}">${d>=0?"+":""}${fmt(d,1)}</span></div></div>`;};
+    html+=`<div class="sub-h">Starting Lineup Impact <span style="font-weight:400;font-size:11px;color:var(--ink-3);text-transform:none;letter-spacing:0">best lineup's season PPG, before → after</span></div><div class="grid g-2">${imp(A,aBefore,aAfter)}${imp(B,bBefore,bAfter)}</div><div class="metricnote">Lineup impact = your best possible starting lineup's season PPG before vs after the swap. A deal can lose on raw points but still upgrade your starters.</div>`;}
   html+=`<div class="metricnote">Points per week = average over finished weeks the player was on a fantasy roster. Bench weeks count too. It ignores bye weeks and positional need, so use your head.</div>`;
   const v=el(html);
   v.querySelectorAll("[data-ts]").forEach(s=>s.onchange=()=>{TRADE[s.dataset.ts]=+s.value;setTab("trade");});
