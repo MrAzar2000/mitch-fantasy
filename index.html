@@ -727,7 +727,8 @@ const ICON_P={
   cards:'<rect x="3.5" y="5" width="11" height="15.5" rx="2"/><path d="M10.5 4.6 18.6 6.8a1.5 1.5 0 0 1 1.1 1.8L16.4 21"/><path d="M9 10.5c-1.3 1.6-2.4 2.6-2.4 3.6a1.4 1.4 0 0 0 2.4 1 1.4 1.4 0 0 0 2.4-1c0-1-1.1-2-2.4-3.6z"/>',
   sparkle:'<path d="M12 3.5 13.8 10l6.7 2-6.7 2L12 20.5 10.2 14l-6.7-2 6.7-2z"/>',
   football:'<ellipse cx="12" cy="12" rx="10" ry="6" transform="rotate(-40 12 12)"/><path d="M9 15l6-6M10.5 10.5l3 3"/>',
-  swap:'<path d="M7 4 3 8l4 4"/><path d="M3 8h13"/><path d="m17 20 4-4-4-4"/><path d="M21 16H8"/>'
+  swap:'<path d="M7 4 3 8l4 4"/><path d="M3 8h13"/><path d="m17 20 4-4-4-4"/><path d="M21 16H8"/>',
+  compass:'<circle cx="12" cy="12" r="9"/><path d="M16.2 7.8 14.1 14.1 7.8 16.2 9.9 9.9z"/>'
 };
 function icon(n){return '<svg class="glyph" viewBox="0 0 24 24" aria-hidden="true">'+(ICON_P[n]||'')+'</svg>';}
 function badge(t,cls=""){return `<span class="tb ${cls}" data-tid="${t.id}" title="${esc(t.name)}" style="border-color:${t._color}">${esc(initials(t))}</span>`;}
@@ -826,7 +827,7 @@ const NAV=[
   ["Overview",[["dash","Home","home"]]],
   ["Standings",[["standings","Standings","bars"],["power","Power Rankings","zap"],["odds","Playoff Odds","dice"]]],
   ["Matchups",[["scoreboard","Scoreboard","calendar"],["h2h","Head-to-Head","swords"]]],
-  ["Stats",[["analytics","Analytics","line"],["defense","Manager D","shield"],["records","Record Book","trophy"],["shame","Hall of Shame","flame"],["corrections","Stat Corrections","refresh"],["faab","Waivers","wallet"]]],
+  ["Stats",[["analytics","Analytics","line"],["outlook","Outlook","compass"],["defense","Manager D","shield"],["records","Record Book","trophy"],["shame","Hall of Shame","flame"],["corrections","Stat Corrections","refresh"],["faab","Waivers","wallet"]]],
   ["League",[["parlay","Parlay","ticket"],["history","History","book"],["chat","Chat","chat"]]],
   ["Teams",[["teams","Teams","users"],["trade","Trade Analyzer","activity"],["block","Trade Block","swap"],["draft","Draft Board","clipboard"]]],
   ["Fun",[["blackjack","Blackjack","cards"],["sportsbook","Nate's Sportsbook","ticket"],["slots","Slots","dollar"],["useless","Useless Features","sparkle"]]]
@@ -1477,6 +1478,74 @@ function draftByPos(){
 }
 
 /* ---- ANALYTICS ---- */
+/* ---- OUTLOOK: rest-of-season edge (schedule difficulty, roster strength, hot/cold, injuries) ---- */
+function olStrength(tid){
+  const roster=D.rosters[tid]||[];
+  const byPos={QB:[],RB:[],WR:[],TE:[],K:[],DST:[]};
+  roster.forEach(p=>{if(byPos[p.pos])byPos[p.pos].push(playerSeason(p.playerId).avg);});
+  for(const k in byPos)byPos[k].sort((a,b)=>b-a);
+  const sum=(a,n)=>a.slice(0,n).reduce((x,y)=>x+y,0);
+  const qb=sum(byPos.QB,1),rb=sum(byPos.RB,2),wr=sum(byPos.WR,2),te=sum(byPos.TE,1),k=sum(byPos.K,1),dst=sum(byPos.DST,1);
+  const flex=Math.max(byPos.RB[2]||0,byPos.WR[2]||0,byPos.TE[1]||0,0);
+  return {qb,rb,wr,te,flex,k,dst,total:qb+rb+wr+te+flex+k+dst};
+}
+VIEWS.outlook=function(){
+  let html=shead("Rest of Season","Outlook","Who to watch, who to target, and who has the easy road");
+  if(!ST.started) return el(html+emptyState("compass","Outlook unlocks after Week 1","Schedule difficulty, roster strength and player trends need at least one week of scores."));
+  const S=ST.S,lastReg=D.meta.regularSeasonWeeks||14;
+
+  // 1) rest-of-season schedule difficulty
+  const sd=D.teams.map(t=>{
+    const fut=D.schedule.filter(x=>x.winner==="UNDECIDED"&&x.week<=lastReg&&(x.homeTeamId===t.id||x.awayTeamId===t.id));
+    const opps=fut.map(x=>x.homeTeamId===t.id?x.awayTeamId:x.homeTeamId).map(id=>S[id]?S[id].ppg:null).filter(v=>v);
+    const avg=opps.length?opps.reduce((a,b)=>a+b,0)/opps.length:0;
+    return {t,n:fut.length,avg};
+  }).filter(x=>x.n>0).sort((a,b)=>a.avg-b.avg);
+  if(sd.length){
+    const mn=Math.min(...sd.map(x=>x.avg)),mx=Math.max(...sd.map(x=>x.avg));
+    html+=`<div class="sub-h">Rest-of-Season Schedule <span style="font-weight:400;font-size:11px;color:var(--ink-3);text-transform:none;letter-spacing:0">avg PPG of remaining opponents — lower is easier</span></div>`;
+    html+=`<div class="twrap"><table><thead><tr><th class="no-sort">#</th><th class="no-sort" style="text-align:left">Team</th><th class="no-sort">Games left</th><th class="no-sort">Avg opp PPG</th><th class="no-sort" style="text-align:left">Road ahead</th></tr></thead><tbody>`;
+    sd.forEach((x,i)=>{const frac=mx>mn?(x.avg-mn)/(mx-mn):0.5;const col=frac<0.34?"var(--win)":frac<0.67?"var(--t-amber)":"var(--loss)";const lab=frac<0.34?"Easy":frac<0.67?"Average":"Tough";
+      html+=`<tr><td class="rankcol ${i<3?"top":""}">${i+1}</td><td style="text-align:left">${teamLine(x.t)}</td><td class="num">${x.n}</td><td class="num" style="font-weight:700">${fmt(x.avg,1)}</td><td style="text-align:left;min-width:150px"><div style="display:flex;align-items:center;gap:9px"><div class="bartrk" style="flex:1;max-width:110px"><div class="barfil" style="width:${Math.max(8,frac*100)}%;background:${col};opacity:.85"></div></div><b style="color:${col};font-size:12px;width:60px">${lab}</b></div></td></tr>`;});
+    html+=`</tbody></table></div><div class="metricnote">Remaining regular-season games only. Opponent strength is their season scoring average, so it re-ranks every week.</div>`;
+  }
+
+  // 2) roster strength vs league
+  const str=D.teams.map(t=>Object.assign({t},olStrength(t.id))).sort((a,b)=>b.total-a.total);
+  const la={};["qb","rb","wr","te"].forEach(k=>la[k]=str.reduce((a,x)=>a+x[k],0)/(str.length||1));
+  const cell=(v,avg)=>{const d=v-avg,hot=Math.abs(d)>avg*0.12;const col=d>avg*0.12?"var(--win)":d<-avg*0.12?"var(--loss)":"var(--ink-2)";return `<td class="num" style="color:${col};font-weight:${hot?700:500}">${fmt(v,1)}</td>`;};
+  html+=`<div class="sub-h">Roster Strength <span style="font-weight:400;font-size:11px;color:var(--ink-3);text-transform:none;letter-spacing:0">best starters' season PPG by position — green beats the league average</span></div>`;
+  html+=`<div class="twrap"><table><thead><tr><th class="no-sort">#</th><th class="no-sort" style="text-align:left">Team</th><th class="no-sort">QB</th><th class="no-sort">RB</th><th class="no-sort">WR</th><th class="no-sort">TE</th><th class="no-sort">Starters PPG</th></tr></thead><tbody>`;
+  str.forEach((x,i)=>{html+=`<tr><td class="rankcol ${i<3?"top":""}">${i+1}</td><td style="text-align:left">${teamLine(x.t)}</td>${cell(x.qb,la.qb)}${cell(x.rb,la.rb)}${cell(x.wr,la.wr)}${cell(x.te,la.te)}<td class="num lead" style="font-weight:800">${fmt(x.total,1)}</td></tr>`;});
+  html+=`</tbody></table></div><div class="metricnote"><b>QB</b> = top QB. <b>RB/WR</b> = top two combined. <b>TE</b> = top TE. <b>Starters PPG</b> = the best full lineup (QB, 2 RB, 2 WR, TE, FLEX, K, D/ST) by season average. Shows where a roster is deep or thin — handy for spotting trade targets.</div>`;
+
+  // 3) hot & cold
+  const pool=[];
+  D.teams.forEach(t=>(D.rosters[t.id]||[]).forEach(p=>{const ps=playerSeason(p.playerId);if(ps.gp>=3&&ps.avg>=5)pool.push({pid:p.playerId,pos:p.pos,pro:p.proTeam,t,avg:ps.avg,l3:ps.l3,d:ps.l3-ps.avg});}));
+  const prow=o=>`<div style="display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid var(--line)"><span class="posbadge tag-${(o.pos||"").toLowerCase()}">${esc(o.pos)}</span><div style="min-width:0;flex:1"><div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(pname(o.pid))} <span style="color:var(--ink-3);font-weight:400">${esc(o.pro)}</span></div><div style="font-size:11px;color:var(--ink-3)">${esc(o.t.name)}</div></div><div style="text-align:right"><div class="num" style="font-weight:700;color:${o.d>=0?"var(--win)":"var(--loss)"}">${o.d>=0?"+":""}${fmt(o.d,1)}</div><div style="font-size:10px;color:var(--ink-3)">${fmt(o.avg,1)}→${fmt(o.l3,1)}</div></div></div>`;
+  const hot=pool.slice().sort((a,b)=>b.d-a.d).slice(0,8),cold=pool.slice().sort((a,b)=>a.d-b.d).slice(0,8);
+  html+=`<div class="sub-h">Hot &amp; Cold <span style="font-weight:400;font-size:11px;color:var(--ink-3);text-transform:none;letter-spacing:0">last 3 weeks vs season average</span></div>`;
+  html+=`<div class="grid g-2"><div class="card card-p"><div class="k-label" style="color:var(--win);margin-bottom:4px">Heating up</div>${hot.map(prow).join("")||'<div style="color:var(--ink-3);font-size:12px">Not enough games yet.</div>'}</div><div class="card card-p"><div class="k-label" style="color:var(--loss);margin-bottom:4px">Cooling off</div>${cold.map(prow).join("")||'<div style="color:var(--ink-3);font-size:12px">Not enough games yet.</div>'}</div></div>`;
+  html+=`<div class="metricnote">Rostered players averaging 5+ points over 3+ games. <b>Buy-low / sell-high</b> signals — a cold star may be gettable; a surging bench player is worth a claim.</div>`;
+
+  // 4) injury report
+  const sev={INJURY_RESERVE:0,OUT:1,DOUBTFUL:2,SUSPENSION:3,QUESTIONABLE:4,DAY_TO_DAY:5,PROBABLE:6};
+  const inj=[];
+  D.teams.forEach(t=>(D.rosters[t.id]||[]).forEach(p=>{const st=p.injury;if(st&&st!=="ACTIVE"&&st!=="NORMAL")inj.push({name:p.name,pos:p.pos,pro:p.proTeam,t,st,starter:p.slot!=="BE"&&p.slot!=="IR"});}));
+  inj.sort((a,b)=>(a.starter===b.starter?0:a.starter?-1:1)||((sev[a.st]==null?9:sev[a.st])-(sev[b.st]==null?9:sev[b.st])));
+  html+=`<div class="sub-h">Injury Report <span style="font-weight:400;font-size:11px;color:var(--ink-3);text-transform:none;letter-spacing:0">${inj.length} not fully healthy</span></div>`;
+  if(!inj.length) html+=`<div class="card card-p" style="color:var(--ink-3);font-size:13px">Everybody's healthy right now.</div>`;
+  else{
+    const sc=st=>(st==="OUT"||st==="INJURY_RESERVE")?"var(--loss)":st==="DOUBTFUL"?"#c0562e":"var(--t-amber)";
+    html+=`<div class="twrap"><table><thead><tr><th class="no-sort" style="text-align:left">Player</th><th class="no-sort">Pos</th><th class="no-sort">NFL</th><th class="no-sort">Status</th><th class="no-sort">Role</th><th class="no-sort" style="text-align:left">Fantasy team</th></tr></thead><tbody>`;
+    inj.forEach(o=>{html+=`<tr><td style="text-align:left;font-weight:600">${esc(o.name)}</td><td>${esc(o.pos)}</td><td>${esc(o.pro)}</td><td><b style="color:${sc(o.st)}">${esc(INJ_SHORT[o.st]||o.st)}</b></td><td>${o.starter?'<span class="tag-in">Starter</span>':'<span style="color:var(--ink-3)">Bench</span>'}</td><td style="text-align:left">${teamLine(o.t)}</td></tr>`;});
+    html+=`</tbody></table></div>`;
+  }
+  html+=`<div class="metricnote">Injury status from ESPN. A true <b>bye-week planner</b> can be added once the NFL bye schedule is pulled into the data feed.</div>`;
+
+  return el(html);
+};
+
 VIEWS.analytics=function(){
   let html=shead("Advanced Metrics","Analytics");
   if(!ST.started) return el(html+`<div class="helpbox" style="margin-bottom:16px"><span class="hi">${icon("line")}</span><div>The analytics suite computes from weekly scores. Here's what unlocks after Week&nbsp;1:</div></div>`+analyticsPreview());
