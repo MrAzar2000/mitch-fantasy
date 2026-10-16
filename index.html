@@ -2961,7 +2961,7 @@ function initialsMark(name){const w=name.split(/\s+/).filter(Boolean);return (w.
 /* ---------- live auto-refresh (polls the DB; re-renders only when data changed) ---------- */
 function setFresh(){
   const m=D.meta, upd=new Date(m.lastUpdated);
-  const wkLabel=ST.started?("Week "+Math.max(...ST.weeks)+(m.liveWeek?" · LIVE":"")):(m.liveWeek?("Week "+m.liveWeek+" · LIVE"):"Preseason");
+  const wkLabel=ST.started?("Week "+Math.max(...ST.weeks)+(m.liveWeek?" · in progress":"")):(m.liveWeek?("Week "+m.liveWeek+" · in progress"):"Preseason");
   const f=document.getElementById("fresh");
   if(f) f.innerHTML=`<b>${wkLabel}</b><br><span class="ts">Updated ${upd.toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit",second:"2-digit",timeZoneName:"short"})}</span><br>${agoText(upd.getTime())}`;
 }
