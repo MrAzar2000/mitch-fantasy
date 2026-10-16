@@ -1054,7 +1054,7 @@ function gamesToWatch(wk,pr){
 }
 function tbHomeNote(v){
   const fill=()=>{const box=document.getElementById("tbHomeNote");if(!box)return;
-    const rows=(TB.rows||[]).filter(r=>r.listing&&((r.listing.available||[]).length||(r.listing.needs||[]).length||(r.listing.note||"").trim()));
+    const rows=(TB.rows||[]).filter(r=>r.listing&&((r.listing.available||[]).length||(r.listing.needs||[]).length||(r.listing.note||"").trim()||(r.listing.openTo||[]).length));
     if(!rows.length){box.innerHTML="";return;}
     let seen=0;try{seen=+localStorage.getItem("mfl-tb-seen")||0;}catch(e){}
     const fresh=rows.filter(r=>new Date(r.updated_at).getTime()>seen).length;
@@ -1403,11 +1403,15 @@ function showTeam(id,v){
       h+=alertBox(lineupAlerts(starters.map(p=>({name:p.name,pro:p.proTeam,pid:p.playerId})),emp,W),t);}}
   h+=teamTrend(id);
   h+=`<div class="grid g-2" style="margin-top:14px">`;
+  if(typeof TB!=="undefined"&&!TB.loaded&&!TB.sub)initTradeBlock();
+  const _tbL=((typeof TB!=="undefined"&&TB.rows&&TB.rows.find(rr=>+rr.team_id===+id))||{}).listing||{};
+  const _shop=new Set((_tbL.available||[]).map(Number)),_offer=new Set((_tbL.openTo||[]).map(Number));
+  const tbMark=p=>_shop.has(p.playerId)?' <span class="tag-in" style="font-size:9px">Shopping</span>':_offer.has(p.playerId)?' <span style="font-size:9px;color:var(--t-amber);font-weight:700">Open to offers</span>':'';
   // roster
   h+=`<div class="card card-p"><div class="sub-h" style="margin-top:0">Roster <span style="font-weight:400;font-size:11px;color:var(--ink-3);text-transform:none;letter-spacing:0">${r.length} players</span></div>`;
   h+=`<div style="font-size:10.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.08em;margin:2px 0 4px">Starters</div>`;
-  sortR(starters).forEach(p=>h+=rosterRow(p));
-  if(bench.length){h+=`<div style="font-size:10.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 4px">Bench / IR</div>`;sortR(bench).forEach(p=>h+=rosterRow(p));}
+  sortR(starters).forEach(p=>h+=rosterRow(p,tbMark(p)));
+  if(bench.length){h+=`<div style="font-size:10.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 4px">Bench / IR</div>`;sortR(bench).forEach(p=>h+=rosterRow(p,tbMark(p)));}
   h+=`</div>`;
   // draft + schedule
   h+=`<div><div class="card card-p"><div class="sub-h" style="margin-top:0">Draft Picks <span style="font-weight:400;font-size:11px;color:var(--ink-3);text-transform:none;letter-spacing:0">${picks.length}</span></div>`;
@@ -1436,10 +1440,10 @@ function showTeam(id,v){
 }
 function tstat(v,l){return `<div><div style="font-family:'DM Sans';font-weight:900;font-size:19px">${esc(v)}</div><div style="font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em">${l}</div></div>`;}
 function streakBare(str){return (!str||str==="—")?"—":str;}
-function rosterRow(p){const W=D.meta.currentScoringPeriod,ps=playerSeason(p.playerId);return `<div class="rrow ${playsToday(p.proTeam,W)?"gd":""}" style="display:flex;align-items:center;gap:9px;padding:4px 0;border-bottom:1px solid var(--line)">
+function rosterRow(p,mark){const W=D.meta.currentScoringPeriod,ps=playerSeason(p.playerId);return `<div class="rrow ${playsToday(p.proTeam,W)?"gd":""}" style="display:flex;align-items:center;gap:9px;padding:4px 0;border-bottom:1px solid var(--line)">
   <span class="posbadge" style="width:34px;text-align:center">${esc(p.slot)}</span>
   <span class="posbadge tag-${(p.pos||"").toLowerCase()}">${esc(p.pos)}</span>
-  <span style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</span>
+  <span style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</span>${mark||""}
   ${injTag(p.injury)}${todayTag(p.proTeam,D.meta.currentScoringPeriod)}
   <span style="margin-left:auto;text-align:right;line-height:1.25;min-width:64px"><span class="num" style="font-weight:700;font-size:12.5px">${ps.proj!=null?fmt(ps.proj,1):"—"}</span><span style="display:block;font-size:10px;color:var(--ink-3)">${ps.proj!=null?"proj · ":""}${ps.gp?fmt(ps.avg,1)+" avg · ":""}${esc(p.proTeam)}</span></span></div>`;}
 
@@ -2561,17 +2565,19 @@ VIEWS.block=function(){
 function renderTBForm(v,tid){
   const box=v?v.querySelector("#tbForm"):document.getElementById("tbForm");if(!box)return;
   const existing=tbRowFor(tid),L=(existing&&existing.listing)||{};
-  const avail=new Set((L.available||[]).map(Number)),needs=new Set(L.needs||[]);
+  const avail=new Set((L.available||[]).map(Number)),needs=new Set(L.needs||[]),openSet=new Set((L.openTo||[]).map(Number));
   const roster=(D.rosters[tid]||[]).slice().sort((a,b)=>playerSeason(b.playerId).avg-playerSeason(a.playerId).avg);
-  let h=`<label class="fieldlbl">Players you'll move <span style="font-weight:400;text-transform:none;color:var(--ink-3)">(tap to toggle)</span></label>
-    <div id="tbRoster" style="max-height:234px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:5px">`;
+  let h=`<label class="fieldlbl">Your players <span style="font-weight:400;text-transform:none;color:var(--ink-3)">— check <b style="color:var(--accent)">Shop</b> (actively moving) or <b style="color:var(--t-amber)">Offers</b> (open to offers)</span></label>
+    <div id="tbRoster" style="max-height:244px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:5px">
+    <div style="display:flex;align-items:center;gap:9px;padding:1px 8px 5px;font-size:9px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em"><span style="width:16px;text-align:center">Shop</span><span style="width:16px;text-align:center">Offer</span><span>Player</span></div>`;
   if(!roster.length)h+=`<div style="padding:10px;color:var(--ink-3);font-size:13px">No roster found for this team yet.</div>`;
   roster.forEach(p=>{const pid=p.playerId,pos=p.pos||ppos(pid);
     h+=`<label class="tbopt" style="display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:7px;cursor:pointer">
-      <input type="checkbox" value="${pid}" ${avail.has(pid)?"checked":""} style="accent-color:var(--accent);width:15px;height:15px;flex:0 0 auto">
+      <input type="checkbox" class="tbShop" value="${pid}" ${avail.has(pid)?"checked":""} title="Shopping — actively want to move" style="accent-color:var(--accent);width:16px;height:16px;flex:0 0 auto">
+      <input type="checkbox" class="tbOffer" value="${pid}" ${openSet.has(pid)?"checked":""} title="Open to offers" style="accent-color:var(--t-amber);width:16px;height:16px;flex:0 0 auto">
       <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name||pname(pid))}</span>
       <span class="posbadge tag-${pos.toLowerCase()}">${esc(pos)}</span>
-      <span class="num" style="color:var(--ink-3);font-size:12px;width:64px;text-align:right;flex:0 0 auto">${tbStat(pid)}</span></label>`;});
+      <span class="num" style="color:var(--ink-3);font-size:12px;width:60px;text-align:right;flex:0 0 auto">${tbStat(pid)}</span></label>`;});
   h+=`</div>`;
   h+=`<label class="fieldlbl" style="margin-top:13px;display:block">Looking for</label>
     <div class="seg" id="tbNeeds" style="flex-wrap:wrap">${TB_POS.map(p=>`<button data-pos="${p}" class="${needs.has(p)?"on":""}">${p}</button>`).join("")}</div>`;
@@ -2588,14 +2594,15 @@ function renderTBForm(v,tid){
 }
 
 async function tbSubmit(box,tid){
-  const avail=[...box.querySelectorAll("#tbRoster input:checked")].map(i=>+i.value);
+  const avail=[...box.querySelectorAll("#tbRoster input.tbShop:checked")].map(i=>+i.value);
+  const openTo=[...box.querySelectorAll("#tbRoster input.tbOffer:checked")].map(i=>+i.value).filter(pid=>!avail.includes(pid));
   const needs=[...box.querySelectorAll("#tbNeeds button.on")].map(b=>b.dataset.pos);
   const note=(box.querySelector("#tbNote").value||"").trim();
   const msg=box.querySelector("#tbMsg"),btn=box.querySelector("#tbPost");
-  if(!avail.length&&!needs.length&&!note){msg.textContent="Pick a player, a need, or add a note first.";return;}
+  if(!avail.length&&!openTo.length&&!needs.length&&!note){msg.textContent="Mark a player, a need, or add a note first.";return;}
   btn.disabled=true;msg.textContent="Saving…";
   try{
-    const row={team_id:tid,listing:{available:avail,needs:needs,note:note.slice(0,300)},updated_at:new Date().toISOString()};
+    const row={team_id:tid,listing:{available:avail,needs:needs,note:note.slice(0,300),openTo:openTo},updated_at:new Date().toISOString()};
     const {error}=await sb.from("trade_block").upsert(row,{onConflict:"team_id"});if(error)throw error;
     const i=TB.rows.findIndex(r=>+r.team_id===tid);if(i>=0)TB.rows[i]=row;else TB.rows.push(row);
     renderTBBoard();renderTBForm(null,tid);
@@ -2612,7 +2619,7 @@ async function tbClearListing(box,tid){
 
 function renderTBBoard(){
   const box=document.getElementById("tbBoard");if(!box)return;
-  const rows=TB.rows.filter(r=>r.listing&&((r.listing.available||[]).length||(r.listing.needs||[]).length||(r.listing.note||"").trim()));
+  const rows=TB.rows.filter(r=>r.listing&&((r.listing.available||[]).length||(r.listing.needs||[]).length||(r.listing.note||"").trim()||(r.listing.openTo||[]).length));
   const cnt=document.getElementById("tbCount");if(cnt)cnt.textContent=rows.length?`${rows.length} of ${D.teams.length} teams posted`:"";
   if(!TB.loaded){box.innerHTML=`<div class="card card-p" style="color:var(--ink-3);font-size:13px">Loading listings…</div>`;return;}
   if(!rows.length){box.innerHTML=emptyState("swap","No listings yet","Be the first — post who you're shopping and what you need above.");return;}
@@ -2622,13 +2629,14 @@ function tbBoardByTeam(rows){
   rows=rows.slice().sort((a,b)=>new Date(b.updated_at)-new Date(a.updated_at));
   return `<div class="grid g-2">`+rows.map(r=>{
     const t=teamById[r.team_id];if(!t)return"";
-    const L=r.listing||{},av=(L.available||[]),nd=(L.needs||[]);
+    const L=r.listing||{},av=(L.available||[]),nd=(L.needs||[]),op=(L.openTo||[]);
     const chips=av.length?av.map(pid=>`<span class="pill pos" style="margin:0 5px 5px 0">${esc(pname(pid))} <span style="color:var(--ink-3)">${esc(ppos(pid))} · ${tbStat(pid)}</span>${tbInj(pid)}</span>`).join(""):`<span style="color:var(--ink-3);font-size:12.5px">—</span>`;
-    const wants=nd.length?nd.map(p=>`<span class="tag-in" style="display:inline-block;margin:0 5px 5px 0">${esc(p)}</span>`).join(""):`<span style="color:var(--ink-3);font-size:12.5px">open to offers</span>`;
+    const wants=nd.length?nd.map(p=>`<span class="tag-in" style="display:inline-block;margin:0 5px 5px 0">${esc(p)}</span>`).join(""):`<span style="color:var(--ink-3);font-size:12.5px">no specific needs</span>`;
     return `<div class="card card-p">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">${teamLine(t)}<span style="font-size:11px;color:var(--ink-3);white-space:nowrap">${tbAgo(r.updated_at)}</span></div>
       <div class="fieldlbl" style="margin-top:12px">Shopping</div><div>${chips}</div>
       <div class="fieldlbl" style="margin-top:10px">Wants</div><div>${wants}</div>
+      ${op.length?`<div class="fieldlbl" style="margin-top:10px;color:var(--t-amber)">Open to offers</div><div>${op.map(pid=>`<span class="pill pos" style="margin:0 5px 5px 0;border-color:color-mix(in srgb,var(--t-amber) 45%,var(--line))">${esc(pname(pid))} <span style="color:var(--ink-3)">${esc(ppos(pid))} · ${tbStat(pid)}</span>${tbInj(pid)}</span>`).join("")}</div>`:""}
       ${L.note?`<div style="margin-top:10px;font-size:13px;color:var(--ink-2);font-style:italic">“${esc(L.note)}”</div>`:""}
     </div>`;}).join("")+`</div>`;
 }
