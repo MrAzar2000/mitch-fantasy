@@ -976,6 +976,7 @@ VIEWS.dash=function(){
       <b>Week ${lastWk} is in the books.</b> Standings, power rankings, and the full analytics suite are live below — next matchups are on the <a data-goto="scoreboard" style="color:var(--accent);font-weight:700;cursor:pointer">scoreboard</a>.</div></div>`;
   }
   html+=`<div id="tbHomeNote"></div>`;
+  html+=dayRecap();
   html+=recapCard();
   html+=awardsCard();
   html+=gamesToWatch(focusWk,pr);
@@ -999,6 +1000,30 @@ VIEWS.dash=function(){
   tbHomeNote(v);
   return v;
 };
+function dayRecap(){
+  if(!ST.started) return "";
+  const pg=D.meta.proGames||{}, now=Date.now();
+  const ln=new Set();
+  Object.entries(pg).forEach(([ab,k])=>{const h=(now-k)/3600e3; if(h>2&&h<30)ln.add(ab);});
+  if(!ln.size) return "";
+  const wk=String(D.meta.currentScoringPeriod||"");
+  const wkly=(D.weekly||{})[wk]; if(!wkly) return "";
+  const perf=[];
+  D.teams.forEach(t=>{(wkly[String(t.id)]||[]).forEach(r=>{const pid=r[0],slot=r[1],pts=r[2];
+    if(slot===20||slot===21) return;
+    if(ln.has((D.players[pid]||[])[2])) perf.push({pid,pts,t,pos:(D.players[pid]||[])[1]});});});
+  if(perf.length<3) return "";
+  perf.sort((a,b)=>b.pts-a.pts);
+  const studs=perf.slice(0,4);
+  const nfl=D.meta.nflGames||{};
+  let label=""; for(const ab of ln){const g=nfl[ab]; if(g&&g.opp&&ln.has(g.opp)){label=ab+" vs "+g.opp; break;}}
+  if(!label) label=[...ln].join(" · ");
+  const prow=o=>`<div style="display:flex;align-items:center;gap:9px;padding:5px 0;border-bottom:1px solid var(--line)"><span class="posbadge tag-${(o.pos||"").toLowerCase()}">${esc(o.pos)}</span><span style="flex:1;min-width:0;font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(pname(o.pid))} <span style="color:var(--ink-3);font-weight:400">${esc((D.players[o.pid]||[])[2])}</span></span><span style="font-size:11px;color:var(--ink-3)">${esc(o.t.name)}</span><span class="num" style="font-weight:700;width:46px;text-align:right">${fmt(o.pts,1)}</span></div>`;
+  let h=`<div class="card card-p" style="margin-bottom:16px"><div class="sub-h" style="margin-top:0">Latest game day <span style="font-weight:400;font-size:11px;color:var(--ink-3);text-transform:none;letter-spacing:0">${esc(label)}</span></div>`;
+  h+=`<div class="k-label" style="color:var(--win);margin:0 0 2px">Top performers</div>${studs.map(prow).join("")}`;
+  if(perf.length>=7){const duds=perf.slice(-2).reverse(); if(duds[0].pts<studs[studs.length-1].pts) h+=`<div class="k-label" style="color:var(--loss);margin:10px 0 2px">Started &amp; struggled</div>${duds.map(prow).join("")}`;}
+  return h+`</div>`;
+}
 function recapCard(){
   if(!ST.started)return"";
   const W=Math.max(...ST.weeks),G=ST.played.filter(m=>m.week===W);if(!G.length)return"";
