@@ -727,7 +727,8 @@ const ICON_P={
   cards:'<rect x="3.5" y="5" width="11" height="15.5" rx="2"/><path d="M10.5 4.6 18.6 6.8a1.5 1.5 0 0 1 1.1 1.8L16.4 21"/><path d="M9 10.5c-1.3 1.6-2.4 2.6-2.4 3.6a1.4 1.4 0 0 0 2.4 1 1.4 1.4 0 0 0 2.4-1c0-1-1.1-2-2.4-3.6z"/>',
   sparkle:'<path d="M12 3.5 13.8 10l6.7 2-6.7 2L12 20.5 10.2 14l-6.7-2 6.7-2z"/>',
   football:'<ellipse cx="12" cy="12" rx="10" ry="6" transform="rotate(-40 12 12)"/><path d="M9 15l6-6M10.5 10.5l3 3"/>',
-  swap:'<path d="M7 4 3 8l4 4"/><path d="M3 8h13"/><path d="m17 20 4-4-4-4"/><path d="M21 16H8"/>'
+  swap:'<path d="M7 4 3 8l4 4"/><path d="M3 8h13"/><path d="m17 20 4-4-4-4"/><path d="M21 16H8"/>',
+  compass:'<circle cx="12" cy="12" r="9"/><path d="M16.2 7.8 14.1 14.1 7.8 16.2 9.9 9.9z"/>'
 };
 function icon(n){return '<svg class="glyph" viewBox="0 0 24 24" aria-hidden="true">'+(ICON_P[n]||'')+'</svg>';}
 function badge(t,cls=""){return `<span class="tb ${cls}" data-tid="${t.id}" title="${esc(t.name)}" style="border-color:${t._color}">${esc(initials(t))}</span>`;}
@@ -826,7 +827,7 @@ const NAV=[
   ["Overview",[["dash","Home","home"]]],
   ["Standings",[["standings","Standings","bars"],["power","Power Rankings","zap"],["odds","Playoff Odds","dice"]]],
   ["Matchups",[["scoreboard","Scoreboard","calendar"],["h2h","Head-to-Head","swords"]]],
-  ["Stats",[["analytics","Analytics","line"],["defense","Manager D","shield"],["records","Record Book","trophy"],["shame","Hall of Shame","flame"],["corrections","Stat Corrections","refresh"],["faab","Waivers","wallet"]]],
+  ["Stats",[["analytics","Analytics","line"],["outlook","Outlook","compass"],["defense","Manager D","shield"],["records","Record Book","trophy"],["shame","Hall of Shame","flame"],["corrections","Stat Corrections","refresh"],["faab","Waivers","wallet"]]],
   ["League",[["parlay","Parlay","ticket"],["history","History","book"],["chat","Chat","chat"]]],
   ["Teams",[["teams","Teams","users"],["trade","Trade Analyzer","activity"],["block","Trade Block","swap"],["draft","Draft Board","clipboard"]]],
   ["Fun",[["blackjack","Blackjack","cards"],["sportsbook","Nate's Sportsbook","ticket"],["slots","Slots","dollar"],["useless","Useless Features","sparkle"]]]
@@ -974,8 +975,11 @@ VIEWS.dash=function(){
     html+=`<div class="helpbox" style="margin-bottom:16px"><span class="hi">${icon("checkcircle")}</span><div>
       <b>Week ${lastWk} is in the books.</b> Standings, power rankings, and the full analytics suite are live below — next matchups are on the <a data-goto="scoreboard" style="color:var(--accent);font-weight:700;cursor:pointer">scoreboard</a>.</div></div>`;
   }
+  html+=`<div id="tbHomeNote"></div>`;
+  html+=dayRecap();
   html+=recapCard();
   html+=awardsCard();
+  html+=gamesToWatch(focusWk,pr);
   // two-col: power/proj preview + week1
   html+=`<div class="grid g-2" style="margin-top:16px">`;
   // projected standings
@@ -993,8 +997,33 @@ VIEWS.dash=function(){
   const v=el(html);
   v.querySelectorAll("[data-goto]").forEach(a=>a.onclick=()=>setTab(a.dataset.goto));
   v.querySelectorAll("[data-mid]").forEach(c=>c.onclick=()=>openMatchup(+c.dataset.mid));
+  tbHomeNote(v);
   return v;
 };
+function dayRecap(){
+  if(!ST.started) return "";
+  const pg=D.meta.proGames||{}, now=Date.now();
+  const ln=new Set();
+  Object.entries(pg).forEach(([ab,k])=>{const h=(now-k)/3600e3; if(h>2&&h<30)ln.add(ab);});
+  if(!ln.size) return "";
+  const wk=String(D.meta.currentScoringPeriod||"");
+  const wkly=(D.weekly||{})[wk]; if(!wkly) return "";
+  const perf=[];
+  D.teams.forEach(t=>{(wkly[String(t.id)]||[]).forEach(r=>{const pid=r[0],slot=r[1],pts=r[2];
+    if(slot===20||slot===21) return;
+    if(ln.has((D.players[pid]||[])[2])) perf.push({pid,pts,t,pos:(D.players[pid]||[])[1]});});});
+  if(perf.length<3) return "";
+  perf.sort((a,b)=>b.pts-a.pts);
+  const studs=perf.slice(0,4);
+  const nfl=D.meta.nflGames||{};
+  let label=""; for(const ab of ln){const g=nfl[ab]; if(g&&g.opp&&ln.has(g.opp)){label=ab+" vs "+g.opp; break;}}
+  if(!label) label=[...ln].join(" · ");
+  const prow=o=>`<div style="display:flex;align-items:center;gap:9px;padding:5px 0;border-bottom:1px solid var(--line)"><span class="posbadge tag-${(o.pos||"").toLowerCase()}">${esc(o.pos)}</span><span style="flex:1;min-width:0;font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(pname(o.pid))} <span style="color:var(--ink-3);font-weight:400">${esc((D.players[o.pid]||[])[2])}</span></span><span style="font-size:11px;color:var(--ink-3)">${esc(o.t.name)}</span><span class="num" style="font-weight:700;width:46px;text-align:right">${fmt(o.pts,1)}</span></div>`;
+  let h=`<div class="card card-p" style="margin-bottom:16px"><div class="sub-h" style="margin-top:0">Latest game day <span style="font-weight:400;font-size:11px;color:var(--ink-3);text-transform:none;letter-spacing:0">${esc(label)}</span></div>`;
+  h+=`<div class="k-label" style="color:var(--win);margin:0 0 2px">Top performers</div>${studs.map(prow).join("")}`;
+  if(perf.length>=7){const duds=perf.slice(-2).reverse(); if(duds[0].pts<studs[studs.length-1].pts) h+=`<div class="k-label" style="color:var(--loss);margin:10px 0 2px">Started &amp; struggled</div>${duds.map(prow).join("")}`;}
+  return h+`</div>`;
+}
 function recapCard(){
   if(!ST.started)return"";
   const W=Math.max(...ST.weeks),G=ST.played.filter(m=>m.week===W);if(!G.length)return"";
@@ -1018,6 +1047,49 @@ function recapCard(){
 }
 function kpi(l,v,s){return `<div class="kpi"><div class="k-label">${l}</div><div class="k-val num">${esc(v)}</div><div class="k-sub">${esc(s)}</div></div>`;}
 function kpiHot(l,v,s){return `<div class="kpi hot"><div class="k-label">${l}</div><div class="k-val" style="font-size:20px;margin-top:9px">${esc(v)}</div><div class="k-sub">${esc(s)}</div></div>`;}
+function gamesToWatch(wk,pr){
+  const rank={}; pr.forEach(r=>rank[r.team.id]=r.rank);
+  let games=D.schedule.filter(x=>x.week===wk).map(x=>{
+    const h=teamById[x.homeTeamId],a=teamById[x.awayTeamId]; if(!h||!a) return null;
+    const hp=x.homeProj||0,ap=x.awayProj||0; if(!(hp>0&&ap>0)) return null;
+    const s=mstate(x);
+    const projM=Math.abs(hp-ap), projFav=hp>=ap?h.id:a.id;
+    const hR=rank[h.id]||99,aR=rank[a.id]||99, powerFav=hR<=aR?h.id:a.id;
+    const upset=projFav!==powerFav && Math.abs(hR-aR)>=3;
+    return {x,h,a,s,hp,ap,projM,upset};
+  }).filter(Boolean);
+  games.sort((A,B)=>(B.upset-A.upset)||(A.projM-B.projM));
+  const pick=games.filter(g=>g.upset||g.projM<=12).slice(0,4);
+  if(!pick.length) return "";
+  const live=D.meta.liveWeek===wk;
+  let h=`<div class="sub-h" style="margin-top:20px">Games to Watch <span style="font-weight:400;font-size:11px;color:var(--ink-3);text-transform:none;letter-spacing:0">tightest projected matchups this week</span></div><div class="grid g-2">`;
+  pick.forEach(g=>{
+    const tag=g.upset?`<span class="tag-out" style="font-size:10.5px">Upset watch</span>`:`<span class="tag-in" style="font-size:10.5px">Nail-biter</span>`;
+    const as=g.s.show?fmt(g.s.as,1):fmt(g.ap,1),hs=g.s.show?fmt(g.s.hs,1):fmt(g.hp,1);
+    const sub=g.s.show?`Live · projected ${fmt(g.projM,1)} apart`:`Projected · ${fmt(g.projM,1)} apart`;
+    const wp=winProb(g.x);
+    h+=`<div class="card card-p" data-mid="${g.x.id}" style="cursor:pointer;padding:12px 14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px"><span style="font-size:11px;color:var(--ink-3)">${sub}</span>${tag}</div>
+      <div class="mrow ${g.s.aw?"wn":""}" style="padding:2px 0">${badge(g.a)}<span class="nm" style="font-size:13px">${esc(g.a.name)}</span><span class="sc">${as}</span></div>
+      <div class="mrow ${g.s.hw?"wn":""}" style="padding:2px 0">${badge(g.h)}<span class="nm" style="font-size:13px">${esc(g.h.name)}</span><span class="sc">${hs}</span></div>
+      ${wp?`<div class="wpmini">win chance ${Math.round(wp.pa*100)}% · ${Math.round(wp.ph*100)}%</div>`:""}
+    </div>`;
+  });
+  return h+`</div>`;
+}
+function tbHomeNote(v){
+  const fill=()=>{const box=document.getElementById("tbHomeNote");if(!box)return;
+    const rows=(TB.rows||[]).filter(r=>r.listing&&((r.listing.available||[]).length||(r.listing.needs||[]).length||(r.listing.note||"").trim()||(r.listing.openTo||[]).length));
+    if(!rows.length){box.innerHTML="";return;}
+    let seen=0;try{seen=+localStorage.getItem("mfl-tb-seen")||0;}catch(e){}
+    const fresh=rows.filter(r=>new Date(r.updated_at).getTime()>seen).length;
+    box.innerHTML=`<div class="helpbox" style="margin-bottom:16px;cursor:pointer;border-color:color-mix(in srgb,var(--accent) 35%,transparent)" data-goto="block"><span class="hi">${icon("swap")}</span><div><b>Trade Block</b> — ${rows.length} team${rows.length===1?"":"s"} ${rows.length===1?"has":"have"} players on the market${fresh?`, <b style="color:var(--accent)">${fresh} new</b> since your last visit`:""}. <a data-goto="block" style="color:var(--accent);font-weight:600;cursor:pointer">See the board →</a></div></div>`;
+    box.querySelectorAll("[data-goto]").forEach(a=>a.onclick=()=>setTab(a.dataset.goto));
+  };
+  if(TB.loaded){setTimeout(fill,0);return;}
+  if(!TB.sub)initTradeBlock();
+  let tries=0;const t=setInterval(()=>{tries++;if(TB.loaded||tries>16){clearInterval(t);fill();}},300);
+}
 function matchupMini(x){
   const h=teamById[x.homeTeamId],a=teamById[x.awayTeamId];if(!h||!a)return"";
   const s=mstate(x);
@@ -1356,11 +1428,15 @@ function showTeam(id,v){
       h+=alertBox(lineupAlerts(starters.map(p=>({name:p.name,pro:p.proTeam,pid:p.playerId})),emp,W),t);}}
   h+=teamTrend(id);
   h+=`<div class="grid g-2" style="margin-top:14px">`;
+  if(typeof TB!=="undefined"&&!TB.loaded&&!TB.sub)initTradeBlock();
+  const _tbL=((typeof TB!=="undefined"&&TB.rows&&TB.rows.find(rr=>+rr.team_id===+id))||{}).listing||{};
+  const _shop=new Set((_tbL.available||[]).map(Number)),_offer=new Set((_tbL.openTo||[]).map(Number));
+  const tbMark=p=>_shop.has(p.playerId)?' <span class="tag-in" style="font-size:9px">Shopping</span>':_offer.has(p.playerId)?' <span style="font-size:9px;color:var(--t-amber);font-weight:700">Open to offers</span>':'';
   // roster
   h+=`<div class="card card-p"><div class="sub-h" style="margin-top:0">Roster <span style="font-weight:400;font-size:11px;color:var(--ink-3);text-transform:none;letter-spacing:0">${r.length} players</span></div>`;
   h+=`<div style="font-size:10.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.08em;margin:2px 0 4px">Starters</div>`;
-  sortR(starters).forEach(p=>h+=rosterRow(p));
-  if(bench.length){h+=`<div style="font-size:10.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 4px">Bench / IR</div>`;sortR(bench).forEach(p=>h+=rosterRow(p));}
+  sortR(starters).forEach(p=>h+=rosterRow(p,tbMark(p)));
+  if(bench.length){h+=`<div style="font-size:10.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 4px">Bench / IR</div>`;sortR(bench).forEach(p=>h+=rosterRow(p,tbMark(p)));}
   h+=`</div>`;
   // draft + schedule
   h+=`<div><div class="card card-p"><div class="sub-h" style="margin-top:0">Draft Picks <span style="font-weight:400;font-size:11px;color:var(--ink-3);text-transform:none;letter-spacing:0">${picks.length}</span></div>`;
@@ -1389,10 +1465,10 @@ function showTeam(id,v){
 }
 function tstat(v,l){return `<div><div style="font-family:'DM Sans';font-weight:900;font-size:19px">${esc(v)}</div><div style="font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em">${l}</div></div>`;}
 function streakBare(str){return (!str||str==="—")?"—":str;}
-function rosterRow(p){const W=D.meta.currentScoringPeriod,ps=playerSeason(p.playerId);return `<div class="rrow ${playsToday(p.proTeam,W)?"gd":""}" style="display:flex;align-items:center;gap:9px;padding:4px 0;border-bottom:1px solid var(--line)">
+function rosterRow(p,mark){const W=D.meta.currentScoringPeriod,ps=playerSeason(p.playerId);return `<div class="rrow ${playsToday(p.proTeam,W)?"gd":""}" style="display:flex;align-items:center;gap:9px;padding:4px 0;border-bottom:1px solid var(--line)">
   <span class="posbadge" style="width:34px;text-align:center">${esc(p.slot)}</span>
   <span class="posbadge tag-${(p.pos||"").toLowerCase()}">${esc(p.pos)}</span>
-  <span style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</span>
+  <span style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</span>${mark||""}
   ${injTag(p.injury)}${todayTag(p.proTeam,D.meta.currentScoringPeriod)}
   <span style="margin-left:auto;text-align:right;line-height:1.25;min-width:64px"><span class="num" style="font-weight:700;font-size:12.5px">${ps.proj!=null?fmt(ps.proj,1):"—"}</span><span style="display:block;font-size:10px;color:var(--ink-3)">${ps.proj!=null?"proj · ":""}${ps.gp?fmt(ps.avg,1)+" avg · ":""}${esc(p.proTeam)}</span></span></div>`;}
 
@@ -1477,6 +1553,90 @@ function draftByPos(){
 }
 
 /* ---- ANALYTICS ---- */
+/* ---- OUTLOOK: rest-of-season edge (schedule difficulty, roster strength, hot/cold, injuries) ---- */
+function olStrength(tid){
+  const roster=D.rosters[tid]||[];
+  const byPos={QB:[],RB:[],WR:[],TE:[],K:[],DST:[]};
+  roster.forEach(p=>{if(byPos[p.pos])byPos[p.pos].push(playerSeason(p.playerId).avg);});
+  for(const k in byPos)byPos[k].sort((a,b)=>b-a);
+  const sum=(a,n)=>a.slice(0,n).reduce((x,y)=>x+y,0);
+  const qb=sum(byPos.QB,1),rb=sum(byPos.RB,2),wr=sum(byPos.WR,2),te=sum(byPos.TE,1),k=sum(byPos.K,1),dst=sum(byPos.DST,1);
+  const flex=Math.max(byPos.RB[2]||0,byPos.WR[2]||0,byPos.TE[1]||0,0);
+  return {qb,rb,wr,te,flex,k,dst,total:qb+rb+wr+te+flex+k+dst};
+}
+VIEWS.outlook=function(){
+  let html=shead("Rest of Season","Outlook","Who to watch, who to target, and who has the easy road");
+  if(!ST.started) return el(html+emptyState("compass","Outlook unlocks after Week 1","Schedule difficulty, roster strength and player trends need at least one week of scores."));
+  const S=ST.S,lastReg=D.meta.regularSeasonWeeks||14;
+
+  // 1) rest-of-season schedule difficulty
+  const sd=D.teams.map(t=>{
+    const fut=D.schedule.filter(x=>x.winner==="UNDECIDED"&&x.week<=lastReg&&(x.homeTeamId===t.id||x.awayTeamId===t.id));
+    const opps=fut.map(x=>x.homeTeamId===t.id?x.awayTeamId:x.homeTeamId).map(id=>S[id]?S[id].ppg:null).filter(v=>v);
+    const avg=opps.length?opps.reduce((a,b)=>a+b,0)/opps.length:0;
+    return {t,n:fut.length,avg};
+  }).filter(x=>x.n>0).sort((a,b)=>a.avg-b.avg);
+  if(sd.length){
+    const mn=Math.min(...sd.map(x=>x.avg)),mx=Math.max(...sd.map(x=>x.avg));
+    html+=`<div class="sub-h">Rest-of-Season Schedule <span style="font-weight:400;font-size:11px;color:var(--ink-3);text-transform:none;letter-spacing:0">avg PPG of remaining opponents — lower is easier</span></div>`;
+    html+=`<div class="twrap"><table><thead><tr><th class="no-sort">#</th><th class="no-sort" style="text-align:left">Team</th><th class="no-sort">Games left</th><th class="no-sort">Avg opp PPG</th><th class="no-sort" style="text-align:left">Road ahead</th></tr></thead><tbody>`;
+    sd.forEach((x,i)=>{const frac=mx>mn?(x.avg-mn)/(mx-mn):0.5;const col=frac<0.34?"var(--win)":frac<0.67?"var(--t-amber)":"var(--loss)";const lab=frac<0.34?"Easy":frac<0.67?"Average":"Tough";
+      html+=`<tr><td class="rankcol ${i<3?"top":""}">${i+1}</td><td style="text-align:left">${teamLine(x.t)}</td><td class="num">${x.n}</td><td class="num" style="font-weight:700">${fmt(x.avg,1)}</td><td style="text-align:left;min-width:150px"><div style="display:flex;align-items:center;gap:9px"><div class="bartrk" style="flex:1;max-width:110px"><div class="barfil" style="width:${Math.max(8,frac*100)}%;background:${col};opacity:.85"></div></div><b style="color:${col};font-size:12px;width:60px">${lab}</b></div></td></tr>`;});
+    html+=`</tbody></table></div><div class="metricnote">Remaining regular-season games only. Opponent strength is their season scoring average, so it re-ranks every week.</div>`;
+  }
+
+  // 1b) bye-week planner
+  const byeW=D.meta.byeWeeks||{};
+  const upByeWeeks=[...new Set(Object.values(byeW))].filter(w=>w>(D.meta.currentScoringPeriod||1)&&w<=lastReg).sort((a,b)=>a-b);
+  if(upByeWeeks.length){
+    const tbp=D.teams.map(t=>{
+      const starters=(D.rosters[t.id]||[]).filter(p=>p.slot!=="BE"&&p.slot!=="IR");
+      const byWk={}; upByeWeeks.forEach(w=>byWk[w]=0);
+      starters.forEach(p=>{const b=byeW[p.proTeam]; if(b&&byWk[b]!=null)byWk[b]++;});
+      return {t,byWk,worst:Math.max(0,...Object.values(byWk)),total:Object.values(byWk).reduce((a,b)=>a+b,0)};
+    }).sort((a,b)=>b.worst-a.worst||b.total-a.total);
+    html+=`<div class="sub-h">Bye-Week Planner <span style="font-weight:400;font-size:11px;color:var(--ink-3);text-transform:none;letter-spacing:0">your starters on bye each upcoming week</span></div>`;
+    html+=`<div class="twrap"><table><thead><tr><th class="no-sort" style="text-align:left">Team</th>${upByeWeeks.map(w=>`<th class="no-sort">W${w}</th>`).join("")}<th class="no-sort">Total</th></tr></thead><tbody>`;
+    tbp.forEach(x=>{html+=`<tr><td style="text-align:left">${teamLine(x.t)}</td>${upByeWeeks.map(w=>{const n=x.byWk[w];const col=n>=3?"var(--loss)":n===2?"#c0562e":n>=1?"var(--t-amber)":"var(--ink-3)";return `<td class="num" style="color:${col};font-weight:${n>=2?700:400}">${n||"·"}</td>`;}).join("")}<td class="num lead" style="font-weight:700">${x.total}</td></tr>`;});
+    html+=`</tbody></table></div><div class="metricnote">Count of your <b>current starters</b> whose NFL team is on bye that week. <b style="color:var(--loss)">3+</b> means a real scramble to field a lineup — line up waivers or a trade before it hits. Based on today's roster.</div>`;
+  }
+
+  // 2) roster strength vs league
+  const str=D.teams.map(t=>Object.assign({t},olStrength(t.id))).sort((a,b)=>b.total-a.total);
+  const la={};["qb","rb","wr","te"].forEach(k=>la[k]=str.reduce((a,x)=>a+x[k],0)/(str.length||1));
+  const cell=(v,avg)=>{const d=v-avg,hot=Math.abs(d)>avg*0.12;const col=d>avg*0.12?"var(--win)":d<-avg*0.12?"var(--loss)":"var(--ink-2)";return `<td class="num" style="color:${col};font-weight:${hot?700:500}">${fmt(v,1)}</td>`;};
+  html+=`<div class="sub-h">Roster Strength <span style="font-weight:400;font-size:11px;color:var(--ink-3);text-transform:none;letter-spacing:0">best starters' season PPG by position — green beats the league average</span></div>`;
+  html+=`<div class="twrap"><table><thead><tr><th class="no-sort">#</th><th class="no-sort" style="text-align:left">Team</th><th class="no-sort">QB</th><th class="no-sort">RB</th><th class="no-sort">WR</th><th class="no-sort">TE</th><th class="no-sort">Starters PPG</th></tr></thead><tbody>`;
+  str.forEach((x,i)=>{html+=`<tr><td class="rankcol ${i<3?"top":""}">${i+1}</td><td style="text-align:left">${teamLine(x.t)}</td>${cell(x.qb,la.qb)}${cell(x.rb,la.rb)}${cell(x.wr,la.wr)}${cell(x.te,la.te)}<td class="num lead" style="font-weight:800">${fmt(x.total,1)}</td></tr>`;});
+  html+=`</tbody></table></div><div class="metricnote"><b>QB</b> = top QB. <b>RB/WR</b> = top two combined. <b>TE</b> = top TE. <b>Starters PPG</b> = the best full lineup (QB, 2 RB, 2 WR, TE, FLEX, K, D/ST) by season average. Shows where a roster is deep or thin — handy for spotting trade targets.</div>`;
+
+  // 3) hot & cold
+  const pool=[];
+  D.teams.forEach(t=>(D.rosters[t.id]||[]).forEach(p=>{const ps=playerSeason(p.playerId);if(ps.gp>=3&&ps.avg>=5)pool.push({pid:p.playerId,pos:p.pos,pro:p.proTeam,t,avg:ps.avg,l3:ps.l3,d:ps.l3-ps.avg});}));
+  const prow=o=>`<div style="display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid var(--line)"><span class="posbadge tag-${(o.pos||"").toLowerCase()}">${esc(o.pos)}</span><div style="min-width:0;flex:1"><div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(pname(o.pid))} <span style="color:var(--ink-3);font-weight:400">${esc(o.pro)}</span></div><div style="font-size:11px;color:var(--ink-3)">${esc(o.t.name)}</div></div><div style="text-align:right"><div class="num" style="font-weight:700;color:${o.d>=0?"var(--win)":"var(--loss)"}">${o.d>=0?"+":""}${fmt(o.d,1)}</div><div style="font-size:10px;color:var(--ink-3)">${fmt(o.avg,1)}→${fmt(o.l3,1)}</div></div></div>`;
+  const hot=pool.slice().sort((a,b)=>b.d-a.d).slice(0,8),cold=pool.slice().sort((a,b)=>a.d-b.d).slice(0,8);
+  html+=`<div class="sub-h">Hot &amp; Cold <span style="font-weight:400;font-size:11px;color:var(--ink-3);text-transform:none;letter-spacing:0">last 3 weeks vs season average</span></div>`;
+  html+=`<div class="grid g-2"><div class="card card-p"><div class="k-label" style="color:var(--win);margin-bottom:4px">Heating up</div>${hot.map(prow).join("")||'<div style="color:var(--ink-3);font-size:12px">Not enough games yet.</div>'}</div><div class="card card-p"><div class="k-label" style="color:var(--loss);margin-bottom:4px">Cooling off</div>${cold.map(prow).join("")||'<div style="color:var(--ink-3);font-size:12px">Not enough games yet.</div>'}</div></div>`;
+  html+=`<div class="metricnote">Rostered players averaging 5+ points over 3+ games. <b>Buy-low / sell-high</b> signals — a cold star may be gettable; a surging bench player is worth a claim.</div>`;
+
+  // 4) injury report
+  const sev={INJURY_RESERVE:0,OUT:1,DOUBTFUL:2,SUSPENSION:3,QUESTIONABLE:4,DAY_TO_DAY:5,PROBABLE:6};
+  const inj=[];
+  D.teams.forEach(t=>(D.rosters[t.id]||[]).forEach(p=>{const st=p.injury;if(st&&st!=="ACTIVE"&&st!=="NORMAL")inj.push({name:p.name,pos:p.pos,pro:p.proTeam,t,st,starter:p.slot!=="BE"&&p.slot!=="IR"});}));
+  inj.sort((a,b)=>(a.starter===b.starter?0:a.starter?-1:1)||((sev[a.st]==null?9:sev[a.st])-(sev[b.st]==null?9:sev[b.st])));
+  html+=`<div class="sub-h">Injury Report <span style="font-weight:400;font-size:11px;color:var(--ink-3);text-transform:none;letter-spacing:0">${inj.length} not fully healthy</span></div>`;
+  if(!inj.length) html+=`<div class="card card-p" style="color:var(--ink-3);font-size:13px">Everybody's healthy right now.</div>`;
+  else{
+    const sc=st=>(st==="OUT"||st==="INJURY_RESERVE")?"var(--loss)":st==="DOUBTFUL"?"#c0562e":"var(--t-amber)";
+    html+=`<div class="twrap"><table><thead><tr><th class="no-sort" style="text-align:left">Player</th><th class="no-sort">Pos</th><th class="no-sort">NFL</th><th class="no-sort">Status</th><th class="no-sort">Role</th><th class="no-sort" style="text-align:left">Fantasy team</th></tr></thead><tbody>`;
+    inj.forEach(o=>{html+=`<tr><td style="text-align:left;font-weight:600">${esc(o.name)}</td><td>${esc(o.pos)}</td><td>${esc(o.pro)}</td><td><b style="color:${sc(o.st)}">${esc(INJ_SHORT[o.st]||o.st)}</b></td><td>${o.starter?'<span class="tag-in">Starter</span>':'<span style="color:var(--ink-3)">Bench</span>'}</td><td style="text-align:left">${teamLine(o.t)}</td></tr>`;});
+    html+=`</tbody></table></div>`;
+  }
+  html+=`<div class="metricnote">Injury status from ESPN. A true <b>bye-week planner</b> can be added once the NFL bye schedule is pulled into the data feed.</div>`;
+
+  return el(html);
+};
+
 VIEWS.analytics=function(){
   let html=shead("Advanced Metrics","Analytics");
   if(!ST.started) return el(html+`<div class="helpbox" style="margin-bottom:16px"><span class="hi">${icon("line")}</span><div>The analytics suite computes from weekly scores. Here's what unlocks after Week&nbsp;1:</div></div>`+analyticsPreview());
@@ -2403,6 +2563,7 @@ function tbInj(pid){const c=injOf(pid);return c?` <span class="tag-out">${esc(IN
 function tbNfl(pid){return (D.players[pid]||[])[2]||"";}
 
 VIEWS.block=function(){
+  try{localStorage.setItem("mfl-tb-seen",Date.now());}catch(e){}
   if(!TB.loaded&&!TB.sub)initTradeBlock();
   const teams=D.teams.slice().sort((a,b)=>(a.owner||a.name).localeCompare(b.owner||b.name));
   let html=shead("League Marketplace","Trade Block","Post who you're shopping and what you need — the whole league sees it");
@@ -2429,17 +2590,19 @@ VIEWS.block=function(){
 function renderTBForm(v,tid){
   const box=v?v.querySelector("#tbForm"):document.getElementById("tbForm");if(!box)return;
   const existing=tbRowFor(tid),L=(existing&&existing.listing)||{};
-  const avail=new Set((L.available||[]).map(Number)),needs=new Set(L.needs||[]);
+  const avail=new Set((L.available||[]).map(Number)),needs=new Set(L.needs||[]),openSet=new Set((L.openTo||[]).map(Number));
   const roster=(D.rosters[tid]||[]).slice().sort((a,b)=>playerSeason(b.playerId).avg-playerSeason(a.playerId).avg);
-  let h=`<label class="fieldlbl">Players you'll move <span style="font-weight:400;text-transform:none;color:var(--ink-3)">(tap to toggle)</span></label>
-    <div id="tbRoster" style="max-height:234px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:5px">`;
+  let h=`<label class="fieldlbl">Your players <span style="font-weight:400;text-transform:none;color:var(--ink-3)">— check <b style="color:var(--accent)">Shop</b> (actively moving) or <b style="color:var(--t-amber)">Offers</b> (open to offers)</span></label>
+    <div id="tbRoster" style="max-height:244px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:5px">
+    <div style="display:flex;align-items:center;gap:9px;padding:1px 8px 5px;font-size:9px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em"><span style="width:16px;text-align:center">Shop</span><span style="width:16px;text-align:center">Offer</span><span>Player</span></div>`;
   if(!roster.length)h+=`<div style="padding:10px;color:var(--ink-3);font-size:13px">No roster found for this team yet.</div>`;
   roster.forEach(p=>{const pid=p.playerId,pos=p.pos||ppos(pid);
     h+=`<label class="tbopt" style="display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:7px;cursor:pointer">
-      <input type="checkbox" value="${pid}" ${avail.has(pid)?"checked":""} style="accent-color:var(--accent);width:15px;height:15px;flex:0 0 auto">
+      <input type="checkbox" class="tbShop" value="${pid}" ${avail.has(pid)?"checked":""} title="Shopping — actively want to move" style="accent-color:var(--accent);width:16px;height:16px;flex:0 0 auto">
+      <input type="checkbox" class="tbOffer" value="${pid}" ${openSet.has(pid)?"checked":""} title="Open to offers" style="accent-color:var(--t-amber);width:16px;height:16px;flex:0 0 auto">
       <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name||pname(pid))}</span>
       <span class="posbadge tag-${pos.toLowerCase()}">${esc(pos)}</span>
-      <span class="num" style="color:var(--ink-3);font-size:12px;width:64px;text-align:right;flex:0 0 auto">${tbStat(pid)}</span></label>`;});
+      <span class="num" style="color:var(--ink-3);font-size:12px;width:60px;text-align:right;flex:0 0 auto">${tbStat(pid)}</span></label>`;});
   h+=`</div>`;
   h+=`<label class="fieldlbl" style="margin-top:13px;display:block">Looking for</label>
     <div class="seg" id="tbNeeds" style="flex-wrap:wrap">${TB_POS.map(p=>`<button data-pos="${p}" class="${needs.has(p)?"on":""}">${p}</button>`).join("")}</div>`;
@@ -2456,14 +2619,15 @@ function renderTBForm(v,tid){
 }
 
 async function tbSubmit(box,tid){
-  const avail=[...box.querySelectorAll("#tbRoster input:checked")].map(i=>+i.value);
+  const avail=[...box.querySelectorAll("#tbRoster input.tbShop:checked")].map(i=>+i.value);
+  const openTo=[...box.querySelectorAll("#tbRoster input.tbOffer:checked")].map(i=>+i.value).filter(pid=>!avail.includes(pid));
   const needs=[...box.querySelectorAll("#tbNeeds button.on")].map(b=>b.dataset.pos);
   const note=(box.querySelector("#tbNote").value||"").trim();
   const msg=box.querySelector("#tbMsg"),btn=box.querySelector("#tbPost");
-  if(!avail.length&&!needs.length&&!note){msg.textContent="Pick a player, a need, or add a note first.";return;}
+  if(!avail.length&&!openTo.length&&!needs.length&&!note){msg.textContent="Mark a player, a need, or add a note first.";return;}
   btn.disabled=true;msg.textContent="Saving…";
   try{
-    const row={team_id:tid,listing:{available:avail,needs:needs,note:note.slice(0,300)},updated_at:new Date().toISOString()};
+    const row={team_id:tid,listing:{available:avail,needs:needs,note:note.slice(0,300),openTo:openTo},updated_at:new Date().toISOString()};
     const {error}=await sb.from("trade_block").upsert(row,{onConflict:"team_id"});if(error)throw error;
     const i=TB.rows.findIndex(r=>+r.team_id===tid);if(i>=0)TB.rows[i]=row;else TB.rows.push(row);
     renderTBBoard();renderTBForm(null,tid);
@@ -2480,7 +2644,7 @@ async function tbClearListing(box,tid){
 
 function renderTBBoard(){
   const box=document.getElementById("tbBoard");if(!box)return;
-  const rows=TB.rows.filter(r=>r.listing&&((r.listing.available||[]).length||(r.listing.needs||[]).length||(r.listing.note||"").trim()));
+  const rows=TB.rows.filter(r=>r.listing&&((r.listing.available||[]).length||(r.listing.needs||[]).length||(r.listing.note||"").trim()||(r.listing.openTo||[]).length));
   const cnt=document.getElementById("tbCount");if(cnt)cnt.textContent=rows.length?`${rows.length} of ${D.teams.length} teams posted`:"";
   if(!TB.loaded){box.innerHTML=`<div class="card card-p" style="color:var(--ink-3);font-size:13px">Loading listings…</div>`;return;}
   if(!rows.length){box.innerHTML=emptyState("swap","No listings yet","Be the first — post who you're shopping and what you need above.");return;}
@@ -2490,13 +2654,14 @@ function tbBoardByTeam(rows){
   rows=rows.slice().sort((a,b)=>new Date(b.updated_at)-new Date(a.updated_at));
   return `<div class="grid g-2">`+rows.map(r=>{
     const t=teamById[r.team_id];if(!t)return"";
-    const L=r.listing||{},av=(L.available||[]),nd=(L.needs||[]);
+    const L=r.listing||{},av=(L.available||[]),nd=(L.needs||[]),op=(L.openTo||[]);
     const chips=av.length?av.map(pid=>`<span class="pill pos" style="margin:0 5px 5px 0">${esc(pname(pid))} <span style="color:var(--ink-3)">${esc(ppos(pid))} · ${tbStat(pid)}</span>${tbInj(pid)}</span>`).join(""):`<span style="color:var(--ink-3);font-size:12.5px">—</span>`;
-    const wants=nd.length?nd.map(p=>`<span class="tag-in" style="display:inline-block;margin:0 5px 5px 0">${esc(p)}</span>`).join(""):`<span style="color:var(--ink-3);font-size:12.5px">open to offers</span>`;
+    const wants=nd.length?nd.map(p=>`<span class="tag-in" style="display:inline-block;margin:0 5px 5px 0">${esc(p)}</span>`).join(""):`<span style="color:var(--ink-3);font-size:12.5px">no specific needs</span>`;
     return `<div class="card card-p">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">${teamLine(t)}<span style="font-size:11px;color:var(--ink-3);white-space:nowrap">${tbAgo(r.updated_at)}</span></div>
       <div class="fieldlbl" style="margin-top:12px">Shopping</div><div>${chips}</div>
       <div class="fieldlbl" style="margin-top:10px">Wants</div><div>${wants}</div>
+      ${op.length?`<div class="fieldlbl" style="margin-top:10px;color:var(--t-amber)">Open to offers</div><div>${op.map(pid=>`<span class="pill pos" style="margin:0 5px 5px 0;border-color:color-mix(in srgb,var(--t-amber) 45%,var(--line))">${esc(pname(pid))} <span style="color:var(--ink-3)">${esc(ppos(pid))} · ${tbStat(pid)}</span>${tbInj(pid)}</span>`).join("")}</div>`:""}
       ${L.note?`<div style="margin-top:10px;font-size:13px;color:var(--ink-2);font-style:italic">“${esc(L.note)}”</div>`:""}
     </div>`;}).join("")+`</div>`;
 }
@@ -2537,6 +2702,14 @@ async function initTradeBlock(){
 }
 
 
+function lineupPPG(roster){
+  const byPos={QB:[],RB:[],WR:[],TE:[],K:[],DST:[]};
+  roster.forEach(p=>{if(byPos[p.pos])byPos[p.pos].push(playerSeason(p.playerId).avg);});
+  for(const k in byPos)byPos[k].sort((a,b)=>b-a);
+  const sum=(a,n)=>a.slice(0,n).reduce((x,y)=>x+y,0);
+  const flex=Math.max(byPos.RB[2]||0,byPos.WR[2]||0,byPos.TE[1]||0,0);
+  return sum(byPos.QB,1)+sum(byPos.RB,2)+sum(byPos.WR,2)+sum(byPos.TE,1)+flex+sum(byPos.K,1)+sum(byPos.DST,1);
+}
 VIEWS.trade=function(){
   let html=shead("What-if deals","Trade Analyzer","Pick two teams, then tick the players changing hands");
   if(TRADE.a==null){TRADE.a=D.teams[0].id;TRADE.b=D.teams[1].id;}
@@ -2546,13 +2719,20 @@ VIEWS.trade=function(){
   const sum=k=>{const ids=(D.rosters[TRADE[k]]||[]).filter(p=>TRADE.pick[p.playerId]);const o={n:ids.length,tot:0,avg:0,l3:0,proj:0,names:ids.map(p=>p.name)};
     ids.forEach(p=>{const ps=playerSeason(p.playerId);o.tot+=ps.tot;o.avg+=ps.avg;o.l3+=ps.l3;o.proj+=ps.proj||0;});return o;};
   const A=teamById[TRADE.a],B=teamById[TRADE.b],sa=sum("a"),sb=sum("b");
+  const aPicks=(D.rosters[TRADE.a]||[]).filter(p=>TRADE.pick[p.playerId]),bPicks=(D.rosters[TRADE.b]||[]).filter(p=>TRADE.pick[p.playerId]);
+  const aBefore=lineupPPG(D.rosters[TRADE.a]||[]),bBefore=lineupPPG(D.rosters[TRADE.b]||[]);
+  const aAfter=lineupPPG((D.rosters[TRADE.a]||[]).filter(p=>!TRADE.pick[p.playerId]).concat(bPicks)),bAfter=lineupPPG((D.rosters[TRADE.b]||[]).filter(p=>!TRADE.pick[p.playerId]).concat(aPicks));
+  const remW=Math.max(1,(D.meta.regularSeasonWeeks||14)-(D.meta.currentScoringPeriod||1)+1);
+  const posStr=ids=>{const c={};ids.forEach(p=>c[p.pos]=(c[p.pos]||0)+1);return Object.entries(c).map(([k,n])=>n+" "+k).join(", ")||"—";};
   html+=`<div class="trade-grid"><div class="card card-p"><div class="sub-h" style="margin-top:0">${esc(A.name)} gives</div>${sel("a")}<div style="margin-top:8px">${sideRows("a")}</div></div>
     <div class="card card-p"><div class="sub-h" style="margin-top:0">${esc(B.name)} gives</div>${sel("b")}<div style="margin-top:8px">${sideRows("b")}</div></div></div>`;
   if(sa.n||sb.n){const diff=sb.avg-sa.avg,row=(l,x,y)=>`<tr><td>${l}</td><td class="num">${x}</td><td class="num">${y}</td></tr>`;
     html+=`<div class="sub-h">Trade</div><div class="twrap"><table><thead><tr><th class="no-sort"></th><th class="no-sort">${esc(A.name)} gets</th><th class="no-sort">${esc(B.name)} gets</th></tr></thead><tbody>
-      ${row("Players",esc(sb.names.join(", "))||"—",esc(sa.names.join(", "))||"—")}${row("Season points",fmt(sb.tot,1),fmt(sa.tot,1))}${row("Points per week",fmt(sb.avg,1),fmt(sa.avg,1))}
-      ${row("Last 3 weeks (avg)",fmt(sb.l3,1),fmt(sa.l3,1))}${row("This week's projection",fmt(sb.proj,1),fmt(sa.proj,1))}</tbody></table></div>
-      <div class="card card-p" style="margin-top:12px;font-size:15px">${Math.abs(diff)<0.5?"Pretty even trade on points per week.":`<b>${esc((diff>0?A:B).name)}</b> comes out ahead by <b>${fmt(Math.abs(diff),1)}</b> points per week.`}</div>`;}
+      ${row("Players",esc(sb.names.join(", "))||"—",esc(sa.names.join(", "))||"—")}${row("Positions",posStr(bPicks),posStr(aPicks))}${row("Season points",fmt(sb.tot,1),fmt(sa.tot,1))}${row("Points per week",fmt(sb.avg,1),fmt(sa.avg,1))}
+      ${row("Last 3 weeks (avg)",fmt(sb.l3,1),fmt(sa.l3,1))}${row("This week's projection",fmt(sb.proj,1),fmt(sa.proj,1))}${row("Rest-of-season pts (est.)",fmt(sb.avg*remW,1),fmt(sa.avg*remW,1))}</tbody></table></div>
+      <div class="card card-p" style="margin-top:12px;font-size:15px">${Math.abs(diff)<0.5?"Pretty even trade on points per week.":`<b>${esc((diff>0?A:B).name)}</b> comes out ahead by <b>${fmt(Math.abs(diff),1)}</b> points per week.`}</div>`;
+    const imp=(t,bef,aft)=>{const d=aft-bef,col=d>0.3?"var(--win)":d<-0.3?"var(--loss)":"var(--ink-2)";return `<div class="card card-p"><div style="font-weight:700">${esc(t.name)}</div><div style="display:flex;align-items:baseline;gap:8px;margin-top:4px"><span class="num" style="font-size:22px;font-weight:800">${fmt(aft,1)}</span><span style="color:var(--ink-3);font-size:12px">was ${fmt(bef,1)}</span><span class="num" style="margin-left:auto;font-weight:800;color:${col}">${d>=0?"+":""}${fmt(d,1)}</span></div></div>`;};
+    html+=`<div class="sub-h">Starting Lineup Impact <span style="font-weight:400;font-size:11px;color:var(--ink-3);text-transform:none;letter-spacing:0">best lineup's season PPG, before → after</span></div><div class="grid g-2">${imp(A,aBefore,aAfter)}${imp(B,bBefore,bAfter)}</div><div class="metricnote">Lineup impact = your best possible starting lineup's season PPG before vs after the swap. A deal can lose on raw points but still upgrade your starters.</div>`;}
   html+=`<div class="metricnote">Points per week = average over finished weeks the player was on a fantasy roster. Bench weeks count too. It ignores bye weeks and positional need, so use your head.</div>`;
   const v=el(html);
   v.querySelectorAll("[data-ts]").forEach(s=>s.onchange=()=>{TRADE[s.dataset.ts]=+s.value;setTab("trade");});
