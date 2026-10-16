@@ -162,6 +162,8 @@ tr.me:hover{background:var(--accent-soft)}
 .pill.pos{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line)}
 .pill.live{background:color-mix(in srgb,var(--loss) 16%,transparent);color:var(--loss)}
 .livedot{width:6px;height:6px;border-radius:50%;background:var(--loss);display:inline-block;vertical-align:middle;margin-right:3px;animation:pulse 1.4s ease-in-out infinite}
+.pill.prog{background:color-mix(in srgb,var(--t-amber) 16%,transparent);color:var(--t-amber);border:1px solid color-mix(in srgb,var(--t-amber) 35%,transparent)}
+.progdot{width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block;vertical-align:middle;margin-right:4px}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
 .lowbar{display:flex;flex-wrap:wrap;gap:16px;align-items:stretch;margin-bottom:18px;border-radius:var(--radius);border:1px solid var(--line);border-left:3px solid var(--loss);background:var(--surface);padding:16px 18px;box-shadow:var(--shadow)}
 .lb-main{display:flex;gap:14px;align-items:center;flex:1 1 300px;min-width:0}
@@ -534,7 +536,11 @@ td.ca{--tc:var(--t-coral)} td.ch{--tc:var(--t-blue)}
 .lu input.wi::-webkit-inner-spin-button,.lu input.wi::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .lu input.wi{-moz-appearance:textfield}
 .lu-bench .k-label.ca{color:var(--t-coral)} .lu-bench .k-label.ch{color:var(--t-blue)}
-.whatif{margin-top:12px;border-radius:12px;padding:12px 14px;border:1px dashed var(--line-2);background:var(--surface)}
+.whatif{display:none;margin-top:12px;border-radius:12px;padding:12px 14px;border:1px dashed var(--line-2);background:var(--surface)}
+.mdl-box.wi-on .whatif{display:block}
+.wi-cell{display:none}
+.mdl-box.wi-on .wi-cell{display:inline-block}
+.mdl-box.wi-on .wi-off{display:none}
 .wi-h{font-weight:800;font-size:15px}
 .wi-how{font-size:12.5px;color:var(--ink-2);margin:3px 0 9px;line-height:1.45}
 .wi-res{font-size:13.5px;line-height:1.55}
@@ -672,10 +678,14 @@ let teamById = {};
 function indexTeams(){ teamById={}; D.teams.forEach((t,i)=>{ t._i=i; t._color=PALETTE[i%PALETTE.length]; teamById[t.id]=t; }); }
 indexTeams();
 function initials(t){
-  const n=(t.abbrev||t.name||"").replace(/[^A-Za-z0-9 ]/g,"").trim();
-  if(t.abbrev && /[A-Za-z]/.test(t.abbrev)) return t.abbrev.replace(/[^A-Za-z0-9]/g,"").slice(0,3).toUpperCase();
-  const w=n.split(/\s+/).filter(Boolean);
-  return ((w[0]||"?")[0]+(w[1]?w[1][0]:(w[0]||"?")[1]||"")).toUpperCase();
+  const ab=(t.abbrev||"").trim();
+  if(ab && /[A-Za-z]/.test(ab) && !/^TM\d+$/i.test(ab)) return ab.replace(/[^A-Za-z0-9]/g,"").slice(0,3).toUpperCase();
+  const clean=(t.name||"").replace(/['‘’]/g,"").replace(/[^A-Za-z0-9 ]/g," ").trim();
+  const w=clean.split(/\s+/).filter(Boolean);
+  if(w.length>=2) return (w[0][0]+w[1][0]).toUpperCase();
+  const one=w[0]||ab||"?";
+  const caps=one.replace(/[^A-Z0-9]/g,"");
+  return (caps.length>=2?caps.slice(0,3):one.slice(0,2)).toUpperCase();
 }
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 
@@ -944,7 +954,7 @@ VIEWS.dash=function(){
   const focusWk=focusWeek();
   const wk1=D.schedule.filter(x=>x.week===focusWk);
   let html=updatesBanner()+lowBanner()
-    +shead("2026 Season","Home",ST.started?("Data through Week "+Math.max(...ST.weeks)):(D.meta.liveWeek?`<span class="pill live"><span class="livedot"></span>Week ${D.meta.liveWeek} live</span>`:"Data through preseason"));
+    +shead("2026 Season","Home",ST.started?("Data through Week "+Math.max(...ST.weeks)):(D.meta.liveWeek?`<span class="pill prog"><span class="progdot"></span>Week ${D.meta.liveWeek} · in progress</span>`:"Data through preseason"));
   // subscription notice
   html+=`<div class="helpbox" style="margin-bottom:16px;border-color:color-mix(in srgb,var(--accent) 45%,transparent);background:color-mix(in srgb,var(--accent) 10%,var(--surface))"><span class="hi">${icon("credit")}</span><div>
     <b style="color:var(--accent)">Heads up &mdash; the league site is going paid.</b> Starting <b>October 27, 2026</b> (two weeks from now), access to this dashboard becomes a paid subscription for all league managers. Watch for sign-up details so you don't lose access to standings, scoreboard, parlay picks, and the full stats suite.</div></div>`;
@@ -953,8 +963,8 @@ VIEWS.dash=function(){
     const lg=D.schedule.filter(x=>x.week===D.meta.liveWeek);
     const top=lg.flatMap(x=>[[x.awayTeamId,x.awayLive],[x.homeTeamId,x.homeLive]]).sort((p,q)=>q[1]-p[1])[0];
     const tnm=top&&teamById[top[0]]?teamById[top[0]].name:"";
-    html+=`<div class="helpbox" style="margin-bottom:16px;border-color:color-mix(in srgb,var(--loss) 35%,transparent);background:color-mix(in srgb,var(--loss) 8%,var(--surface))"><span class="hi"><span class="livedot" style="width:11px;height:11px"></span></span><div>
-      <b style="color:var(--loss)">Week ${D.meta.liveWeek} is LIVE.</b> Games are underway${tnm?` — <b>${esc(tnm)}</b> leads at ${fmt(top[1],1)}`:""}. Watch the <a data-goto="scoreboard" style="color:var(--accent);font-weight:700;cursor:pointer">live scoreboard</a>. Standings, power rankings &amp; analytics lock in when the week finalizes (Tuesday).</div></div>`;
+    html+=`<div class="helpbox" style="margin-bottom:16px;border-color:color-mix(in srgb,var(--t-amber) 40%,transparent);background:color-mix(in srgb,var(--t-amber) 8%,var(--surface))"><span class="hi"><span class="progdot" style="width:10px;height:10px;color:var(--t-amber)"></span></span><div>
+      <b>Week ${D.meta.liveWeek} is in progress.</b> Scores update as games are played${tnm?` — <b>${esc(tnm)}</b> leads at ${fmt(top[1],1)}`:""}. Watch the <a data-goto="scoreboard" style="color:var(--accent);font-weight:700;cursor:pointer">live scoreboard</a>. Standings, power rankings &amp; analytics lock in when the week finalizes (Tuesday).</div></div>`;
   } else if(!ST.started){
     html+=`<div class="helpbox" style="margin-bottom:16px"><span class="hi">${icon("flag")}</span><div>
       <b>Preseason.</b> The draft is complete (180 picks) and rosters are set — explore the <a data-goto="draft" style="color:var(--accent);font-weight:700;cursor:pointer">draft board</a>, rosters, and schedule below.
@@ -966,45 +976,6 @@ VIEWS.dash=function(){
   }
   html+=recapCard();
   html+=awardsCard();
-  // history teaser
-  if(D.history&&D.history.seasons&&D.history.seasons.length){
-    const H=D.history;const last=H.seasons[H.seasons.length-1];const champ=last.standings[0];
-    const oById={};H.owners.forEach(o=>oById[o.ownerId]=o);
-    const mostT=H.owners.slice().sort((a,b)=>b.titles-a.titles||0)[0];
-    html+=`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">
-      <div class="card card-p" style="flex:1;min-width:230px;display:flex;align-items:center;gap:13px;cursor:pointer" data-goto="history">
-        <div style="font-size:24px;color:var(--accent);display:flex;align-items:center">${icon("trophy")}</div><div style="min-width:0"><div class="k-label">Defending Champ · ${last.year}</div>
-        <div style="font-family:'DM Sans';font-weight:800;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(champ.team)}</div>
-        <div class="k-sub">${esc((oById[champ.ownerId]||{}).name||"")}</div></div></div>
-      <div class="card card-p" style="flex:1;min-width:230px;display:flex;align-items:center;gap:13px;cursor:pointer" data-goto="history">
-        <div style="font-size:24px;color:var(--accent);display:flex;align-items:center">${icon("crown")}</div><div style="min-width:0"><div class="k-label">Most Titles · ${H.seasons.length}-yr dynasty</div>
-        <div style="font-family:'DM Sans';font-weight:800;font-size:16px">${esc(mostT.name)}</div>
-        <div class="k-sub">${mostT.titles} championship${mostT.titles>1?"s":""}</div></div></div>
-    </div>`;
-  }
-  // KPIs — mid-season
-  if(ST.started){
-    const ord=Object.values(ST.S).slice().sort((a,b)=>(b.pct-a.pct)||(b.pf-a.pf));
-    const leader=ord[0];
-    const mostPF=Object.values(ST.S).slice().sort((a,b)=>b.pf-a.pf)[0];
-    let hi={sc:-1,tid:null,wk:null};
-    ST.played.forEach(x=>{if(x.homeScore>hi.sc)hi={sc:x.homeScore,tid:x.homeTeamId,wk:x.week};if(x.awayScore>hi.sc)hi={sc:x.awayScore,tid:x.awayTeamId,wk:x.week};});
-    const cellar=ord[ord.length-1];
-    const rec=s=>s.w+"-"+s.l+(s.tie?"-"+s.tie:"");
-    html+=`<div class="grid g-kpi">
-      ${kpiHot("1st Place",leader.team.name,rec(leader)+" · "+fmt(leader.pf,0)+" PF")}
-      ${kpi("Most Points",fmt(mostPF.pf,0),mostPF.team.name)}
-      ${kpi("Top Week",fmt(hi.sc,1),(teamById[hi.tid]?teamById[hi.tid].name:"")+" · Wk "+hi.wk)}
-      ${kpi("Last Place",cellar.team.name,rec(cellar)+" · "+fmt(cellar.pf,0)+" PF")}
-    </div>`;
-  } else {
-    html+=`<div class="grid g-kpi">
-      ${kpi("Teams",m.size,"12-team league")}
-      ${kpi("Format",m.ppr+" PPR",m.scoringType==="H2H_POINTS"?"Head-to-head points":"")}
-      ${kpi("Regular season",m.regularSeasonWeeks+" wks",m.playoffTeamCount+" make playoffs")}
-      ${kpi("Playoff teams",m.playoffTeamCount,"top "+m.playoffTeamCount+" by record")}
-    </div>`;
-  }
   // two-col: power/proj preview + week1
   html+=`<div class="grid g-2" style="margin-top:16px">`;
   // projected standings
@@ -1016,7 +987,7 @@ VIEWS.dash=function(){
   });
   html+=`</div>`;
   // week 1 matchups
-  html+=`<div class="card card-p"><div class="sub-h" style="margin-top:0">Week ${focusWk} Matchups${D.meta.liveWeek===focusWk?' <span class="pill live" style="margin-left:auto"><span class="livedot"></span>LIVE</span>':""}</div>`;
+  html+=`<div class="card card-p"><div class="sub-h" style="margin-top:0">Week ${focusWk} Matchups${D.meta.liveWeek===focusWk?' <span class="pill prog" style="margin-left:auto"><span class="progdot"></span>In progress</span>':""}</div>`;
   wk1.forEach(x=>{ html+=matchupMini(x); });
   html+=`<div style="font-size:11px;color:var(--ink-3);margin-top:8px">Tap a matchup for both lineups</div></div></div>`;
   const v=el(html);
@@ -1309,7 +1280,7 @@ let curWeek=focusWeek();
 VIEWS.scoreboard=function(){
   const weeks=[];for(let i=1;i<=D.meta.regularSeasonWeeks;i++)weeks.push(i);
   const isLiveWk=D.meta.liveWeek===curWeek;
-  let html=shead("Weekly Results","Scoreboard",isLiveWk?'<span class="pill live"><span class="livedot"></span>LIVE · Week '+curWeek+'</span>':"");
+  let html=shead("Weekly Results","Scoreboard",isLiveWk?'<span class="pill prog"><span class="progdot"></span>Week '+curWeek+' · in progress</span>':"");
   html+=`<div class="wkbar"><span style="font-size:12px;color:var(--ink-3);font-weight:600">WEEK</span><div class="seg" id="wkseg">`+
     weeks.map(w=>`<button class="${w===curWeek?"on":""}" data-w="${w}">${w}${w===D.meta.liveWeek?"•":""}</button>`).join("")+`</div></div>`;
   html+=`<div class="metricnote" style="margin:-4px 0 12px">Tap a matchup for both lineups, game-day weather and a <b>what-if calculator</b>.</div>`;
@@ -1418,12 +1389,12 @@ function showTeam(id,v){
 }
 function tstat(v,l){return `<div><div style="font-family:'DM Sans';font-weight:900;font-size:19px">${esc(v)}</div><div style="font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em">${l}</div></div>`;}
 function streakBare(str){return (!str||str==="—")?"—":str;}
-function rosterRow(p){const W=D.meta.currentScoringPeriod;return `<div class="rrow ${playsToday(p.proTeam,W)?"gd":""}" style="display:flex;align-items:center;gap:9px;padding:4px 0;border-bottom:1px solid var(--line)">
+function rosterRow(p){const W=D.meta.currentScoringPeriod,ps=playerSeason(p.playerId);return `<div class="rrow ${playsToday(p.proTeam,W)?"gd":""}" style="display:flex;align-items:center;gap:9px;padding:4px 0;border-bottom:1px solid var(--line)">
   <span class="posbadge" style="width:34px;text-align:center">${esc(p.slot)}</span>
   <span class="posbadge tag-${(p.pos||"").toLowerCase()}">${esc(p.pos)}</span>
   <span style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</span>
   ${injTag(p.injury)}${todayTag(p.proTeam,D.meta.currentScoringPeriod)}
-  <span style="margin-left:auto;color:var(--ink-3);font-size:11px">${esc(p.proTeam)}</span></div>`;}
+  <span style="margin-left:auto;text-align:right;line-height:1.25;min-width:64px"><span class="num" style="font-weight:700;font-size:12.5px">${ps.proj!=null?fmt(ps.proj,1):"—"}</span><span style="display:block;font-size:10px;color:var(--ink-3)">${ps.proj!=null?"proj · ":""}${ps.gp?fmt(ps.avg,1)+" avg · ":""}${esc(p.proTeam)}</span></span></div>`;}
 
 /* ---- DRAFT ---- */
 let draftMode="board";
@@ -2028,7 +1999,7 @@ function openMatchup(mid){
         const w=wxFor(r.pro,W);
         return `<td class="${c} ${right?"r":""} ${cur&&playsToday(r.pro,W)?"gd":""}"><div class="pl">${esc(r.name)}${injTag(injOf(r.pid))}${cur?todayTag(r.pro,W):""}</div><div class="sub">${esc(r.pos)} · ${esc(r.pro)}${stTag(r)}</div>${w?`<div class="wx ${w.bad?"bad":""}" title="${esc(w.title||"")}">${w.vs?esc(w.vs)+" · ":""}${esc(w.txt)}</div>`:""}</td>`;};
       const num=(r,won,c,side,left)=>{if(!r)return `<td class="pts ${c}"></td>`;
-        if(open(r))return `<td class="pts ${c} ${left?"l":""}"><input class="wi" type="number" step="0.1" inputmode="decimal" data-side="${side}" data-k="${key(r)}" data-pts="${r.pts}" data-def="${Math.max(r.pts,r.proj!=null?r.proj:r.pts).toFixed(1)}" value="${(+guess(r)).toFixed(1)}" aria-label="${esc(r.name)} final points"><small>now ${fmt(r.pts,1)}</small></td>`;
+        if(open(r))return `<td class="pts ${c} ${left?"l":""}"><span class="wi-off">${fmt(r.pts,1)}${r.proj!=null?`<small>proj ${fmt(r.proj,1)}</small>`:""}</span><span class="wi-cell"><input class="wi" type="number" step="0.1" inputmode="decimal" data-side="${side}" data-k="${key(r)}" data-pts="${r.pts}" data-def="${Math.max(r.pts,r.proj!=null?r.proj:r.pts).toFixed(1)}" value="${(+guess(r)).toFixed(1)}" aria-label="${esc(r.name)} final points"><small>now ${fmt(r.pts,1)}</small></span></td>`;
         return `<td class="pts ${c} ${left?"l":""} ${won?"won":""}" ${cur?`data-fx="${side}" data-v="${r.pts}"`:""}>${fmt(r.pts,1)}${r.proj!=null?`<small>proj ${fmt(r.proj,1)}</small>`:""}</td>`;};
       return `<tr>${cell(p,"ca")}${num(p,pw,"ca","a")}<td class="slot">${SLOTNAME[sl]}</td>${num(q,qw,"ch","h",true)}${cell(q,"ch",true)}</tr>`;}).join("")+`</tbody></table>`;
     const bench=rows=>rows.filter(r=>r.slot===20||r.slot===21).sort((x,y)=>y.pts-x.pts).map(r=>`<div class="row"><span>${esc(r.name)} <span class="sub">${esc(r.pos)}${r.slot===21?" · IR":""}</span></span><span class="num">${fmt(r.pts,1)}</span></div>`).join("")||'<div class="sub">—</div>';
@@ -2040,11 +2011,11 @@ function openMatchup(mid){
   const status=final?"Final":s.live?'<span class="pill live"><span class="livedot"></span>LIVE</span>':cur?"This week":"Week "+W;
   const panel=(t,score,pj,cls)=>`<div class="mx-team ${cls}"><div class="id">${badge(t,"lg")}<div><div class="nm" style="font-weight:800">${esc(t.name)}</div><div class="ow">${esc(t.owner)}</div></div></div>
     <div class="sc">${s.show?fmt(score,1):cur?"0.0":"—"}</div><div class="pj">${final?"Was projected":"Projected"} <b>${pj!=null?fmt(pj,1):"—"}</b></div></div>`;
-  const wiBox=whatif?`<div class="whatif"><div class="wi-h">🧮 What if?</div>
+  const wiBox=whatif?`<div class="whatif"><div class="wi-h">What if?</div>
     <div class="wi-how">Like a what-if grade calculator: type what you think any player still <b>TO PLAY</b> or <b>PLAYING</b> will finish with, and see who wins. Boxes start at ESPN's projection. Players marked DONE are locked.</div>
     <div class="wi-res" id="wiRes"></div><button type="button" class="wi-reset" id="wiReset">Reset to projections</button></div>`:"";
   const wrap=document.createElement("div");wrap.className="mdl";wrap.id="mdl";wrap.setAttribute("role","dialog");wrap.setAttribute("aria-modal","true");
-  wrap.innerHTML=`<div class="mdl-box"><div class="mdl-top"><div><div class="eyebrow" style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--t-blue)">Week ${W} matchup</div><div style="font-size:12.5px;color:var(--ink-3)">${status}</div></div>${s.show?`<button class="wi-reset" id="shareBtn" type="button" style="margin:0 8px 0 auto">Share card</button>`:""}<button class="x" aria-label="Close" type="button" ${s.show?'style="margin-left:0"':""}>✕</button></div>
+  wrap.innerHTML=`<div class="mdl-box"><div class="mdl-top"><div><div class="eyebrow" style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--t-blue)">Week ${W} matchup</div><div style="font-size:12.5px;color:var(--ink-3)">${status}</div></div>${whatif?`<button class="wi-reset" id="wiToggle" type="button" style="margin:0 8px 0 auto">What-if calculator</button>`:""}${s.show?`<button class="wi-reset" id="shareBtn" type="button" style="margin:0 8px 0 ${whatif?"0":"auto"}">Share card</button>`:""}<button class="x" aria-label="Close" type="button" ${s.show?'style="margin-left:0"':""}>✕</button></div>
     <div class="mx-head">${panel(a,s.as,pjA,"a")}<div class="mx-vs">vs</div>${panel(h,s.hs,pjH,"h")}</div>
     ${wpBar(x,a,h)}${wiBox}${body}</div>`;
   wrap.addEventListener("click",e=>{if(e.target===wrap)closeMatchup();});
@@ -2065,6 +2036,8 @@ function openMatchup(mid){
     wrap.querySelectorAll("input.wi").forEach(e=>e.addEventListener("input",()=>{const n=parseFloat(e.value);if(isNaN(n))delete calcOverride[e.dataset.k];else calcOverride[e.dataset.k]=n;calc();}));
     wrap.querySelector("#wiReset").onclick=()=>{wrap.querySelectorAll("input.wi").forEach(e=>{delete calcOverride[e.dataset.k];e.value=e.dataset.def;});calc();};
     calc();
+    const wiTg=wrap.querySelector("#wiToggle");
+    if(wiTg)wiTg.onclick=()=>{const on=wrap.querySelector(".mdl-box").classList.toggle("wi-on");wiTg.textContent=on?"Hide what-if":"What-if calculator";if(on)calc();};
   }
   document.body.appendChild(wrap);document.body.classList.add("mdl-open");document.addEventListener("keydown",mdlKey);
 }
@@ -2706,7 +2679,7 @@ VIEWS.useless=function(){
     <button class="btn" id="excBtn" type="button" style="margin-top:12px">Give me an excuse</button></div>`;
   html+=`<div class="card card-p" style="text-align:center"><div class="sub-h" style="margin-top:0">Start / Sit Coin</div>
     <div class="coin" id="coin">?</div><button class="btn" id="coinBtn" type="button" style="margin-top:10px">Flip it</button>
-    <div class="metricnote">More accurate than ESPN projections. Not really.</div></div>`;
+    <div class="metricnote">More accurate than ESPN projections.</div></div>`;
   html+=`<div class="card card-p"><div class="sub-h" style="margin-top:0">Losing Streak Watch</div>
     ${skid?`<div style="display:flex;align-items:center;gap:12px">${badge(skid.t,"lg")}<div><div style="font-size:19px;font-weight:800">${esc(skid.t.name)}</div><div style="color:var(--ink-2)">has lost <b>${-skid.n}</b> straight. ${-skid.n>=4?"Someone check on them.":"Thoughts and prayers."}</div></div></div>`:`<div style="color:var(--ink-2)">Nobody is on a losing streak. Suspicious.</div>`}</div>`;
   const sq=(()=>{try{return +localStorage.getItem("mfl-square")||0;}catch(e){return 0;}})();
