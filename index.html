@@ -975,8 +975,10 @@ VIEWS.dash=function(){
     html+=`<div class="helpbox" style="margin-bottom:16px"><span class="hi">${icon("checkcircle")}</span><div>
       <b>Week ${lastWk} is in the books.</b> Standings, power rankings, and the full analytics suite are live below — next matchups are on the <a data-goto="scoreboard" style="color:var(--accent);font-weight:700;cursor:pointer">scoreboard</a>.</div></div>`;
   }
+  html+=`<div id="tbHomeNote"></div>`;
   html+=recapCard();
   html+=awardsCard();
+  html+=gamesToWatch(focusWk,pr);
   // two-col: power/proj preview + week1
   html+=`<div class="grid g-2" style="margin-top:16px">`;
   // projected standings
@@ -994,6 +996,7 @@ VIEWS.dash=function(){
   const v=el(html);
   v.querySelectorAll("[data-goto]").forEach(a=>a.onclick=()=>setTab(a.dataset.goto));
   v.querySelectorAll("[data-mid]").forEach(c=>c.onclick=()=>openMatchup(+c.dataset.mid));
+  tbHomeNote(v);
   return v;
 };
 function recapCard(){
@@ -1019,6 +1022,49 @@ function recapCard(){
 }
 function kpi(l,v,s){return `<div class="kpi"><div class="k-label">${l}</div><div class="k-val num">${esc(v)}</div><div class="k-sub">${esc(s)}</div></div>`;}
 function kpiHot(l,v,s){return `<div class="kpi hot"><div class="k-label">${l}</div><div class="k-val" style="font-size:20px;margin-top:9px">${esc(v)}</div><div class="k-sub">${esc(s)}</div></div>`;}
+function gamesToWatch(wk,pr){
+  const rank={}; pr.forEach(r=>rank[r.team.id]=r.rank);
+  let games=D.schedule.filter(x=>x.week===wk).map(x=>{
+    const h=teamById[x.homeTeamId],a=teamById[x.awayTeamId]; if(!h||!a) return null;
+    const hp=x.homeProj||0,ap=x.awayProj||0; if(!(hp>0&&ap>0)) return null;
+    const s=mstate(x);
+    const projM=Math.abs(hp-ap), projFav=hp>=ap?h.id:a.id;
+    const hR=rank[h.id]||99,aR=rank[a.id]||99, powerFav=hR<=aR?h.id:a.id;
+    const upset=projFav!==powerFav && Math.abs(hR-aR)>=3;
+    return {x,h,a,s,hp,ap,projM,upset};
+  }).filter(Boolean);
+  games.sort((A,B)=>(B.upset-A.upset)||(A.projM-B.projM));
+  const pick=games.filter(g=>g.upset||g.projM<=12).slice(0,4);
+  if(!pick.length) return "";
+  const live=D.meta.liveWeek===wk;
+  let h=`<div class="sub-h" style="margin-top:20px">Games to Watch <span style="font-weight:400;font-size:11px;color:var(--ink-3);text-transform:none;letter-spacing:0">tightest projected matchups this week</span></div><div class="grid g-2">`;
+  pick.forEach(g=>{
+    const tag=g.upset?`<span class="tag-out" style="font-size:10.5px">Upset watch</span>`:`<span class="tag-in" style="font-size:10.5px">Nail-biter</span>`;
+    const as=g.s.show?fmt(g.s.as,1):fmt(g.ap,1),hs=g.s.show?fmt(g.s.hs,1):fmt(g.hp,1);
+    const sub=g.s.show?`Live · projected ${fmt(g.projM,1)} apart`:`Projected · ${fmt(g.projM,1)} apart`;
+    const wp=winProb(g.x);
+    h+=`<div class="card card-p" data-mid="${g.x.id}" style="cursor:pointer;padding:12px 14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px"><span style="font-size:11px;color:var(--ink-3)">${sub}</span>${tag}</div>
+      <div class="mrow ${g.s.aw?"wn":""}" style="padding:2px 0">${badge(g.a)}<span class="nm" style="font-size:13px">${esc(g.a.name)}</span><span class="sc">${as}</span></div>
+      <div class="mrow ${g.s.hw?"wn":""}" style="padding:2px 0">${badge(g.h)}<span class="nm" style="font-size:13px">${esc(g.h.name)}</span><span class="sc">${hs}</span></div>
+      ${wp?`<div class="wpmini">win chance ${Math.round(wp.pa*100)}% · ${Math.round(wp.ph*100)}%</div>`:""}
+    </div>`;
+  });
+  return h+`</div>`;
+}
+function tbHomeNote(v){
+  const fill=()=>{const box=document.getElementById("tbHomeNote");if(!box)return;
+    const rows=(TB.rows||[]).filter(r=>r.listing&&((r.listing.available||[]).length||(r.listing.needs||[]).length||(r.listing.note||"").trim()));
+    if(!rows.length){box.innerHTML="";return;}
+    let seen=0;try{seen=+localStorage.getItem("mfl-tb-seen")||0;}catch(e){}
+    const fresh=rows.filter(r=>new Date(r.updated_at).getTime()>seen).length;
+    box.innerHTML=`<div class="helpbox" style="margin-bottom:16px;cursor:pointer;border-color:color-mix(in srgb,var(--accent) 35%,transparent)" data-goto="block"><span class="hi">${icon("swap")}</span><div><b>Trade Block</b> — ${rows.length} team${rows.length===1?"":"s"} ${rows.length===1?"has":"have"} players on the market${fresh?`, <b style="color:var(--accent)">${fresh} new</b> since your last visit`:""}. <a data-goto="block" style="color:var(--accent);font-weight:600;cursor:pointer">See the board →</a></div></div>`;
+    box.querySelectorAll("[data-goto]").forEach(a=>a.onclick=()=>setTab(a.dataset.goto));
+  };
+  if(TB.loaded){setTimeout(fill,0);return;}
+  if(!TB.sub)initTradeBlock();
+  let tries=0;const t=setInterval(()=>{tries++;if(TB.loaded||tries>16){clearInterval(t);fill();}},300);
+}
 function matchupMini(x){
   const h=teamById[x.homeTeamId],a=teamById[x.awayTeamId];if(!h||!a)return"";
   const s=mstate(x);
@@ -2488,6 +2534,7 @@ function tbInj(pid){const c=injOf(pid);return c?` <span class="tag-out">${esc(IN
 function tbNfl(pid){return (D.players[pid]||[])[2]||"";}
 
 VIEWS.block=function(){
+  try{localStorage.setItem("mfl-tb-seen",Date.now());}catch(e){}
   if(!TB.loaded&&!TB.sub)initTradeBlock();
   const teams=D.teams.slice().sort((a,b)=>(a.owner||a.name).localeCompare(b.owner||b.name));
   let html=shead("League Marketplace","Trade Block","Post who you're shopping and what you need — the whole league sees it");
