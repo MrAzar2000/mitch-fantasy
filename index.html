@@ -830,7 +830,7 @@ const NAV=[
   ["Stats",[["analytics","Analytics","line"],["outlook","Outlook","compass"],["defense","Manager D","shield"],["records","Record Book","trophy"],["shame","Hall of Shame","flame"],["corrections","Stat Corrections","refresh"],["faab","Waivers","wallet"]]],
   ["League",[["parlay","Parlay","ticket"],["history","History","book"],["chat","Chat","chat"]]],
   ["Teams",[["teams","Teams","users"],["trade","Trade Analyzer","activity"],["block","Trade Block","swap"],["draft","Draft Board","clipboard"]]],
-  ["Fun",[["blackjack","Blackjack","cards"],["sportsbook","Nate's Sportsbook","ticket"],["slots","Slots","dollar"],["useless","Useless Features","sparkle"]]]
+  ["Fun",[["other","Other Features","cards"]]]
 ];
 const LABELS={}; NAV.forEach(g=>g[1].forEach(it=>LABELS[it[0]]=it[1]));
 let cur="dash";
@@ -853,7 +853,7 @@ function setTab(id){
   // position; only navigating to a DIFFERENT view jumps back to the top.
   const sameView=(id===cur);
   const keepY=sameView?(window.scrollY||document.documentElement.scrollTop||0):0;
-  if(id!=="blackjack"&&typeof tblLeave==="function"&&TBL.ch){tblLeave();TBL.name=null;}
+  if(!(id==="other"&&otherTab==="blackjack")&&typeof tblLeave==="function"&&TBL.ch){tblLeave();TBL.name=null;}
   if(document.getElementById("mdl"))closeMatchup();
   cur=id; renderNav();
   document.body.classList.remove("navopen");
@@ -2301,6 +2301,24 @@ function bjDraw(){if(BJ.shoe.length<52)BJ.shoe=bjShoe();return BJ.shoe.pop();}
 function bjVal(cs){let t=0,ace=0;cs.forEach(c=>{if(c.r==="A"){ace++;t+=11;}else t+=(["J","Q","K"].includes(c.r)?10:+c.r);});while(t>21&&ace){t-=10;ace--;}return {t,soft:ace>0};}
 function bjCardVal(c){return c.r==="A"?11:["J","Q","K","10"].includes(c.r)?10:+c.r;}
 function bjNatural(cs){return cs.length===2&&bjVal(cs).t===21;}
+let otherTab="blackjack";
+VIEWS.other=function(){
+  const tabs=[["blackjack","Blackjack"],["sportsbook","Sportsbook"],["slots","Slots"],["useless","Extras"]];
+  if(!tabs.some(t=>t[0]===otherTab))otherTab="blackjack";
+  let html=shead("Just for fun","Other Features","Play money — Blackjack, Nate's Sportsbook, Slots and extras");
+  html+=`<div class="seg" id="otherSeg" style="margin-bottom:14px;flex-wrap:wrap">${tabs.map(t=>`<button data-o="${t[0]}" class="${otherTab===t[0]?"on":""}">${t[1]}</button>`).join("")}</div>`;
+  html+=`<div id="otherBody"></div>`;
+  const v=el(html);
+  const renderSub=()=>{const body=v.querySelector("#otherBody");if(!body)return;body.innerHTML="";
+    try{const node=VIEWS[otherTab]();const sh=node.querySelector(".shead");if(sh)sh.remove();body.appendChild(node);try{paintView(body);addTitleHelp(body);}catch(e){}}
+    catch(e){console.error("other sub",e);body.innerHTML=emptyState("flag","This didn't load","Refresh to try again.");}};
+  v.querySelectorAll("#otherSeg button").forEach(b=>b.onclick=()=>{
+    if(otherTab==="blackjack"&&b.dataset.o!=="blackjack"&&typeof tblLeave==="function"&&TBL.ch){tblLeave();TBL.name=null;}
+    otherTab=b.dataset.o;v.querySelectorAll("#otherSeg button").forEach(x=>x.classList.toggle("on",x===b));renderSub();
+  });
+  renderSub();
+  return v;
+};
 VIEWS.blackjack=function(){
   const v=el(shead("Fun","Blackjack","Play money · saved on this device")+`<div class="felt" id="bj"></div><div class="metricnote">Six-deck shoe, dealer stands on all 17s, blackjack pays 3:2, double on any first two cards, split pairs up to 4 hands. No real money involved. Your bank is stored only on this device.</div>`);
   v.insertAdjacentHTML("beforeend",'<div class="bj-table" id="bjTable"></div>');
