@@ -830,7 +830,7 @@ const NAV=[
   ["Stats",[["analytics","Analytics","line"],["outlook","Outlook","compass"],["defense","Manager D","shield"],["records","Record Book","trophy"],["shame","Hall of Shame","flame"],["corrections","Stat Corrections","refresh"],["faab","Waivers","wallet"]]],
   ["League",[["parlay","Parlay","ticket"],["history","History","book"],["chat","Chat","chat"]]],
   ["Teams",[["teams","Teams","users"],["trade","Trade Analyzer","activity"],["block","Trade Block","swap"],["draft","Draft Board","clipboard"]]],
-  ["Fun",[["blackjack","Blackjack","cards"],["sportsbook","Nate's Sportsbook","ticket"],["slots","Slots","dollar"],["useless","Useless Features","sparkle"]]]
+  ["Fun",[["other","Other Features","cards"]]]
 ];
 const LABELS={}; NAV.forEach(g=>g[1].forEach(it=>LABELS[it[0]]=it[1]));
 let cur="dash";
@@ -853,7 +853,7 @@ function setTab(id){
   // position; only navigating to a DIFFERENT view jumps back to the top.
   const sameView=(id===cur);
   const keepY=sameView?(window.scrollY||document.documentElement.scrollTop||0):0;
-  if(id!=="blackjack"&&typeof tblLeave==="function"&&TBL.ch){tblLeave();TBL.name=null;}
+  if(!(id==="other"&&otherTab==="blackjack")&&typeof tblLeave==="function"&&TBL.ch){tblLeave();TBL.name=null;}
   if(document.getElementById("mdl"))closeMatchup();
   cur=id; renderNav();
   document.body.classList.remove("navopen");
@@ -2301,6 +2301,24 @@ function bjDraw(){if(BJ.shoe.length<52)BJ.shoe=bjShoe();return BJ.shoe.pop();}
 function bjVal(cs){let t=0,ace=0;cs.forEach(c=>{if(c.r==="A"){ace++;t+=11;}else t+=(["J","Q","K"].includes(c.r)?10:+c.r);});while(t>21&&ace){t-=10;ace--;}return {t,soft:ace>0};}
 function bjCardVal(c){return c.r==="A"?11:["J","Q","K","10"].includes(c.r)?10:+c.r;}
 function bjNatural(cs){return cs.length===2&&bjVal(cs).t===21;}
+let otherTab="blackjack";
+VIEWS.other=function(){
+  const tabs=[["blackjack","Blackjack"],["sportsbook","Sportsbook"],["slots","Slots"],["useless","Extras"]];
+  if(!tabs.some(t=>t[0]===otherTab))otherTab="blackjack";
+  let html=shead("Just for fun","Other Features","Play money — Blackjack, Nate's Sportsbook, Slots and extras");
+  html+=`<div class="seg" id="otherSeg" style="margin-bottom:14px;flex-wrap:wrap">${tabs.map(t=>`<button data-o="${t[0]}" class="${otherTab===t[0]?"on":""}">${t[1]}</button>`).join("")}</div>`;
+  html+=`<div id="otherBody"></div>`;
+  const v=el(html);
+  const renderSub=()=>{const body=v.querySelector("#otherBody");if(!body)return;body.innerHTML="";
+    try{const node=VIEWS[otherTab]();const sh=node.querySelector(".shead");if(sh)sh.remove();body.appendChild(node);try{paintView(body);addTitleHelp(body);}catch(e){}}
+    catch(e){console.error("other sub",e);body.innerHTML=emptyState("flag","This didn't load","Refresh to try again.");}};
+  v.querySelectorAll("#otherSeg button").forEach(b=>b.onclick=()=>{
+    if(otherTab==="blackjack"&&b.dataset.o!=="blackjack"&&typeof tblLeave==="function"&&TBL.ch){tblLeave();TBL.name=null;}
+    otherTab=b.dataset.o;v.querySelectorAll("#otherSeg button").forEach(x=>x.classList.toggle("on",x===b));renderSub();
+  });
+  renderSub();
+  return v;
+};
 VIEWS.blackjack=function(){
   const v=el(shead("Fun","Blackjack","Play money · saved on this device")+`<div class="felt" id="bj"></div><div class="metricnote">Six-deck shoe, dealer stands on all 17s, blackjack pays 3:2, double on any first two cards, split pairs up to 4 hands. No real money involved. Your bank is stored only on this device.</div>`);
   v.insertAdjacentHTML("beforeend",'<div class="bj-table" id="bjTable"></div>');
@@ -2448,11 +2466,17 @@ function shareCard(x){
   const bg=g.createLinearGradient(0,0,0,1080);bg.addColorStop(0,"#171a21");bg.addColorStop(1,"#0d0f13");g.fillStyle=bg;g.fillRect(0,0,1080,1080);
   const fit=(t,max,size,w)=>{let z=size;do{g.font=`${w} ${z}px "DM Sans", system-ui, sans-serif`;z-=2;}while(g.measureText(t).width>max&&z>20);return t;};
   g.textAlign="center";g.fillStyle="#8b93a7";g.font='700 34px "DM Sans", system-ui, sans-serif';g.fillText((D.meta.leagueName||"").toUpperCase(),540,110);
-  g.fillStyle="#e8ebf2";g.font='800 44px "DM Sans", system-ui, sans-serif';g.fillText(`WEEK ${x.week} ${final?"FINAL":"· LIVE"}`,540,170);
-  const side=(t,score,y,col,win)=>{g.fillStyle=col;g.fillRect(90,y-100,10,150);g.textAlign="left";g.fillStyle=win?"#ffffff":"#aeb5c5";fit(t.name,620,64,"900");g.fillText(t.name,130,y-28);
-    g.font='600 32px "DM Sans", system-ui, sans-serif';g.fillStyle="#8b93a7";g.fillText(t.owner||"",130,y+22);
-    g.textAlign="right";g.font='900 110px "DM Sans", system-ui, sans-serif';g.fillStyle=win?col:"#6b7385";g.fillText(fmt(score,1),990,y+20);};
-  const aw=s.as>s.hs;side(a,s.as,420,"#ff9470",aw);side(h,s.hs,660,"#6ea8ff",!aw);
+  g.fillStyle="#e8ebf2";g.font='800 44px "DM Sans", system-ui, sans-serif';g.fillText(`WEEK ${x.week} ${final?"FINAL":"IN PROGRESS"}`,540,170);
+  const recOf=tid=>{const S=ST.S[tid];return S?`${S.w}-${S.l}${S.tie?"-"+S.tie:""}`:"";};
+  const topOf=tid=>{const wk=(D.weekly||{})[String(x.week)];if(!wk||!wk[String(tid)])return"";let b=null;wk[String(tid)].forEach(r=>{if(r[1]===20||r[1]===21)return;if(!b||r[2]>b[2])b=r;});return b?`Top: ${pname(b[0])} ${fmt(b[2],1)}`:"";};
+  const wp=winProb(x);
+  const side=(t,score,y,col,win,proj,wpct)=>{g.fillStyle=col;g.fillRect(90,y-104,10,170);g.textAlign="left";g.fillStyle=win?"#ffffff":"#aeb5c5";fit(t.name,560,60,"900");g.fillText(t.name,130,y-44);
+    g.font='600 30px "DM Sans", system-ui, sans-serif';g.fillStyle="#8b93a7";g.fillText(`${(t.owner||"").trim()}${t.owner?"  ·  ":""}${recOf(t.id)}`,130,y+4);
+    const tp=topOf(t.id);if(tp){g.font='600 27px "DM Sans", system-ui, sans-serif';g.fillStyle="#747c90";g.fillText(tp,130,y+44);}
+    g.textAlign="right";g.font='900 104px "DM Sans", system-ui, sans-serif';g.fillStyle=win?col:"#6b7385";g.fillText(fmt(score,1),990,y);
+    const sub=[proj>0?`proj ${fmt(proj,1)}`:"",(!final&&wpct!=null)?`${wpct}% win`:""].filter(Boolean).join("  ·  ");
+    if(sub){g.font='600 26px "DM Sans", system-ui, sans-serif';g.fillStyle="#6b7385";g.fillText(sub,990,y+40);}};
+  const aw=s.as>s.hs;side(a,s.as,430,"#ff9470",aw,x.awayProj,wp?Math.round(wp.pa*100):null);side(h,s.hs,680,"#6ea8ff",!aw,x.homeProj,wp?Math.round(wp.ph*100):null);
   const W=aw?a:h,L=aw?h:a,m=Math.abs(s.as-s.hs),verb=!final?"leads":m>=40?"destroyed":m>=20?"handled":m>=5?"beat":"edged";
   g.textAlign="center";g.fillStyle="#ffd23f";const line=`${W.name} ${verb} ${L.name}`;fit(line,940,50,"800");g.fillText(line,540,880);
   g.fillStyle="#5b6375";g.font='600 28px "DM Sans", system-ui, sans-serif';g.fillText("mitch-fantasy.netlify.app",540,1010);
@@ -2669,7 +2693,8 @@ function tbBoardByPlayer(rows){
   const needMap={};TB_POS.forEach(p=>needMap[p]=[]);
   rows.forEach(r=>{(r.listing.needs||[]).forEach(p=>{if(needMap[p])needMap[p].push(r.team_id);});});
   const byPos={};
-  rows.forEach(r=>{(r.listing.available||[]).forEach(pid=>{const pos=ppos(pid);(byPos[pos]=byPos[pos]||[]).push({pid,tid:r.team_id});});});
+  const addP=(pid,tid,st)=>{const pos=ppos(pid);(byPos[pos]=byPos[pos]||[]).push({pid,tid,st});};
+  rows.forEach(r=>{(r.listing.available||[]).forEach(pid=>addP(pid,r.team_id,"shop"));(r.listing.openTo||[]).forEach(pid=>addP(pid,r.team_id,"offer"));});
   let h="";
   if(TB_POS.some(p=>needMap[p].length)){
     h+=`<div class="card card-p" style="margin-bottom:16px"><div class="fieldlbl" style="margin:0 0 8px">Who's looking for what</div><div style="display:flex;flex-direction:column;gap:7px">`;
@@ -2680,11 +2705,11 @@ function tbBoardByPlayer(rows){
   let any=false;
   TB_POS.forEach(pos=>{const list=(byPos[pos]||[]).slice().sort((a,b)=>playerSeason(b.pid).avg-playerSeason(a.pid).avg);if(!list.length)return;any=true;
     h+=`<div class="sub-h">${pos} available <span style="font-weight:400;font-size:11px;color:var(--ink-3);text-transform:none;letter-spacing:0">${list.length}</span></div>`;
-    h+=`<div class="twrap"><table><thead><tr><th class="no-sort" style="text-align:left">Player</th><th class="no-sort">NFL</th><th class="no-sort">PPG</th><th class="no-sort">Total</th><th class="no-sort">Last 3</th><th class="no-sort" style="text-align:left">Shopped by</th></tr></thead><tbody>`;
+    h+=`<div class="twrap"><table><thead><tr><th class="no-sort" style="text-align:left">Player</th><th class="no-sort">Status</th><th class="no-sort">NFL</th><th class="no-sort">PPG</th><th class="no-sort">Total</th><th class="no-sort">Last 3</th><th class="no-sort" style="text-align:left">Team</th></tr></thead><tbody>`;
     list.forEach(o=>{const ps=playerSeason(o.pid),t=teamById[o.tid];
-      h+=`<tr><td style="text-align:left;font-weight:600">${esc(pname(o.pid))}${tbInj(o.pid)}</td><td>${esc(tbNfl(o.pid))}</td><td class="num">${ps.gp?fmt(ps.avg,1):"—"}</td><td class="num">${ps.gp?fmt(ps.tot,1):"—"}</td><td class="num">${ps.gp?fmt(ps.l3,1):"—"}</td><td style="text-align:left">${t?teamLine(t):""}</td></tr>`;});
+      h+=`<tr><td style="text-align:left;font-weight:600">${esc(pname(o.pid))}${tbInj(o.pid)}</td><td>${o.st==="shop"?`<span class="tag-in" style="font-size:10.5px">Shopping</span>`:`<span style="color:var(--t-amber);font-weight:700;font-size:10.5px">Offers</span>`}</td><td>${esc(tbNfl(o.pid))}</td><td class="num">${ps.gp?fmt(ps.avg,1):"—"}</td><td class="num">${ps.gp?fmt(ps.tot,1):"—"}</td><td class="num">${ps.gp?fmt(ps.l3,1):"—"}</td><td style="text-align:left">${t?teamLine(t):""}</td></tr>`;});
     h+=`</tbody></table></div>`;});
-  if(!any)h+=`<div class="card card-p" style="color:var(--ink-3);font-size:13px">Teams have posted needs, but nobody has listed a player to move yet — check the <b>By team</b> view.</div>`;
+  if(!any)h+=`<div class="card card-p" style="color:var(--ink-3);font-size:13px">Teams have posted needs, but nobody has listed a player to trade yet — check the <b>By team</b> view.</div>`;
   return h;
 }
 async function initTradeBlock(){
