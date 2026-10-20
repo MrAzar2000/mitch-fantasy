@@ -872,7 +872,7 @@ document.addEventListener("click",e=>{const n=e.target.closest("[data-tid]");if(
 const TITLE_HELP={"All-Play Record":"Your record if you played all 11 other teams every week.","Luck Index":"Actual wins minus expected wins. Expected wins per week = share of the other 11 teams your score beat.",
   "Consistency":"How much your weekly score swings (standard deviation). Lower = steadier.","Strength of Schedule":"Average season PPG of the opponents you've faced.","Lineup Efficiency":"Points scored divided by the best possible lineup from your starters + bench that week.",
   "Schedule Swap":"Your record if you'd played each other team's schedule.","Best Pickups":"Waiver and free-agent adds ranked by points scored as a starter.","Single-Game Records":"Best and worst single-week performances this season.",
-  "Top 5":"Top five weekly scores this season.","Streaks":"Longest winning and losing runs this season.","Week by Week":"Every team's score each week; green = won, red = lost.","Defensive Ratings":"Points allowed plus how far below their average your opponents scored, and how many opposing players you have sidelined.",
+  "Top 5":"Top five weekly scores this season.","Streaks":"Longest winning and losing runs this season.","Week by Week":"Every team's score each week; green = won, red = lost.","Defensive Ratings":"Points allowed plus how far below their average your opponents scored.",
   "Title Droughts":"Seasons since each manager's last championship.","All-Time Leaderboard":"Career record and points since 2016.","All-Time Rivalries":"Head-to-head records between two managers across every season.",
   "Weekly scores":"Your score each week against the league average (dashed line).","Roster":"Current ESPN roster. Highlighted rows have an NFL game today.","Draft Picks":"Everyone this team drafted, in pick order.",
   "Budget Used":"FAAB spent out of the season budget.","Pickups by Team":"Players each team added from waivers or free agency.","Positions drafted by round":"How many of each position went in each draft round.","More Metrics":"Extra season stats per team.",
@@ -3191,14 +3191,12 @@ function rememberSeen(){try{localStorage.setItem("mfl-seen-update",D.meta.lastUp
 VIEWS.defense=function(){
   let html=shead("Lockdown Index","Manager Defense","Which managers keep opponents off the scoreboard");
   if(!ST.started) return el(html+`<div style="margin-top:4px">${emptyState("shield","No games yet","Defensive ratings need a few matchups in the books.")}</div>`);
-  html+=`<div class="helpbox" style="margin-bottom:16px"><span class="hi">${icon("shield")}</span><div>Some managers just keep their opponents off the board — week after week the other guy lays an egg. A few things go into it: fewest points allowed, how far below their season average opponents score against you (opponent-adjusted, so stuffing a juggernaut counts more than smothering a cellar-dweller), and how many of your opponents' players are currently sidelined.</div></div>`;
+  html+=`<div class="helpbox" style="margin-bottom:16px"><span class="hi">${icon("shield")}</span><div>Some managers just keep their opponents off the board — week after week the other guy lays an egg. Two ways to measure it: fewest points allowed <b>plus</b> how far below their season average opponents score against you (opponent-adjusted, so stuffing a juggernaut counts more than smothering a cellar-dweller).</div></div>`;
   const rows=Object.values(ST.S).filter(s=>s.gp>0);
   rows.forEach(s=>{let supp=0,stuffs=0,n=0;s.results.forEach(r=>{const opp=ST.S[r.opp];if(!opp)return;supp+=(opp.ppg-r.pa);if(r.pa<opp.ppg)stuffs++;n++;});s._supp=n?supp/n:0;s._stuffs=stuffs;});
-  rows.forEach(s=>{const opps=[...new Set(s.results.map(r=>r.opp))];let ko=0;opps.forEach(oid=>{(D.rosters[oid]||[]).forEach(p=>{if(p.injury==="OUT")ko++;});});s._ko=ko;});
   const minPA=Math.min(...rows.map(s=>s.papg)),maxPA=Math.max(...rows.map(s=>s.papg));
   const minS=Math.min(...rows.map(s=>s._supp)),maxS=Math.max(...rows.map(s=>s._supp));
-  const minK=Math.min(...rows.map(s=>s._ko)),maxK=Math.max(...rows.map(s=>s._ko)),hasK=maxK>minK;
-  rows.forEach(s=>{const pa=maxPA>minPA?(maxPA-s.papg)/(maxPA-minPA)*100:50;const su=maxS>minS?(s._supp-minS)/(maxS-minS)*100:50;const ko=hasK?(s._ko-minK)/(maxK-minK)*100:0;s._def=hasK?(0.5*pa+0.4*su+0.1*ko):(0.55*pa+0.45*su);});
+  rows.forEach(s=>{const pa=maxPA>minPA?(maxPA-s.papg)/(maxPA-minPA)*100:50;const su=maxS>minS?(s._supp-minS)/(maxS-minS)*100:50;s._def=0.55*pa+0.45*su;});
   rows.sort((a,b)=>b._def-a._def);
   const grade=d=>d>=82?"A+":d>=70?"A":d>=58?"B":d>=44?"C":d>=30?"D":"F";
   const gcol=g=>g[0]==="A"?"var(--win)":g[0]==="B"?"#5a8f2f":g[0]==="C"?"var(--accent)":g[0]==="D"?"#c0562e":"var(--loss)";
@@ -3208,16 +3206,16 @@ VIEWS.defense=function(){
     ${recCard("bars","Most Stuffs",mostStuffs._stuffs+" of "+mostStuffs.gp,mostStuffs.team.name)}
     ${recCard("target","Turnstile Award",grade(worst._def),worst.team.name+" · "+fmt(worst.papg,1)+" PA/G")}
   </div>`;
-  html+=`<div class="sub-h">Defensive Ratings</div><div class="twrap"><table><thead><tr><th class="no-sort">#</th><th class="no-sort">Manager</th><th class="no-sort">DEF</th><th class="no-sort">Grade</th><th class="no-sort">PA/G</th><th class="no-sort">Held Below Avg</th><th class="no-sort">Stuffs</th><th class="no-sort">KO</th></tr></thead><tbody>`;
+  html+=`<div class="sub-h">Defensive Ratings</div><div class="twrap"><table><thead><tr><th class="no-sort">#</th><th class="no-sort">Manager</th><th class="no-sort">DEF</th><th class="no-sort">Grade</th><th class="no-sort">PA/G</th><th class="no-sort">Held Below Avg</th><th class="no-sort">Stuffs</th></tr></thead><tbody>`;
   rows.forEach((s,i)=>{const g=grade(s._def);
     html+=`<tr><td class="rankcol ${i<3?"top":""}">${i+1}</td><td>${teamLine(s.team)}</td>
       <td class="lead num">${fmt(s._def,0)}</td>
       <td><span class="pill" style="background:color-mix(in srgb,${gcol(g)} 15%,transparent);color:${gcol(g)};font-weight:800;min-width:30px;justify-content:center">${g}</span></td>
       <td class="num">${fmt(s.papg,1)}</td>
       <td class="num" style="color:${s._supp>0?'var(--win)':s._supp<0?'var(--loss)':'var(--ink-2)'}">${(s._supp>0?'+':'')+fmt(s._supp,1)}</td>
-      <td class="num">${s._stuffs}/${s.gp}</td><td class="num">${s._ko||0}</td></tr>`;});
+      <td class="num">${s._stuffs}/${s.gp}</td></tr>`;});
   html+=`</tbody></table></div>`;
-  html+=`<div class="metricnote"><b>DEF</b> = 0–100 composite of fewest points allowed, how far below their average you hold opponents, and opposing players currently sidelined. <b>Held Below Avg</b> = avg points below their season norm that opponents scored against this manager (+ = dragged them down). <b>Stuffs</b> = games holding the opponent under their own season average. <b>KO</b> = opposing players out injured on the teams you have faced.</div>`;
+  html+=`<div class="metricnote"><b>DEF</b> = 0–100 composite (55% fewest points allowed + 45% opponent suppression). <b>Held Below Avg</b> = avg points below their season norm that opponents scored against this manager (+ = dragged them down). <b>Stuffs</b> = games holding the opponent under their own season average.</div>`;
   return el(html);
 };
 
