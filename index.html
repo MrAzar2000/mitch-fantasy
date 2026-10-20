@@ -664,6 +664,7 @@ body.phone .lu .wx{white-space:normal}
 .jumpscare .js-img{width:100vw;height:100vh;object-fit:cover;display:block;animation:jspop .34s cubic-bezier(.2,1.5,.3,1) both}
 @keyframes jspop{0%{transform:scale(.22);opacity:.2}70%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
 @keyframes jsshake{0%{transform:translate(0,0)}20%{transform:translate(-9px,7px)}40%{transform:translate(8px,-6px)}60%{transform:translate(-7px,-7px)}80%{transform:translate(7px,6px)}100%{transform:translate(0,0)}}
+.tbtn.on{color:var(--accent)}
 </style>
 
 <div class="layout">
@@ -676,6 +677,7 @@ body.phone .lu .wx{white-space:normal}
     <nav class="sb-nav" id="nav"></nav>
     <div class="sb-foot">
       <div class="fresh" id="fresh"></div>
+      <button class="tbtn" id="notifyBtn" title="Notifications" aria-label="Notifications"></button>
       <button class="tbtn" id="themeBtn" title="Toggle light/dark" aria-label="Toggle theme">◐</button>
     </div>
   </aside>
@@ -758,6 +760,7 @@ const ICON_P={
   sparkle:'<path d="M12 3.5 13.8 10l6.7 2-6.7 2L12 20.5 10.2 14l-6.7-2 6.7-2z"/>',
   football:'<ellipse cx="12" cy="12" rx="10" ry="6" transform="rotate(-40 12 12)"/><path d="M9 15l6-6M10.5 10.5l3 3"/>',
   swap:'<path d="M7 4 3 8l4 4"/><path d="M3 8h13"/><path d="m17 20 4-4-4-4"/><path d="M21 16H8"/>',
+  bell:'<path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
   compass:'<circle cx="12" cy="12" r="9"/><path d="M16.2 7.8 14.1 14.1 7.8 16.2 9.9 9.9z"/>'
 };
 function icon(n){return '<svg class="glyph" viewBox="0 0 24 24" aria-hidden="true">'+(ICON_P[n]||'')+'</svg>';}
@@ -3220,6 +3223,57 @@ VIEWS.defense=function(){
 };
 
 /* ---------- boot ---------- */
+/* ---------- push notifications (PWA Web Push) ---------- */
+const VAPID_PUBLIC="BCP5Xjk7asig6WQCDpuGLW4fCfpqh3l_S7b0BrOssz8utUtgo7Atn1q0kSD9iQmKQ45nnyMen5CXajhduY1Tx4I";
+function urlB64(b64){const pad="=".repeat((4-b64.length%4)%4);const s=(b64+pad).replace(/-/g,"+").replace(/_/g,"/");const raw=atob(s);const a=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)a[i]=raw.charCodeAt(i);return a;}
+const pushSupported=()=>("serviceWorker" in navigator)&&("PushManager" in window)&&("Notification" in window);
+async function currentSub(){try{const r=await navigator.serviceWorker.ready;return await r.pushManager.getSubscription();}catch(e){return null;}}
+async function refreshNotifyBtn(){const b=document.getElementById("notifyBtn");if(!b)return;b.innerHTML=icon("bell");
+  if(!pushSupported()){b.classList.remove("on");b.title="Notifications";return;}
+  const sub=await currentSub();b.classList.toggle("on",!!sub);b.title=sub?"Notifications on":"Enable notifications";}
+function initPush(){
+  const b=document.getElementById("notifyBtn");if(b){b.innerHTML=icon("bell");b.onclick=notifyModal;}
+  if("serviceWorker" in navigator){navigator.serviceWorker.register("/sw.js").then(()=>refreshNotifyBtn()).catch(()=>{});}
+}
+async function doSubscribe(teamId){
+  const perm=await Notification.requestPermission();
+  if(perm!=="granted")throw new Error("permission "+perm);
+  const reg=await navigator.serviceWorker.ready;
+  let sub=await reg.pushManager.getSubscription();
+  if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64(VAPID_PUBLIC)});
+  const j=sub.toJSON();
+  const {error}=await sb.from("push_subscriptions").upsert({endpoint:j.endpoint,p256dh:j.keys.p256dh,auth:j.keys.auth,team_id:teamId||null},{onConflict:"endpoint"});
+  if(error)throw error;
+  return sub;
+}
+async function doUnsubscribe(){const sub=await currentSub();if(sub){try{await sb.from("push_subscriptions").delete().eq("endpoint",sub.endpoint);}catch(e){}try{await sub.unsubscribe();}catch(e){}}}
+function notifyModal(){
+  closeMatchup();
+  const iOS=/iPhone|iPad|iPod/.test(navigator.userAgent);
+  const standalone=window.matchMedia("(display-mode: standalone)").matches||window.navigator.standalone===true;
+  let body;
+  if(iOS&&!standalone){
+    body=`<div class="metricnote" style="font-size:13.5px;line-height:1.7">On iPhone, push notifications only work once this site is added to your Home Screen:<br><br>1. Tap the <b>Share</b> icon in Safari<br>2. Choose <b>Add to Home Screen</b><br>3. Open <b>MFL</b> from the new icon, then tap the bell again to turn on alerts.</div>`;
+  }else if(!pushSupported()){
+    body=`<div class="metricnote">This browser doesn't support push notifications.</div>`;
+  }else{
+    const opts=D.teams.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join("");
+    body=`<div style="font-size:13.5px;line-height:1.6;margin-bottom:12px">Get a push when there's <b>Trade Block</b> activity, new <b>chat</b>, and when your <b>matchup goes live</b>.</div>
+      <label class="fieldlbl" style="display:block;margin-bottom:6px">Your team <span style="color:var(--ink-3);font-weight:400">(for "your matchup" alerts — optional)</span></label>
+      <select class="txt" id="npTeam" style="width:100%;margin-bottom:14px"><option value="">— pick your team —</option>${opts}</select>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="npOn" type="button">Enable notifications</button><button class="wi-reset" id="npOff" type="button">Turn off</button></div>
+      <div id="npMsg" style="font-size:12.5px;color:var(--ink-3);margin-top:12px;min-height:16px"></div>`;
+  }
+  const wrap=document.createElement("div");wrap.className="mdl";wrap.id="mdl";wrap.setAttribute("role","dialog");wrap.setAttribute("aria-modal","true");
+  wrap.innerHTML=`<div class="mdl-box"><div class="mdl-top"><div><div class="eyebrow" style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--t-blue)">Notifications</div><div style="font-size:12.5px;color:var(--ink-3)">Push alerts on this device</div></div><button class="x" aria-label="Close" type="button">✕</button></div><div style="padding:2px">${body}</div></div>`;
+  wrap.addEventListener("click",e=>{if(e.target===wrap)closeMatchup();});
+  wrap.querySelector(".x").onclick=closeMatchup;
+  document.body.appendChild(wrap);document.body.classList.add("mdl-open");document.addEventListener("keydown",mdlKey);
+  const on=wrap.querySelector("#npOn"),off=wrap.querySelector("#npOff"),msg=wrap.querySelector("#npMsg");
+  (async()=>{if(msg&&await currentSub())msg.innerHTML="Notifications are currently <b style='color:var(--win)'>on</b> for this device.";})();
+  if(on)on.onclick=async()=>{on.disabled=true;msg.textContent="Enabling…";try{const v=wrap.querySelector("#npTeam").value;await doSubscribe(v?+v:null);msg.innerHTML="<b style='color:var(--win)'>Notifications are on.</b> You're all set — you can close this.";refreshNotifyBtn();}catch(e){msg.innerHTML="<b style='color:var(--loss)'>Couldn't enable:</b> "+esc(e.message||String(e));on.disabled=false;}};
+  if(off)off.onclick=async()=>{msg.textContent="Turning off…";try{await doUnsubscribe();msg.textContent="Notifications turned off for this device.";refreshNotifyBtn();}catch(e){msg.textContent="Couldn't turn off.";}};
+}
 function boot(){
   const m=D.meta;
   document.getElementById("lgname").textContent=m.leagueName;
@@ -3258,7 +3312,7 @@ function boot(){
   setInterval(()=>renderTicker(false),1000);
   setInterval(setFresh,30000);
   startLiveRefresh();
-  loadHeartbeat();loadUpdates();
+  loadHeartbeat();loadUpdates();initPush();
 }
 function initialsMark(name){const w=name.split(/\s+/).filter(Boolean);return (w.slice(0,3).map(x=>x[0]).join("")||"FL").toUpperCase();}
 
