@@ -659,6 +659,11 @@ body.phone .lu .wx{white-space:normal}
 .wpg-line{fill:none;stroke:var(--accent);stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round;stroke-linecap:round}
 .wpg-mid{stroke:var(--line-2);stroke-width:1;stroke-dasharray:3 3;vector-effect:non-scaling-stroke}
 .wpg-l{display:flex;justify-content:space-between;font-size:11.5px;font-weight:700;margin-top:6px}
+.jumpscare{position:fixed;inset:0;z-index:100000;background:#000;display:grid;place-items:center;cursor:pointer}
+.jumpscare .js-shake{animation:jsshake .3s linear 0s 5}
+.jumpscare svg{width:min(92vw,92vh);height:min(92vw,92vh);display:block;filter:drop-shadow(0 0 34px rgba(130,0,0,.85));animation:jspop .34s cubic-bezier(.2,1.5,.3,1) both}
+@keyframes jspop{0%{transform:scale(.22);opacity:.2}70%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+@keyframes jsshake{0%{transform:translate(0,0)}20%{transform:translate(-9px,7px)}40%{transform:translate(8px,-6px)}60%{transform:translate(-7px,-7px)}80%{transform:translate(7px,6px)}100%{transform:translate(0,0)}}
 </style>
 
 <div class="layout">
@@ -867,7 +872,7 @@ document.addEventListener("click",e=>{const n=e.target.closest("[data-tid]");if(
 const TITLE_HELP={"All-Play Record":"Your record if you played all 11 other teams every week.","Luck Index":"Actual wins minus expected wins. Expected wins per week = share of the other 11 teams your score beat.",
   "Consistency":"How much your weekly score swings (standard deviation). Lower = steadier.","Strength of Schedule":"Average season PPG of the opponents you've faced.","Lineup Efficiency":"Points scored divided by the best possible lineup from your starters + bench that week.",
   "Schedule Swap":"Your record if you'd played each other team's schedule.","Best Pickups":"Waiver and free-agent adds ranked by points scored as a starter.","Single-Game Records":"Best and worst single-week performances this season.",
-  "Top 5":"Top five weekly scores this season.","Streaks":"Longest winning and losing runs this season.","Week by Week":"Every team's score each week; green = won, red = lost.","Defensive Ratings":"Points allowed plus how far below their average your opponents scored, and how many opposing players you have sidelined.",
+  "Top 5":"Top five weekly scores this season.","Streaks":"Longest winning and losing runs this season.","Week by Week":"Every team's score each week; green = won, red = lost.","Defensive Ratings":"Points allowed plus how far below their average your opponents scored.",
   "Title Droughts":"Seasons since each manager's last championship.","All-Time Leaderboard":"Career record and points since 2016.","All-Time Rivalries":"Head-to-head records between two managers across every season.",
   "Weekly scores":"Your score each week against the league average (dashed line).","Roster":"Current ESPN roster. Highlighted rows have an NFL game today.","Draft Picks":"Everyone this team drafted, in pick order.",
   "Budget Used":"FAAB spent out of the season budget.","Pickups by Team":"Players each team added from waivers or free agency.","Positions drafted by round":"How many of each position went in each draft round.","More Metrics":"Extra season stats per team.",
@@ -2176,6 +2181,22 @@ function gameStatus(proTeam,week){
 const INJ_SHORT={QUESTIONABLE:"Q",DOUBTFUL:"D",OUT:"OUT",INJURY_RESERVE:"IR",SUSPENSION:"SUS",DAY_TO_DAY:"DTD",PROBABLE:"P"};
 function isHalloween(){const n=new Date(),m=n.getMonth(),d=n.getDate();return (m===9&&d>=15)||(m===10&&d<=1);}
 function injLabel(st){return (isHalloween()&&st==="OUT")?"DEAD":(INJ_SHORT[st]||st);}
+
+const SCARY_SVG='<svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="jsEye" cx="50%" cy="42%" r="62%"><stop offset="0%" stop-color="#4a0000"/><stop offset="55%" stop-color="#120000"/><stop offset="100%" stop-color="#000"/></radialGradient><radialGradient id="jsSkin" cx="50%" cy="38%" r="72%"><stop offset="0%" stop-color="#d2d6c7"/><stop offset="68%" stop-color="#969c86"/><stop offset="100%" stop-color="#434838"/></radialGradient></defs><path d="M200 18 C302 18 346 96 340 192 C336 272 300 362 200 390 C100 362 64 272 60 192 C54 96 98 18 200 18 Z" fill="url(#jsSkin)" stroke="#23271e" stroke-width="3"/><path d="M118 150 C108 205 120 255 150 305" fill="none" stroke="#353a2d" stroke-width="2" opacity=".55"/><path d="M282 150 C292 205 280 255 250 305" fill="none" stroke="#353a2d" stroke-width="2" opacity=".55"/><path d="M104 148 L186 172" stroke="#14170f" stroke-width="11" stroke-linecap="round"/><path d="M296 148 L214 172" stroke="#14170f" stroke-width="11" stroke-linecap="round"/><ellipse cx="143" cy="188" rx="44" ry="52" fill="url(#jsEye)"/><ellipse cx="257" cy="188" rx="44" ry="52" fill="url(#jsEye)"/><circle cx="150" cy="200" r="10" fill="#ece6d4"/><circle cx="150" cy="200" r="4.5" fill="#9a0000"/><circle cx="246" cy="196" r="10" fill="#ece6d4"/><circle cx="246" cy="196" r="4.5" fill="#9a0000"/><path d="M200 206 L180 266 L200 259 L220 266 Z" fill="#0f1109"/><path d="M150 300 C172 284 228 284 250 300 C262 332 240 374 200 378 C160 374 138 332 150 300 Z" fill="#090b06" stroke="#14170f" stroke-width="3"/><path d="M157 300 L167 322 L177 300 L187 320 L197 300 L207 320 L217 300 L227 322 L237 300 L243 303 Z" fill="#cfd0c2" opacity=".92"/><path d="M165 374 L175 356 L185 374 L195 356 L205 374 L215 356 L225 374 L233 360 Z" fill="#b7b9aa" opacity=".82"/><path d="M203 376 C205 388 202 398 206 410" stroke="#780000" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M250 232 C249 252 251 268 247 290" stroke="#6b0000" stroke-width="5" fill="none" stroke-linecap="round"/></svg>';
+function jumpScare(){
+  if(document.querySelector(".jumpscare"))return;
+  const ov=document.createElement("div");ov.className="jumpscare";ov.innerHTML=`<div class="js-shake">${SCARY_SVG}</div>`;
+  document.body.appendChild(ov);
+  try{const AC=window.AudioContext||window.webkitAudioContext;if(AC){const ctx=new AC();if(ctx.state==="suspended"){try{ctx.resume();}catch(e){}}const t=ctx.currentTime;
+    const buf=ctx.createBuffer(1,Math.floor(ctx.sampleRate*0.9),ctx.sampleRate),dd=buf.getChannelData(0);for(let i=0;i<dd.length;i++)dd[i]=(Math.random()*2-1)*Math.pow(1-i/dd.length,1.4);
+    const ns=ctx.createBufferSource();ns.buffer=buf;const ng=ctx.createGain();ng.gain.value=0.45;ns.connect(ng).connect(ctx.destination);ns.start(t);
+    const o=ctx.createOscillator();o.type="sawtooth";o.frequency.setValueAtTime(920,t);o.frequency.exponentialRampToValueAtTime(85,t+0.8);const og=ctx.createGain();og.gain.setValueAtTime(0.0001,t);og.gain.exponentialRampToValueAtTime(0.34,t+0.03);og.gain.exponentialRampToValueAtTime(0.0001,t+0.9);o.connect(og).connect(ctx.destination);o.start(t);o.stop(t+0.95);
+    setTimeout(()=>{try{ctx.close();}catch(e){}},1600);
+  }}catch(e){}
+  const kill=()=>{if(ov.parentNode)ov.remove();document.removeEventListener("keydown",kill);};
+  ov.addEventListener("click",kill);document.addEventListener("keydown",kill);
+  setTimeout(kill,2200);
+}
 const COBWEB_SVG='<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M0 0 L100 0 M0 0 L0 100 M0 0 L72 72 M0 0 L94 36 M0 0 L36 94"/><path d="M22 0 Q15 15 0 22 M46 0 Q33 33 0 46 M72 0 Q50 50 0 72 M100 26 Q62 62 26 100"/></svg>';
 function injOf(pid){if(injOf.k!==D.meta.lastUpdated){injOf.m={};Object.values(D.rosters||{}).forEach(r=>r.forEach(p=>{injOf.m[p.playerId]=p.injury;}));injOf.k=D.meta.lastUpdated;}return injOf.m[pid]||"";}
 function injTag(st){const s=INJ_SHORT[st];return s?`<span class="inj inj-${s==="Q"||s==="P"||s==="DTD"?"q":"o"}" title="${esc(String(st).replace(/_/g," ").toLowerCase())}">${injLabel(st)}</span>`:"";}
@@ -3170,14 +3191,12 @@ function rememberSeen(){try{localStorage.setItem("mfl-seen-update",D.meta.lastUp
 VIEWS.defense=function(){
   let html=shead("Lockdown Index","Manager Defense","Which managers keep opponents off the scoreboard");
   if(!ST.started) return el(html+`<div style="margin-top:4px">${emptyState("shield","No games yet","Defensive ratings need a few matchups in the books.")}</div>`);
-  html+=`<div class="helpbox" style="margin-bottom:16px"><span class="hi">${icon("shield")}</span><div>Some managers just keep their opponents off the board — week after week the other guy lays an egg. A few things go into it: fewest points allowed, how far below their season average opponents score against you (opponent-adjusted, so stuffing a juggernaut counts more than smothering a cellar-dweller), and how many of your opponents' players are currently sidelined.</div></div>`;
+  html+=`<div class="helpbox" style="margin-bottom:16px"><span class="hi">${icon("shield")}</span><div>Some managers just keep their opponents off the board — week after week the other guy lays an egg. Two ways to measure it: fewest points allowed <b>plus</b> how far below their season average opponents score against you (opponent-adjusted, so stuffing a juggernaut counts more than smothering a cellar-dweller).</div></div>`;
   const rows=Object.values(ST.S).filter(s=>s.gp>0);
   rows.forEach(s=>{let supp=0,stuffs=0,n=0;s.results.forEach(r=>{const opp=ST.S[r.opp];if(!opp)return;supp+=(opp.ppg-r.pa);if(r.pa<opp.ppg)stuffs++;n++;});s._supp=n?supp/n:0;s._stuffs=stuffs;});
-  rows.forEach(s=>{const opps=[...new Set(s.results.map(r=>r.opp))];let ko=0;opps.forEach(oid=>{(D.rosters[oid]||[]).forEach(p=>{if(p.injury==="OUT")ko++;});});s._ko=ko;});
   const minPA=Math.min(...rows.map(s=>s.papg)),maxPA=Math.max(...rows.map(s=>s.papg));
   const minS=Math.min(...rows.map(s=>s._supp)),maxS=Math.max(...rows.map(s=>s._supp));
-  const minK=Math.min(...rows.map(s=>s._ko)),maxK=Math.max(...rows.map(s=>s._ko)),hasK=maxK>minK;
-  rows.forEach(s=>{const pa=maxPA>minPA?(maxPA-s.papg)/(maxPA-minPA)*100:50;const su=maxS>minS?(s._supp-minS)/(maxS-minS)*100:50;const ko=hasK?(s._ko-minK)/(maxK-minK)*100:0;s._def=hasK?(0.5*pa+0.4*su+0.1*ko):(0.55*pa+0.45*su);});
+  rows.forEach(s=>{const pa=maxPA>minPA?(maxPA-s.papg)/(maxPA-minPA)*100:50;const su=maxS>minS?(s._supp-minS)/(maxS-minS)*100:50;s._def=0.55*pa+0.45*su;});
   rows.sort((a,b)=>b._def-a._def);
   const grade=d=>d>=82?"A+":d>=70?"A":d>=58?"B":d>=44?"C":d>=30?"D":"F";
   const gcol=g=>g[0]==="A"?"var(--win)":g[0]==="B"?"#5a8f2f":g[0]==="C"?"var(--accent)":g[0]==="D"?"#c0562e":"var(--loss)";
@@ -3187,16 +3206,16 @@ VIEWS.defense=function(){
     ${recCard("bars","Most Stuffs",mostStuffs._stuffs+" of "+mostStuffs.gp,mostStuffs.team.name)}
     ${recCard("target","Turnstile Award",grade(worst._def),worst.team.name+" · "+fmt(worst.papg,1)+" PA/G")}
   </div>`;
-  html+=`<div class="sub-h">Defensive Ratings</div><div class="twrap"><table><thead><tr><th class="no-sort">#</th><th class="no-sort">Manager</th><th class="no-sort">DEF</th><th class="no-sort">Grade</th><th class="no-sort">PA/G</th><th class="no-sort">Held Below Avg</th><th class="no-sort">Stuffs</th><th class="no-sort">KO</th></tr></thead><tbody>`;
+  html+=`<div class="sub-h">Defensive Ratings</div><div class="twrap"><table><thead><tr><th class="no-sort">#</th><th class="no-sort">Manager</th><th class="no-sort">DEF</th><th class="no-sort">Grade</th><th class="no-sort">PA/G</th><th class="no-sort">Held Below Avg</th><th class="no-sort">Stuffs</th></tr></thead><tbody>`;
   rows.forEach((s,i)=>{const g=grade(s._def);
     html+=`<tr><td class="rankcol ${i<3?"top":""}">${i+1}</td><td>${teamLine(s.team)}</td>
       <td class="lead num">${fmt(s._def,0)}</td>
       <td><span class="pill" style="background:color-mix(in srgb,${gcol(g)} 15%,transparent);color:${gcol(g)};font-weight:800;min-width:30px;justify-content:center">${g}</span></td>
       <td class="num">${fmt(s.papg,1)}</td>
       <td class="num" style="color:${s._supp>0?'var(--win)':s._supp<0?'var(--loss)':'var(--ink-2)'}">${(s._supp>0?'+':'')+fmt(s._supp,1)}</td>
-      <td class="num">${s._stuffs}/${s.gp}</td><td class="num">${s._ko||0}</td></tr>`;});
+      <td class="num">${s._stuffs}/${s.gp}</td></tr>`;});
   html+=`</tbody></table></div>`;
-  html+=`<div class="metricnote"><b>DEF</b> = 0–100 composite of fewest points allowed, how far below their average you hold opponents, and opposing players currently sidelined. <b>Held Below Avg</b> = avg points below their season norm that opponents scored against this manager (+ = dragged them down). <b>Stuffs</b> = games holding the opponent under their own season average. <b>KO</b> = opposing players out injured on the teams you have faced.</div>`;
+  html+=`<div class="metricnote"><b>DEF</b> = 0–100 composite (55% fewest points allowed + 45% opponent suppression). <b>Held Below Avg</b> = avg points below their season norm that opponents scored against this manager (+ = dragged them down). <b>Stuffs</b> = games holding the opponent under their own season average.</div>`;
   return el(html);
 };
 
@@ -3214,7 +3233,7 @@ function boot(){
   const root=document.documentElement;
   let saved=null;try{saved=localStorage.getItem("mfl-theme");}catch(e){}
   root.setAttribute("data-theme", saved==="light"?"light":"dark");
-  if(isHalloween()){root.setAttribute("data-season","halloween");if(!document.querySelector(".cobweb"))["l","r"].forEach(side=>{const c=document.createElement("div");c.className="cobweb "+side;c.innerHTML=COBWEB_SVG;document.body.appendChild(c);});}
+  if(isHalloween()){root.setAttribute("data-season","halloween");if(!document.querySelector(".cobweb"))["l","r"].forEach(side=>{const c=document.createElement("div");c.className="cobweb "+side;c.innerHTML=COBWEB_SVG;document.body.appendChild(c);});setTimeout(jumpScare,10000);}
   function syncThemeBtn(){const isLight=root.getAttribute("data-theme")==="light";tb.innerHTML=icon(isLight?"moon":"sun");tb.title=isLight?"Switch to dark mode":"Switch to light mode";}
   syncThemeBtn();
   tb.onclick=()=>{const nxt=root.getAttribute("data-theme")==="light"?"dark":"light";root.setAttribute("data-theme",nxt);try{localStorage.setItem("mfl-theme",nxt);}catch(e){}syncThemeBtn();};
