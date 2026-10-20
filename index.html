@@ -3279,7 +3279,7 @@ function notifyModal(){
   if(off)off.onclick=async()=>{msg.textContent="Turning off…";try{await doUnsubscribe();msg.textContent="Notifications turned off for this device.";refreshNotifyBtn();}catch(e){msg.textContent="Couldn't turn off.";}};
 }
 /* ---------- admin (simple password gate; honor-system UI lock) ---------- */
-const ADMIN_HASH="354da758b8fd5b048dbf714a07b66e22792e7e58f74188b0a528bd0f21bd3903";
+const ADMIN_HASH="4cc275ec5dd70703105f67231bb1ad73d2ea0f0e02930316a7298035ccabbe09";
 let ADMIN=false;
 async function sha256hex(s){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("");}
 function adminSet(on){ADMIN=on;try{if(on)localStorage.setItem("mfl-admin",ADMIN_HASH);else localStorage.removeItem("mfl-admin");}catch(e){}refreshAdminUI();}
