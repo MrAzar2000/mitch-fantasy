@@ -46,6 +46,10 @@ function buildNote(p: any): Note | null {
   if (table === "trade_block" && (p?.type === "INSERT" || p?.type === "UPDATE")) {
     return { title: "Trade Block", body: "New activity on the Trade Block — tap to see who's shopping.", url: "/#block", tag: "tradeblock" };
   }
+  if (table === "league_updates" && p?.type === "INSERT") {
+    if (rec.active === false) return null;
+    return { title: "League announcement", body: clip(rec.message ?? ""), url: "/", tag: "update" };
+  }
   return null;
 }
 
