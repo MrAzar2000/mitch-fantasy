@@ -5,7 +5,7 @@
 //     trade_block  → broadcasts a push to everyone subscribed.
 //   • The data cron (later) for "your matchup is live" → targeted by team_id.
 //
-// Auth: send header  x-notify-secret: <NOTIFY_SECRET>  (deploy with Verify JWT OFF).
+// Auth: every caller must send header  x-notify-secret: <NOTIFY_SECRET>.
 //
 // Required function secrets:
 //   VAPID_PUBLIC, VAPID_PRIVATE, VAPID_SUBJECT (e.g. mailto:you@example.com),
@@ -49,46 +49,48 @@ function buildNote(p: any): Note | null {
   return null;
 }
 
-Deno.serve(async (req) => {
-  if (req.method !== "POST") return new Response("method not allowed", { status: 405 });
-  if (req.headers.get("x-notify-secret") !== NOTIFY_SECRET) {
-    return new Response("unauthorized", { status: 401 });
-  }
-
-  let payload: any = {};
-  try { payload = await req.json(); } catch { /* empty / non-JSON body */ }
-
-  const note = buildNote(payload);
-  if (!note) {
-    return new Response(JSON.stringify({ skipped: true }), { headers: { "content-type": "application/json" } });
-  }
-
-  const { data: subs, error } = await supabase
-    .from("push_subscriptions")
-    .select("endpoint,p256dh,auth,team_id");
-  if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 });
-
-  let targets = subs ?? [];
-  if (Array.isArray(note.teamIds) && note.teamIds.length) {
-    targets = targets.filter((r: any) => note.teamIds!.includes(r.team_id));
-  }
-
-  const message = JSON.stringify({ title: note.title, body: note.body, url: note.url ?? "/", tag: note.tag });
-  let sent = 0, removed = 0;
-  await Promise.all(targets.map(async (r: any) => {
-    try {
-      await webpush.sendNotification({ endpoint: r.endpoint, keys: { p256dh: r.p256dh, auth: r.auth } }, message);
-      sent++;
-    } catch (e: any) {
-      const code = e?.statusCode;
-      if (code === 404 || code === 410) {
-        await supabase.from("push_subscriptions").delete().eq("endpoint", r.endpoint);
-        removed++;
-      }
+export default {
+  async fetch(req: Request): Promise<Response> {
+    if (req.method !== "POST") return new Response("method not allowed", { status: 405 });
+    if (req.headers.get("x-notify-secret") !== NOTIFY_SECRET) {
+      return new Response("unauthorized", { status: 401 });
     }
-  }));
 
-  return new Response(JSON.stringify({ sent, removed, total: targets.length }), {
-    headers: { "content-type": "application/json" },
-  });
-});
+    let payload: any = {};
+    try { payload = await req.json(); } catch { /* empty / non-JSON body */ }
+
+    const note = buildNote(payload);
+    if (!note) {
+      return new Response(JSON.stringify({ skipped: true }), { headers: { "content-type": "application/json" } });
+    }
+
+    const { data: subs, error } = await supabase
+      .from("push_subscriptions")
+      .select("endpoint,p256dh,auth,team_id");
+    if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+
+    let targets = subs ?? [];
+    if (Array.isArray(note.teamIds) && note.teamIds.length) {
+      targets = targets.filter((r: any) => note.teamIds!.includes(r.team_id));
+    }
+
+    const message = JSON.stringify({ title: note.title, body: note.body, url: note.url ?? "/", tag: note.tag });
+    let sent = 0, removed = 0;
+    await Promise.all(targets.map(async (r: any) => {
+      try {
+        await webpush.sendNotification({ endpoint: r.endpoint, keys: { p256dh: r.p256dh, auth: r.auth } }, message);
+        sent++;
+      } catch (e: any) {
+        const code = e?.statusCode;
+        if (code === 404 || code === 410) {
+          await supabase.from("push_subscriptions").delete().eq("endpoint", r.endpoint);
+          removed++;
+        }
+      }
+    }));
+
+    return new Response(JSON.stringify({ sent, removed, total: targets.length }), {
+      headers: { "content-type": "application/json" },
+    });
+  },
+};
