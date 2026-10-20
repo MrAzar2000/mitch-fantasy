@@ -994,9 +994,7 @@ VIEWS.dash=function(){
   const wk1=D.schedule.filter(x=>x.week===focusWk);
   let html=birthdayBanner()+updatesBanner()+lowBanner()
     +shead("2026 Season","Home",ST.started?("Data through Week "+Math.max(...ST.weeks)):(D.meta.liveWeek?`<span class="pill prog"><span class="progdot"></span>Week ${D.meta.liveWeek} · in progress</span>`:"Data through preseason"));
-  // subscription notice
-  html+=`<div class="helpbox" style="margin-bottom:16px;border-color:color-mix(in srgb,var(--accent) 45%,transparent);background:color-mix(in srgb,var(--accent) 10%,var(--surface))"><span class="hi">${icon("credit")}</span><div>
-    <b style="color:var(--accent)">Heads up &mdash; the league site is going paid.</b> Starting <b>October 27, 2026</b> (two weeks from now), access to this dashboard becomes a paid subscription for all league managers. Watch for sign-up details so you don't lose access to standings, scoreboard, parlay picks, and the full stats suite.</div></div>`;
+  html+=subNotice();
   // status banner
   if(D.meta.liveWeek){
     const lg=D.schedule.filter(x=>x.week===D.meta.liveWeek);
@@ -2119,7 +2117,7 @@ function renderPicksList(){
     return '<div style="display:flex;gap:10px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--line);'+(dup?"opacity:.45":"")+'">'
       +'<div style="flex:0 0 140px;font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(p.manager)+(dup?' <span style="font-weight:400;color:var(--ink-3);font-size:11px">older</span>':"")+'</div>'
       +'<div style="flex:1;font-size:13.5px">'+esc(p.pick)+(p.odds?' <span class="mono" style="color:var(--accent);font-weight:700;font-size:12.5px;white-space:nowrap">'+esc(p.odds)+'</span>':"")+'</div>'
-      +'<div style="flex:0 0 auto;font-size:11px;color:var(--ink-3);white-space:nowrap">'+__pt(p.created_at)+'</div></div>';}).join("");
+      +'<div style="flex:0 0 auto;font-size:11px;color:var(--ink-3);white-space:nowrap">'+__pt(p.created_at)+'</div>'+(ADMIN?'<button class="parlay-del" data-pl="'+p.id+'" title="Delete pick" type="button" style="flex:0 0 auto;border:none;background:transparent;color:var(--loss);cursor:pointer;font-weight:800;padding:0 4px">✕</button>':'')+'</div>';}).join("");
 }
 VIEWS.parlay=function(){
   const pw=parlayWk();if(pw!==parlayWeek){parlayWeek=pw;parlayPicks=[];parlayLoaded=false;if(__sb)__initParlay(__sb);}
@@ -3295,7 +3293,7 @@ function adminLogin(){
   closeMatchup();
   const wrap=document.createElement("div");wrap.className="mdl";wrap.id="mdl";wrap.setAttribute("role","dialog");wrap.setAttribute("aria-modal","true");
   const inner=ADMIN
-    ?`<div style="font-size:13.5px;margin-bottom:14px">You're in <b style="color:var(--win)">admin mode</b>. Edit/delete controls are visible across the site.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="aMng" type="button">Manage announcements</button><button class="wi-reset" id="aOut" type="button">Exit admin</button></div>`
+    ?`<div style="font-size:13.5px;margin-bottom:14px">You're in <b style="color:var(--win)">admin mode</b>. Edit/delete controls are visible across the site.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="aMng" type="button">Manage announcements</button><button class="btn" id="aHome" type="button">Edit home page</button><button class="wi-reset" id="aOut" type="button">Exit admin</button></div>`
     :`<div style="font-size:13.5px;line-height:1.6;margin-bottom:12px">Enter the admin password to unlock edit &amp; delete controls.</div><input class="txt" id="aPw" type="password" placeholder="Password" autocomplete="off" style="width:100%;margin-bottom:12px"><button class="btn" id="aIn" type="button">Unlock</button><div id="aMsg" style="font-size:12.5px;color:var(--ink-3);margin-top:10px"></div>`;
   wrap.innerHTML=`<div class="mdl-box"><div class="mdl-top"><div><div class="eyebrow" style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--t-blue)">Admin</div><div style="font-size:12.5px;color:var(--ink-3)">Master access</div></div><button class="x" aria-label="Close" type="button">✕</button></div><div style="padding:2px">${inner}</div></div>`;
   wrap.addEventListener("click",e=>{if(e.target===wrap)closeMatchup();});
@@ -3306,6 +3304,7 @@ function adminLogin(){
     const go=async()=>{const h=await sha256hex(pw.value||"");if(h===ADMIN_HASH){adminSet(true);closeMatchup();showToast("Admin mode on");}else{msg.textContent="Wrong password.";pw.select();}};
     inBtn.onclick=go;pw.onkeydown=e=>{if(e.key==="Enter")go();};setTimeout(()=>pw.focus(),50);}
   const mng=wrap.querySelector("#aMng");if(mng)mng.onclick=()=>{closeMatchup();adminAnnounce();};
+  const home=wrap.querySelector("#aHome");if(home)home.onclick=()=>{closeMatchup();adminHome();};
   const out=wrap.querySelector("#aOut");if(out)out.onclick=()=>{adminSet(false);closeMatchup();showToast("Admin mode off");};
 }
 function adminAnnounce(){
@@ -3341,6 +3340,40 @@ function adminAnnounce(){
     }catch(e){msg.innerHTML="<b style='color:var(--loss)'>Couldn't post:</b> "+esc(e.message||String(e));}
   };
 }
+/* ---------- editable home content (admin) ---------- */
+let SETTINGS={};
+function subNotice(){
+  if(SETTINGS.subHidden)return '<div id="subNoticeBox" hidden></div>';
+  const title=(SETTINGS.subTitle!=null&&SETTINGS.subTitle!=="")?esc(SETTINGS.subTitle):"Heads up &mdash; the league site is going paid.";
+  const body=(SETTINGS.subBody!=null&&SETTINGS.subBody!=="")?esc(SETTINGS.subBody):"Starting <b>October 27, 2026</b> (two weeks from now), access to this dashboard becomes a paid subscription for all league managers. Watch for sign-up details so you don't lose access to standings, scoreboard, parlay picks, and the full stats suite.";
+  return `<div class="helpbox" id="subNoticeBox" style="margin-bottom:16px;border-color:color-mix(in srgb,var(--accent) 45%,transparent);background:color-mix(in srgb,var(--accent) 10%,var(--surface))"><span class="hi">${icon("credit")}</span><div><b style="color:var(--accent)">${title}</b> ${body}</div></div>`;
+}
+async function loadSettings(){try{const {data}=await sb.from("site_settings").select("data").eq("id","home").maybeSingle();SETTINGS=(data&&data.data)||{};}catch(e){SETTINGS={};}const b=document.getElementById("subNoticeBox");if(b)b.outerHTML=subNotice();}
+function adminHome(){
+  if(!ADMIN)return adminLogin();
+  closeMatchup();
+  const wrap=document.createElement("div");wrap.className="mdl";wrap.id="mdl";wrap.setAttribute("role","dialog");wrap.setAttribute("aria-modal","true");
+  wrap.innerHTML=`<div class="mdl-box"><div class="mdl-top"><div><div class="eyebrow" style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--t-blue)">Admin</div><div style="font-size:12.5px;color:var(--ink-3)">Home page — subscription box</div></div><button class="x" aria-label="Close" type="button">✕</button></div>
+    <div style="padding:2px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:14px;cursor:pointer"><input type="checkbox" id="shHide"> Hide the subscription box entirely</label>
+      <label class="fieldlbl" style="display:block;margin-bottom:6px">Title</label>
+      <input class="txt" id="shTitle" maxlength="140" style="width:100%;margin-bottom:12px" placeholder="Heads up — the league site is going paid.">
+      <label class="fieldlbl" style="display:block;margin-bottom:6px">Body <span style="color:var(--ink-3);font-weight:400">(leave blank for the default text)</span></label>
+      <textarea class="txt" id="shBody" rows="4" maxlength="600" style="width:100%;margin-bottom:12px;resize:vertical"></textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="shSave" type="button">Save</button><button class="wi-reset" id="shReset" type="button">Reset to default</button></div>
+      <div id="shMsg" style="font-size:12.5px;color:var(--ink-3);margin-top:10px;min-height:16px"></div>
+    </div></div>`;
+  wrap.addEventListener("click",e=>{if(e.target===wrap)closeMatchup();});
+  wrap.querySelector(".x").onclick=closeMatchup;
+  document.body.appendChild(wrap);document.body.classList.add("mdl-open");document.addEventListener("keydown",mdlKey);
+  wrap.querySelector("#shHide").checked=!!SETTINGS.subHidden;
+  wrap.querySelector("#shTitle").value=SETTINGS.subTitle||"";
+  wrap.querySelector("#shBody").value=SETTINGS.subBody||"";
+  const msg=wrap.querySelector("#shMsg");
+  const persist=async(obj)=>{msg.textContent="Saving…";try{const {error}=await sb.from("site_settings").upsert({id:"home",data:obj,updated_at:new Date().toISOString()},{onConflict:"id"});if(error)throw error;SETTINGS=obj;const b=document.getElementById("subNoticeBox");if(b)b.outerHTML=subNotice();msg.innerHTML="<b style='color:var(--win)'>Saved.</b>";}catch(e){msg.innerHTML="<b style='color:var(--loss)'>Couldn't save:</b> "+esc(e.message||String(e));}};
+  wrap.querySelector("#shSave").onclick=()=>persist({subHidden:wrap.querySelector("#shHide").checked,subTitle:wrap.querySelector("#shTitle").value.trim()||null,subBody:wrap.querySelector("#shBody").value.trim()||null});
+  wrap.querySelector("#shReset").onclick=()=>{wrap.querySelector("#shHide").checked=false;wrap.querySelector("#shTitle").value="";wrap.querySelector("#shBody").value="";persist({});};
+}
 function boot(){
   const m=D.meta;
   document.getElementById("lgname").textContent=m.leagueName;
@@ -3365,7 +3398,8 @@ function boot(){
   document.addEventListener("click",async e=>{const pc=e.target.closest&&e.target.closest(".pclick[data-pid]");if(pc){e.preventDefault();e.stopPropagation();openPlayer(+pc.getAttribute("data-pid"));return;}
     if(!ADMIN)return;
     const cd=e.target.closest&&e.target.closest(".chat-del[data-cid]");if(cd){e.preventDefault();e.stopPropagation();if(confirm("Delete this message?")){try{await sb.from("chat_messages").delete().eq("id",cd.getAttribute("data-cid"));}catch(_){}}return;}
-    const td=e.target.closest&&e.target.closest(".tb-del[data-tid]");if(td){e.preventDefault();e.stopPropagation();if(confirm("Delete this trade listing?")){try{await sb.from("trade_block").delete().eq("team_id",+td.getAttribute("data-tid"));}catch(_){}}return;}});
+    const td=e.target.closest&&e.target.closest(".tb-del[data-tid]");if(td){e.preventDefault();e.stopPropagation();if(confirm("Delete this trade listing?")){try{await sb.from("trade_block").delete().eq("team_id",+td.getAttribute("data-tid"));}catch(_){}}return;}
+    const pd=e.target.closest&&e.target.closest(".parlay-del[data-pl]");if(pd){e.preventDefault();e.stopPropagation();if(confirm("Delete this parlay pick?")){const id=pd.getAttribute("data-pl");try{await sb.from("parlay_picks").delete().eq("id",id);parlayPicks=parlayPicks.filter(x=>String(x.id)!==String(id));renderPicksList();}catch(_){}}return;}});
   const prevSeen=checkSeen();
   if(prevSeen) PREV_SCORES=prevSeen;
   // phone layout: narrow screens, or a phone browser in a narrow-ish window
@@ -3382,7 +3416,7 @@ function boot(){
   setInterval(()=>renderTicker(false),1000);
   setInterval(setFresh,30000);
   startLiveRefresh();
-  loadHeartbeat();loadUpdates();initPush();initAdmin();
+  loadHeartbeat();loadUpdates();initPush();initAdmin();loadSettings();
 }
 function initialsMark(name){const w=name.split(/\s+/).filter(Boolean);return (w.slice(0,3).map(x=>x[0]).join("")||"FL").toUpperCase();}
 
