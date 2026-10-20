@@ -668,6 +668,11 @@ body.phone .lu .wx{white-space:normal}
 .chat-del,.tb-del{margin-left:6px;border:none;background:transparent;color:var(--loss);cursor:pointer;font-size:12px;font-weight:800;padding:0 4px;line-height:1}
 .chat-del:hover,.tb-del:hover{opacity:.7}
 #adminBtn{color:var(--accent)}
+html{background:var(--bg)}
+.ptr{position:fixed;top:calc(env(safe-area-inset-top,0px) + 6px);left:50%;transform:translateX(-50%);z-index:60;opacity:0;pointer-events:none;width:38px;height:38px;border-radius:50%;background:var(--surface);box-shadow:var(--shadow-lg);display:grid;place-items:center;transition:opacity .15s}
+.ptr-spin{width:18px;height:18px;border:2.5px solid var(--line-2);border-top-color:var(--accent);border-radius:50%}
+.ptr.ready .ptr-spin{animation:ptrspin .7s linear infinite}
+@keyframes ptrspin{to{transform:rotate(360deg)}}
 </style>
 
 <div class="layout">
@@ -3374,6 +3379,20 @@ function adminHome(){
   wrap.querySelector("#shSave").onclick=()=>persist({subHidden:wrap.querySelector("#shHide").checked,subTitle:wrap.querySelector("#shTitle").value.trim()||null,subBody:wrap.querySelector("#shBody").value.trim()||null});
   wrap.querySelector("#shReset").onclick=()=>{wrap.querySelector("#shHide").checked=false;wrap.querySelector("#shTitle").value="";wrap.querySelector("#shBody").value="";persist({});};
 }
+/* ---------- PWA polish: theme-color + pull-to-refresh ---------- */
+function setThemeColor(){try{const c=getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();const m=document.querySelector('meta[name="theme-color"]');if(m&&c)m.setAttribute("content",c);}catch(e){}}
+function initPullRefresh(){
+  const standalone=window.matchMedia("(display-mode: standalone)").matches||window.navigator.standalone===true;
+  if(!standalone||!("ontouchstart" in window))return; // the browser tab has its own pull-to-refresh
+  const ind=document.createElement("div");ind.className="ptr";ind.innerHTML='<div class="ptr-spin"></div>';document.body.appendChild(ind);
+  let startY=0,pulling=false,dist=0;const TH=70;
+  const atTop=()=>(window.scrollY||document.documentElement.scrollTop||0)<=0;
+  const reset=()=>{ind.style.transform="";ind.style.opacity="";ind.classList.remove("ready");};
+  window.addEventListener("touchstart",e=>{if(e.touches.length===1&&atTop()&&!document.body.classList.contains("mdl-open")&&!document.body.classList.contains("navopen")){startY=e.touches[0].clientY;pulling=true;dist=0;}else pulling=false;},{passive:true});
+  window.addEventListener("touchmove",e=>{if(!pulling)return;dist=e.touches[0].clientY-startY;if(dist>0&&atTop()){if(e.cancelable)e.preventDefault();const d=Math.min(dist*0.5,100);ind.style.transform="translateX(-50%) translateY("+d+"px)";ind.style.opacity=String(Math.min(d/TH,1));ind.classList.toggle("ready",d>=TH);}else{pulling=false;reset();}},{passive:false});
+  const end=()=>{if(!pulling)return;const go=(dist*0.5)>=TH;pulling=false;if(go){ind.classList.add("ready");ind.style.opacity="1";location.reload();}else reset();};
+  window.addEventListener("touchend",end,{passive:true});window.addEventListener("touchcancel",end,{passive:true});
+}
 function boot(){
   const m=D.meta;
   document.getElementById("lgname").textContent=m.leagueName;
@@ -3388,7 +3407,7 @@ function boot(){
   let saved=null;try{saved=localStorage.getItem("mfl-theme");}catch(e){}
   root.setAttribute("data-theme", saved==="light"?"light":"dark");
   if(isHalloween()){root.setAttribute("data-season","halloween");if(!document.querySelector(".cobweb"))["l","r"].forEach(side=>{const c=document.createElement("div");c.className="cobweb "+side;c.innerHTML=COBWEB_SVG;document.body.appendChild(c);});}
-  function syncThemeBtn(){const isLight=root.getAttribute("data-theme")==="light";tb.innerHTML=icon(isLight?"moon":"sun");tb.title=isLight?"Switch to dark mode":"Switch to light mode";}
+  function syncThemeBtn(){const isLight=root.getAttribute("data-theme")==="light";tb.innerHTML=icon(isLight?"moon":"sun");tb.title=isLight?"Switch to dark mode":"Switch to light mode";setThemeColor();}
   syncThemeBtn();
   tb.onclick=()=>{const nxt=root.getAttribute("data-theme")==="light"?"dark":"light";root.setAttribute("data-theme",nxt);try{localStorage.setItem("mfl-theme",nxt);}catch(e){}syncThemeBtn();};
   // mobile drawer
@@ -3417,7 +3436,7 @@ function boot(){
   setInterval(()=>renderTicker(false),1000);
   setInterval(setFresh,30000);
   startLiveRefresh();
-  loadHeartbeat();loadUpdates();initPush();initAdmin();loadSettings();
+  loadHeartbeat();loadUpdates();initPush();initAdmin();loadSettings();initPullRefresh();
 }
 function initialsMark(name){const w=name.split(/\s+/).filter(Boolean);return (w.slice(0,3).map(x=>x[0]).join("")||"FL").toUpperCase();}
 
