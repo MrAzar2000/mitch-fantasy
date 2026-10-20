@@ -3354,7 +3354,7 @@ function boot(){
   const root=document.documentElement;
   let saved=null;try{saved=localStorage.getItem("mfl-theme");}catch(e){}
   root.setAttribute("data-theme", saved==="light"?"light":"dark");
-  if(isHalloween()){root.setAttribute("data-season","halloween");if(!document.querySelector(".cobweb"))["l","r"].forEach(side=>{const c=document.createElement("div");c.className="cobweb "+side;c.innerHTML=COBWEB_SVG;document.body.appendChild(c);});setTimeout(jumpScare,5000);}
+  if(isHalloween()){root.setAttribute("data-season","halloween");if(!document.querySelector(".cobweb"))["l","r"].forEach(side=>{const c=document.createElement("div");c.className="cobweb "+side;c.innerHTML=COBWEB_SVG;document.body.appendChild(c);});}
   function syncThemeBtn(){const isLight=root.getAttribute("data-theme")==="light";tb.innerHTML=icon(isLight?"moon":"sun");tb.title=isLight?"Switch to dark mode":"Switch to light mode";}
   syncThemeBtn();
   tb.onclick=()=>{const nxt=root.getAttribute("data-theme")==="light"?"dark":"light";root.setAttribute("data-theme",nxt);try{localStorage.setItem("mfl-theme",nxt);}catch(e){}syncThemeBtn();};
