@@ -18,3 +18,14 @@ export const notificationEvents = pgTable('notification_events', {
   id: serial('id').primaryKey(), deviceId: text('device_id').notNull(), teamId: integer('team_id'),
   event: text('event').notNull(), createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const tradeDigestAdditions = pgTable('trade_digest_additions', {
+  id: text('id').primaryKey(), teamId: integer('team_id').notNull(),
+  playerId: integer('player_id').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+});
+export const tradeDigestRuns = pgTable('trade_digest_runs', {
+  day: text('day').primaryKey(),
+  sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
+});

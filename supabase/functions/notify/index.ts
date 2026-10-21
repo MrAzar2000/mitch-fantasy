@@ -2,7 +2,7 @@
 //
 // Called by:
 //   • Supabase Database Webhooks on INSERT/UPDATE to
-//     trade_block  → broadcasts a push to everyone subscribed.
+//     trade_block  → queues additions for the nightly Netlify digest.
 //   • The data cron (later) for "your matchup is live" → targeted by team_id.
 //
 // Auth: every caller must send header  x-notify-secret: <NOTIFY_SECRET>.
@@ -40,9 +40,6 @@ function buildNote(p: any): Note | null {
   // Supabase database webhook payload: { type, table, record, old_record, schema }.
   const table = p?.table;
   const rec = p?.record ?? {};
-  if (table === "trade_block" && (p?.type === "INSERT" || p?.type === "UPDATE")) {
-    return { title: "Trade Block", body: "New activity on the Trade Block — tap to see who's shopping.", url: "/#block", tag: "tradeblock" };
-  }
   if (table === "league_updates" && p?.type === "INSERT") {
     if (rec.active === false) return null;
     return { title: "League announcement", body: clip(rec.message ?? ""), url: "/", tag: "update" };
@@ -60,6 +57,19 @@ export default {
     let payload: any = {};
     try { payload = await req.json(); } catch { /* empty / non-JSON body */ }
 
+    // Keep the existing database webhook, but queue trade events instead of pushing.
+    if (payload?.table === "trade_block") {
+      const response = await fetch("https://mitch-fantasy.netlify.app/.netlify/functions/trade-block-events", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-notify-secret": NOTIFY_SECRET },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(15000),
+      });
+      return new Response(JSON.stringify({ queued: response.ok }), {
+        status: response.ok ? 200 : 502, headers: { "content-type": "application/json" },
+      });
+    }
+
     const note = buildNote(payload);
     if (!note) {
       return new Response(JSON.stringify({ skipped: true }), { headers: { "content-type": "application/json" } });
@@ -76,7 +86,7 @@ export default {
     }
 
     const message = JSON.stringify({ title: note.title, body: note.body, url: note.url ?? "/", tag: note.tag });
-    let sent = 0, removed = 0;
+    let sent = 0, removed = 0, failed = 0;
     await Promise.all(targets.map(async (r: any) => {
       try {
         await webpush.sendNotification({ endpoint: r.endpoint, keys: { p256dh: r.p256dh, auth: r.auth } }, message);
@@ -86,11 +96,11 @@ export default {
         if (code === 404 || code === 410) {
           await supabase.from("push_subscriptions").delete().eq("endpoint", r.endpoint);
           removed++;
-        }
+        } else { failed++; }
       }
     }));
 
-    return new Response(JSON.stringify({ sent, removed, total: targets.length }), {
+    return new Response(JSON.stringify({ sent, removed, failed, total: targets.length }), {
       headers: { "content-type": "application/json" },
     });
   },

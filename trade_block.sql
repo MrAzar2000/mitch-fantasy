@@ -16,3 +16,7 @@ create policy "block delete" on public.trade_block for delete to anon using (tru
 
 -- live updates so listings appear and change without a page refresh
 alter publication supabase_realtime add table public.trade_block;
+
+-- Required by the nightly notification queue: UPDATE webhooks must include the
+-- previous listing so note edits and removals do not count as new players.
+alter table public.trade_block replica identity full;
