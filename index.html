@@ -93,10 +93,10 @@ button{font-family:inherit}
 .tbtn:hover{color:var(--ink);border-color:var(--line-2)}
 /* content */
 .content{flex:1;min-width:0;display:flex;flex-direction:column}
-.topslim{display:none;position:sticky;top:0;z-index:40;align-items:center;gap:11px;padding:10px 16px;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.topslim{display:none;position:sticky;top:0;z-index:40;align-items:center;gap:12px;padding:12px 16px;background:var(--bg);backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);border-bottom:1px solid var(--line)}
 .hamb{width:36px;height:36px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:17px;cursor:pointer;flex:0 0 auto}
 .sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:49}
-main{padding:24px 24px 72px;min-height:60vh}
+main{padding:28px 28px 72px;min-height:60vh}
 @media(max-width:860px){
   .sidebar{position:fixed;left:0;top:0;bottom:0;height:100vh;height:100dvh;width:min(300px,84vw);overflow:hidden;overscroll-behavior:contain;transform:translateX(-100%);transition:transform .22s ease;box-shadow:var(--shadow-lg);padding-top:env(safe-area-inset-top,0px)}
   .sb-nav{min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y}
@@ -108,13 +108,13 @@ main{padding:24px 24px 72px;min-height:60vh}
   .topslim{display:flex}
   main{padding:18px 15px 70px}
 }
-.view{animation:fade .3s ease}
+.view--old{animation:fade .3s ease}
 @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
 /* section head */
-.shead{display:flex;align-items:baseline;gap:12px;margin:0 0 14px}
-.shead h2{font-size:24px;font-weight:800;letter-spacing:-.02em}
+.shead{display:flex;align-items:baseline;gap:12px;margin:0 0 20px}
+.shead h2{font-size:26px;font-weight:800;letter-spacing:-.025em}
 .shead .eyebrow{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--accent)}
 .shead .note{margin-left:auto;font-size:12.5px;color:var(--ink-3)}
 .sub-h{font-family:"DM Sans";font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:.08em;
@@ -124,7 +124,7 @@ main{padding:24px 24px 72px;min-height:60vh}
 /* cards */
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
 .card-p{padding:16px 18px}
-.grid{display:grid;gap:14px}
+.grid{display:grid;gap:16px}
 .g-kpi{grid-template-columns:repeat(auto-fit,minmax(158px,1fr))}
 .g-2{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
 .g-teams{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
@@ -429,14 +429,14 @@ body.phone .bnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:45;
 .bnav button svg{width:21px;height:21px}
 .bnav button.active{color:var(--accent)}
 .bnav .nbadge{position:absolute;top:0;left:calc(50% + 6px);margin:0;height:16px;min-width:16px;font-size:9.5px}
-body.phone main{padding:12px 12px calc(84px + env(safe-area-inset-bottom,0px))}
-body.phone .topslim{padding-top:calc(10px + env(safe-area-inset-top,0px))}
+body.phone main{padding:16px 16px calc(84px + env(safe-area-inset-bottom,0px))}
+body.phone .topslim{padding-top:calc(16px + env(safe-area-inset-top,0px));padding-bottom:14px}
 body.phone .ticker{gap:8px;margin-bottom:14px}
 body.phone .tk{flex-basis:100%;padding:8px 11px;gap:10px}
 body.phone .tk .tk-v{font-size:14px}
 body.phone .tk .tk-s{font-size:11px}
 body.phone .shead{flex-wrap:wrap;gap:4px 12px;margin-bottom:12px}
-body.phone .shead h2{font-size:21px}
+body.phone .shead h2{font-size:23px}
 body.phone .shead .note{margin-left:0;flex-basis:100%}
 body.phone .g-kpi{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 body.phone .kpi{padding:12px 13px}
@@ -673,6 +673,46 @@ html{background:var(--bg)}
 .ptr-spin{width:18px;height:18px;border:2.5px solid var(--line-2);border-top-color:var(--accent);border-radius:50%}
 .ptr.ready .ptr-spin{animation:ptrspin .7s linear infinite}
 @keyframes ptrspin{to{transform:rotate(360deg)}}
+
+/* === PRO POLISH === */
+
+/* iOS safe-area: solid bg behind content so status bar doesn't show through */
+body.phone .content{background:var(--bg)}
+
+/* Skeleton loading shimmer */
+@keyframes shimmer{to{background-position:-200% 0}}
+.skel{background:linear-gradient(90deg,var(--surface-2) 25%,var(--surface-3) 50%,var(--surface-2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:var(--radius-sm)}
+.skel-row{height:16px;margin:10px 0;border-radius:6px}
+.skel-card{height:120px;border-radius:var(--radius);border:1px solid var(--line)}
+.skel-kpi{height:88px;border-radius:var(--radius);border:1px solid var(--line)}
+
+/* Bottom nav pill indicator */
+body.phone .bnav button{position:relative;transition:color .15s}
+body.phone .bnav button.active::after{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:32px;height:3px;border-radius:100px;background:var(--accent)}
+
+/* Button / card press feedback */
+.btn:active,.tbtn:active,.sb-pick:active{transform:scale(0.96);transition:transform .06s}
+.bnav button:active{transform:scale(0.93);transition:transform .06s}
+.sb-item:active{transform:scale(0.98);transition:transform .06s}
+.mcard:active,[data-mid]:active{transform:scale(0.985);transition:transform .06s}
+.kpi:active{transform:scale(0.98);transition:transform .06s}
+
+/* Smoother view transitions */
+@keyframes viewSlide{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.view{animation:viewSlide .22s ease-out}
+
+/* Ticker polish — slightly more elevated feel */
+.tk{box-shadow:var(--shadow);transition:transform .15s,box-shadow .15s}
+.tk:hover{transform:translateY(-1px);box-shadow:var(--shadow-lg)}
+
+/* Card hover micro-interaction */
+.mcard{transition:transform .12s,box-shadow .12s}
+.mcard:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.kpi{transition:transform .12s,box-shadow .12s}
+.kpi:hover{transform:translateY(-1px);box-shadow:var(--shadow-lg)}
+
+/* Page title in mobile header */
+#pageTitle{font-family:"DM Sans",sans-serif;font-weight:800;font-size:16px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 </style>
 
 <div class="layout">
@@ -695,7 +735,9 @@ html{background:var(--bg)}
     <header class="topslim">
       <button class="hamb" id="hamb" aria-label="Open menu"></button>
       <div class="mark" style="width:30px;height:30px;font-size:12px">MFL</div>
-      <strong id="lgnameM" style="font-family:'DM Sans',sans-serif;font-weight:800;font-size:15px">Mitch Fantasy League</strong>
+      <span id="pageTitle">Home</span>
+      <button class="tbtn" id="topNotify" title="Notifications" aria-label="Notifications" style="margin-left:auto"></button>
+      <button class="tbtn" id="topTheme" title="Toggle theme" aria-label="Toggle theme" style="font-size:13px"></button>
     </header>
     <main><div class="wrap"><div class="ticker" id="ticker"></div><div id="app"></div></div></main>
     <nav class="bnav" id="bnav" aria-label="Quick navigation"></nav>
@@ -899,7 +941,9 @@ function setTab(id){
   if(document.getElementById("mdl"))closeMatchup();
   cur=id; renderNav();
   document.body.classList.remove("navopen");
-  const el=document.getElementById("app"); el.innerHTML="";
+  const pt=document.getElementById("pageTitle");if(pt)pt.textContent=LABELS[id]||"Home";
+  const el=document.getElementById("app");
+  el.innerHTML='<div style="display:grid;gap:16px;padding:8px 0"><div class="skel skel-card"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:16px"><div class="skel skel-kpi"></div><div class="skel skel-kpi"></div></div><div class="skel skel-card" style="height:160px"></div></div>';
   let node;try{node=VIEWS[id]();}catch(e){console.error(id,e);node=document.createElement("div");node.className="view";
     node.innerHTML=emptyState("flag","This page didn't load",`Something went wrong drawing ${esc(LABELS[id]||id)}. Refresh to try again; if it keeps happening, the error was: ${esc(e&&e.message||e)}`);}
   el.appendChild(node); try{paintView(el);addTitleHelp(el);}catch(e){console.error(e);}
@@ -3298,7 +3342,7 @@ function adminLogin(){
   closeMatchup();
   const wrap=document.createElement("div");wrap.className="mdl";wrap.id="mdl";wrap.setAttribute("role","dialog");wrap.setAttribute("aria-modal","true");
   const inner=ADMIN
-    ?`<div style="font-size:13.5px;margin-bottom:14px">You're in <b style="color:var(--win)">admin mode</b>. Edit/delete controls are visible across the site.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="aMng" type="button">Manage announcements</button><button class="btn" id="aHome" type="button">Edit home page</button><button class="wi-reset" id="aOut" type="button">Exit admin</button></div>`
+    ?`<div style="font-size:13.5px;margin-bottom:14px">You're in <b style="color:var(--win)">admin mode</b>. Edit/delete controls are visible across the site.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="aMng" type="button">Manage announcements</button><button class="btn" id="aHome" type="button">Edit home page</button><button class="btn" id="aPush" type="button">Send notification</button><button class="wi-reset" id="aOut" type="button">Exit admin</button></div>`
     :`<div style="font-size:13.5px;line-height:1.6;margin-bottom:12px">Enter the admin password to unlock edit &amp; delete controls.</div><input class="txt" id="aPw" type="password" placeholder="Password" autocomplete="off" style="width:100%;margin-bottom:12px"><button class="btn" id="aIn" type="button">Unlock</button><div id="aMsg" style="font-size:12.5px;color:var(--ink-3);margin-top:10px"></div>`;
   wrap.innerHTML=`<div class="mdl-box"><div class="mdl-top"><div><div class="eyebrow" style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--t-blue)">Admin</div><div style="font-size:12.5px;color:var(--ink-3)">Master access</div></div><button class="x" aria-label="Close" type="button">✕</button></div><div style="padding:2px">${inner}</div></div>`;
   wrap.addEventListener("click",e=>{if(e.target===wrap)closeMatchup();});
@@ -3310,6 +3354,7 @@ function adminLogin(){
     inBtn.onclick=go;pw.onkeydown=e=>{if(e.key==="Enter")go();};setTimeout(()=>pw.focus(),50);}
   const mng=wrap.querySelector("#aMng");if(mng)mng.onclick=()=>{closeMatchup();adminAnnounce();};
   const home=wrap.querySelector("#aHome");if(home)home.onclick=()=>{closeMatchup();adminHome();};
+  const push=wrap.querySelector("#aPush");if(push)push.onclick=()=>{closeMatchup();adminPush();};
   const out=wrap.querySelector("#aOut");if(out)out.onclick=()=>{adminSet(false);closeMatchup();showToast("Admin mode off");};
 }
 function adminAnnounce(){
@@ -3379,6 +3424,43 @@ function adminHome(){
   wrap.querySelector("#shSave").onclick=()=>persist({subHidden:wrap.querySelector("#shHide").checked,subTitle:wrap.querySelector("#shTitle").value.trim()||null,subBody:wrap.querySelector("#shBody").value.trim()||null});
   wrap.querySelector("#shReset").onclick=()=>{wrap.querySelector("#shHide").checked=false;wrap.querySelector("#shTitle").value="";wrap.querySelector("#shBody").value="";persist({});};
 }
+function adminPush(){
+  if(!ADMIN)return adminLogin();
+  closeMatchup();
+  const wrap=document.createElement("div");wrap.className="mdl";wrap.id="mdl";wrap.setAttribute("role","dialog");wrap.setAttribute("aria-modal","true");
+  const teamOpts=D.teams.map(t=>`<option value="${t.id}">${esc(t.name)} (${esc(t.owner||"")})</option>`).join("");
+  wrap.innerHTML=`<div class="mdl-box"><div class="mdl-top"><div><div class="eyebrow" style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--t-blue)">Admin</div><div style="font-size:12.5px;color:var(--ink-3)">Send push notification</div></div><button class="x" aria-label="Close" type="button">&#x2715;</button></div>
+    <div style="padding:2px">
+      <label class="fieldlbl" style="display:block;margin-bottom:6px">Send to</label>
+      <select class="txt" id="pnTo" style="width:100%;margin-bottom:12px;padding:9px 11px"><option value="">Everyone</option>${teamOpts}</select>
+      <label class="fieldlbl" style="display:block;margin-bottom:6px">Title</label>
+      <input class="txt" id="pnTitle" maxlength="100" placeholder="e.g. Parlay reminder" style="width:100%;margin-bottom:12px">
+      <label class="fieldlbl" style="display:block;margin-bottom:6px">Message</label>
+      <textarea class="txt" id="pnBody" rows="3" maxlength="300" placeholder="e.g. Get your Week 8 parlay pick in before Thursday!" style="width:100%;margin-bottom:12px;resize:vertical"></textarea>
+      <button class="btn" id="pnSend" type="button">Send notification</button>
+      <div id="pnMsg" style="font-size:12.5px;color:var(--ink-3);margin-top:10px;min-height:16px"></div>
+    </div></div>`;
+  wrap.addEventListener("click",e=>{if(e.target===wrap)closeMatchup();});
+  wrap.querySelector(".x").onclick=closeMatchup;
+  document.body.appendChild(wrap);document.body.classList.add("mdl-open");document.addEventListener("keydown",mdlKey);
+  const msg=wrap.querySelector("#pnMsg");
+  wrap.querySelector("#pnSend").onclick=async()=>{
+    const title=(wrap.querySelector("#pnTitle").value||"").trim();
+    const body=(wrap.querySelector("#pnBody").value||"").trim();
+    if(!title){msg.textContent="Add a title.";return;}
+    if(!body){msg.textContent="Add a message.";return;}
+    msg.textContent="Sending...";
+    const to=wrap.querySelector("#pnTo").value;
+    try{
+      const payload={title,body};
+      if(to)payload.teamIds=[+to];
+      const {data,error}=await sb.from("push_queue").insert({title,body,team_ids:to?[+to]:null});
+      if(error)throw error;
+      msg.innerHTML="<b style='color:var(--win)'>Sent!</b> Notification is on the way.";
+      wrap.querySelector("#pnTitle").value="";wrap.querySelector("#pnBody").value="";
+    }catch(e){msg.innerHTML="<b style='color:var(--loss)'>Failed:</b> "+esc(e.message||String(e));}
+  };
+}
 /* ---------- PWA polish: theme-color + pull-to-refresh ---------- */
 function setThemeColor(){try{const c=getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();const m=document.querySelector('meta[name="theme-color"]');if(m&&c)m.setAttribute("content",c);}catch(e){}}
 function initPullRefresh(){
@@ -3389,7 +3471,7 @@ function initPullRefresh(){
   const atTop=()=>(window.scrollY||document.documentElement.scrollTop||0)<=0;
   const reset=()=>{ind.style.transform="";ind.style.opacity="";ind.classList.remove("ready");};
   window.addEventListener("touchstart",e=>{if(e.touches.length===1&&atTop()&&!document.body.classList.contains("mdl-open")&&!document.body.classList.contains("navopen")){startY=e.touches[0].clientY;pulling=true;dist=0;}else pulling=false;},{passive:true});
-  window.addEventListener("touchmove",e=>{if(!pulling)return;dist=e.touches[0].clientY-startY;if(dist>0&&atTop()){if(e.cancelable)e.preventDefault();const d=Math.min(dist*0.5,100);ind.style.transform="translateX(-50%) translateY("+d+"px)";ind.style.opacity=String(Math.min(d/TH,1));ind.classList.toggle("ready",d>=TH);}else{pulling=false;reset();}},{passive:false});
+  window.addEventListener("touchmove",e=>{if(!pulling)return;dist=e.touches[0].clientY-startY;if(dist>0&&atTop()){if(e.cancelable)e.preventDefault();const d=Math.min(dist*0.5,100);ind.style.transform="translateX(-50%) translateY("+d+"px)";ind.style.opacity=String(Math.min(d/TH,1));const wasReady=ind.classList.contains("ready");ind.classList.toggle("ready",d>=TH);if(d>=TH&&!wasReady)try{navigator.vibrate(15);}catch(e){}}else{pulling=false;reset();}},{passive:false});
   const end=()=>{if(!pulling)return;const go=(dist*0.5)>=TH;pulling=false;if(go){ind.classList.add("ready");ind.style.opacity="1";location.reload();}else reset();};
   window.addEventListener("touchend",end,{passive:true});window.addEventListener("touchcancel",end,{passive:true});
 }
@@ -3413,6 +3495,8 @@ function boot(){
   // mobile drawer
   const hamb=document.getElementById("hamb"), ov=document.getElementById("sbOverlay");
   if(hamb){hamb.innerHTML=icon("menu");hamb.onclick=()=>document.body.classList.toggle("navopen");}
+  const topN=document.getElementById("topNotify");if(topN){topN.innerHTML=icon("bell");topN.onclick=notifyModal;}
+  const topT=document.getElementById("topTheme");if(topT){topT.innerHTML=icon(root.getAttribute("data-theme")==="light"?"moon":"sun");topT.onclick=()=>{tb.click();topT.innerHTML=icon(root.getAttribute("data-theme")==="light"?"moon":"sun");};}
   if(ov) ov.onclick=()=>document.body.classList.remove("navopen");
   document.addEventListener("click",async e=>{const pc=e.target.closest&&e.target.closest(".pclick[data-pid]");if(pc){e.preventDefault();e.stopPropagation();openPlayer(+pc.getAttribute("data-pid"));return;}
     if(!ADMIN)return;
