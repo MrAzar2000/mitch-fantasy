@@ -5,3 +5,16 @@ export const parlayLegs = pgTable('parlay_legs', {
   odds: text('odds'), result: text('result').notNull().default('pending'),
   sourceId: text('source_id'), createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [uniqueIndex('parlay_source_id').on(t.sourceId)]);
+
+export const notificationDevices = pgTable('notification_devices', {
+  id: text('id').primaryKey(), teamId: integer('team_id'),
+  permission: text('permission').notNull(), subscribed: integer('subscribed').notNull().default(0),
+  installedAt: timestamp('installed_at', { withTimezone: true }),
+  bellCount: integer('bell_count').notNull().default(0),
+  firstSeen: timestamp('first_seen', { withTimezone: true }).notNull().defaultNow(),
+  lastSeen: timestamp('last_seen', { withTimezone: true }).notNull().defaultNow(),
+});
+export const notificationEvents = pgTable('notification_events', {
+  id: serial('id').primaryKey(), deviceId: text('device_id').notNull(), teamId: integer('team_id'),
+  event: text('event').notNull(), createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});

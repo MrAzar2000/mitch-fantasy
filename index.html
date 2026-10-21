@@ -1558,7 +1558,7 @@ function renderNav(){
 
 /* ---------- "my team": each manager picks their team once per device ---------- */
 function meTeam(){return MEID>=0?teamById[MEID]||null:null;}
-function setMe(id){MEID=id;try{if(id>=0)localStorage.setItem("mfl-me",String(id));else localStorage.removeItem("mfl-me");}catch(e){}closeMatchup();setTab(cur);}
+function setMe(id){MEID=id;try{if(id>=0)localStorage.setItem("mfl-me",String(id));else localStorage.removeItem("mfl-me");}catch(e){}trackNotification("team");closeMatchup();setTab(cur);}
 function renderMeBtn(){const b=document.getElementById("meBtn");if(!b)return;const t=meTeam();
   b.classList.toggle("empty",!t);
   b.innerHTML=t?`${badge(t)}<span class="nm">${esc(t.name)}</span>`:`${icon("users")}<span class="nm">Pick your team</span>`;
@@ -3961,31 +3961,54 @@ VIEWS.defense=function(){
 };
 
 /* ---------- boot ---------- */
+/* ---------- device observations (starting with this release) ---------- */
+let trackingQueue=Promise.resolve();
+function trackingTeam(){try{const v=localStorage.getItem("mfl-notify-team");if(v!==null)return v===""?null:+v;}catch(e){}return MEID>=0?MEID:null;}
+function saveTrackingTeam(value){try{localStorage.setItem("mfl-notify-team",value==null?"":String(value));}catch(e){}}
+function trackNotification(event="check",installedEvent=false){
+  trackingQueue=trackingQueue.catch(()=>{}).then(async()=>{
+    let deviceId;try{deviceId=localStorage.getItem("mfl-tracking-device");if(!deviceId){deviceId=crypto.randomUUID();localStorage.setItem("mfl-tracking-device",deviceId);}}catch(e){return;}
+    const sub=pushSupported()?await currentSub():null;
+    const installed=installedEvent||window.matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+    const r=await fetch("/api/notification-tracking",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({deviceId,teamId:trackingTeam(),event,installed,permission:pushSupported()?Notification.permission:"unsupported",subscribed:!!sub})});
+    if(!r.ok)throw new Error("Tracking unavailable");
+  });
+  return trackingQueue.catch(()=>{});
+}
 /* ---------- push notifications (PWA Web Push) ---------- */
 const VAPID_PUBLIC="BCP5Xjk7asig6WQCDpuGLW4fCfpqh3l_S7b0BrOssz8utUtgo7Atn1q0kSD9iQmKQ45nnyMen5CXajhduY1Tx4I";
 function urlB64(b64){const pad="=".repeat((4-b64.length%4)%4);const s=(b64+pad).replace(/-/g,"+").replace(/_/g,"/");const raw=atob(s);const a=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)a[i]=raw.charCodeAt(i);return a;}
 const pushSupported=()=>("serviceWorker" in navigator)&&("PushManager" in window)&&("Notification" in window);
-async function currentSub(){try{const r=await navigator.serviceWorker.ready;return await r.pushManager.getSubscription();}catch(e){return null;}}
+async function currentSub(){try{const r=await navigator.serviceWorker.getRegistration();return r?await r.pushManager.getSubscription():null;}catch(e){return null;}}
 async function refreshNotifyBtn(){const b=document.getElementById("notifyBtn");if(!b)return;b.innerHTML=icon("bell");
   if(!pushSupported()){b.classList.remove("on");b.title="Notifications";return;}
   const sub=await currentSub();b.classList.toggle("on",!!sub);b.title=sub?"Notifications on":"Enable notifications";}
 function initPush(){
+  if(!("serviceWorker" in navigator))trackNotification();
+  window.addEventListener("appinstalled",()=>trackNotification("installed",true));
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){trackNotification();refreshNotifyBtn();}});
+  setInterval(()=>{if(document.visibilityState==="visible")trackNotification();},60000);
   const b=document.getElementById("notifyBtn");if(b){b.innerHTML=icon("bell");b.onclick=notifyModal;}
-  if("serviceWorker" in navigator){navigator.serviceWorker.register("/sw.js").then(()=>refreshNotifyBtn()).catch(()=>{});}
+  if("serviceWorker" in navigator){navigator.serviceWorker.register("/sw.js").then(()=>{refreshNotifyBtn();trackNotification();}).catch(()=>trackNotification());}
 }
 async function doSubscribe(teamId){
   const perm=await Notification.requestPermission();
-  if(perm!=="granted")throw new Error("permission "+perm);
+  if(perm!=="granted"){await trackNotification();throw new Error("permission "+perm);}
   const reg=await navigator.serviceWorker.ready;
   let sub=await reg.pushManager.getSubscription();
   if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64(VAPID_PUBLIC)});
   const j=sub.toJSON();
   const {error}=await sb.from("push_subscriptions").upsert({endpoint:j.endpoint,p256dh:j.keys.p256dh,auth:j.keys.auth,team_id:teamId||null},{onConflict:"endpoint"});
   if(error)throw error;
+  saveTrackingTeam(teamId);await trackNotification("enabled");
   return sub;
 }
-async function doUnsubscribe(){const sub=await currentSub();if(sub){try{await sb.from("push_subscriptions").delete().eq("endpoint",sub.endpoint);}catch(e){}try{await sub.unsubscribe();}catch(e){}}}
+async function doUnsubscribe(){const sub=await currentSub();if(sub){
+  const {error}=await sb.from("push_subscriptions").delete().eq("endpoint",sub.endpoint);if(error)throw error;
+  const removed=await sub.unsubscribe();if(!removed&&await currentSub())throw new Error("Subscription is still active");
+}await trackNotification("disabled");}
 function notifyModal(){
+  trackNotification("bell");
   closeMatchup();
   const iOS=/iPhone|iPad|iPod/.test(navigator.userAgent);
   const standalone=window.matchMedia("(display-mode: standalone)").matches||window.navigator.standalone===true;
@@ -3997,19 +4020,20 @@ function notifyModal(){
   }else{
     const opts=D.teams.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join("");
     body=`<div style="font-size:13.5px;line-height:1.6;margin-bottom:12px">Get a push when there's <b>Trade Block</b> activity, and when your <b>matchup goes live</b>.</div>
-      <label class="fieldlbl" style="display:block;margin-bottom:6px">Your team <span style="color:var(--ink-3);font-weight:400">(for "your matchup" alerts — optional)</span></label>
+      <label class="fieldlbl" style="display:block;margin-bottom:6px">Your team <span style="color:var(--ink-3);font-weight:400">(for matchup alerts and the admin setup checklist)</span></label>
       <select class="txt" id="npTeam" style="width:100%;margin-bottom:14px"><option value="">— pick your team —</option>${opts}</select>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="npOn" type="button">Enable notifications</button><button class="wi-reset" id="npOff" type="button">Turn off</button></div>
-      <div id="npMsg" style="font-size:12.5px;color:var(--ink-3);margin-top:12px;min-height:16px"></div>`;
+      <p class="metricnote" style="font-size:12px">Your selected team’s setup status is shared with the league admin.</p><div id="npMsg" style="font-size:12.5px;color:var(--ink-3);margin-top:12px;min-height:16px"></div>`;
   }
   const wrap=document.createElement("div");wrap.className="mdl";wrap.id="mdl";wrap.setAttribute("role","dialog");wrap.setAttribute("aria-modal","true");
   wrap.innerHTML=`<div class="mdl-box"><div class="mdl-top"><div><div class="eyebrow" style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--t-blue)">Notifications</div><div style="font-size:12.5px;color:var(--ink-3)">Push alerts on this device</div></div><button class="x" aria-label="Close" type="button">✕</button></div><div style="padding:2px">${body}<p style="margin:18px 0 4px;font-size:13px"><a href="/tutorial.html" style="color:var(--accent)">iPhone setup guide: Home Screen &amp; notifications →</a></p></div></div>`;
   wrap.addEventListener("click",e=>{if(e.target===wrap)closeMatchup();});
   wrap.querySelector(".x").onclick=closeMatchup;
   document.body.appendChild(wrap);document.body.classList.add("mdl-open");document.addEventListener("keydown",mdlKey);
+  const teamSelect=wrap.querySelector("#npTeam");if(teamSelect){teamSelect.value=trackingTeam()??"";}
   const on=wrap.querySelector("#npOn"),off=wrap.querySelector("#npOff"),msg=wrap.querySelector("#npMsg");
   (async()=>{if(msg&&await currentSub())msg.innerHTML="Notifications are currently <b style='color:var(--win)'>on</b> for this device.";})();
-  if(on)on.onclick=async()=>{on.disabled=true;msg.textContent="Enabling…";try{const v=wrap.querySelector("#npTeam").value;await doSubscribe(v?+v:null);msg.innerHTML="<b style='color:var(--win)'>Notifications are on.</b> You're all set — you can close this.";refreshNotifyBtn();}catch(e){msg.innerHTML="<b style='color:var(--loss)'>Couldn't enable:</b> "+esc(e.message||String(e));on.disabled=false;}};
+  if(on)on.onclick=async()=>{on.disabled=true;msg.textContent="Enabling…";try{const v=wrap.querySelector("#npTeam").value;saveTrackingTeam(v?+v:null);await doSubscribe(v?+v:null);msg.innerHTML="<b style='color:var(--win)'>Notifications are on.</b> You're all set — you can close this.";refreshNotifyBtn();}catch(e){msg.innerHTML="<b style='color:var(--loss)'>Couldn't enable:</b> "+esc(e.message||String(e));on.disabled=false;}};
   if(off)off.onclick=async()=>{msg.textContent="Turning off…";try{await doUnsubscribe();msg.textContent="Notifications turned off for this device.";refreshNotifyBtn();}catch(e){msg.textContent="Couldn't turn off.";}};
 }
 /* ---------- admin (simple password gate; honor-system UI lock) ---------- */
@@ -4029,7 +4053,7 @@ function adminLogin(){
   closeMatchup();
   const wrap=document.createElement("div");wrap.className="mdl";wrap.id="mdl";wrap.setAttribute("role","dialog");wrap.setAttribute("aria-modal","true");
   const inner=ADMIN
-    ?`<div style="font-size:13.5px;margin-bottom:14px">You're in <b style="color:var(--win)">admin mode</b>. Edit/delete controls are visible across the site.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="aMng" type="button">Manage announcements</button><button class="btn" id="aHome" type="button">Edit home page</button><button class="btn" id="aPush" type="button">Send notification</button><button class="wi-reset" id="aOut" type="button">Exit admin</button></div>`
+    ?`<div style="font-size:13.5px;margin-bottom:14px">You're in <b style="color:var(--win)">admin mode</b>. Edit/delete controls are visible across the site.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="aMng" type="button">Manage announcements</button><button class="btn" id="aHome" type="button">Edit home page</button><button class="btn" id="aSetup" type="button">Notification checklist</button><button class="btn" id="aPush" type="button">Send notification</button><button class="wi-reset" id="aOut" type="button">Exit admin</button></div>`
     :`<div style="font-size:13.5px;line-height:1.6;margin-bottom:12px">Enter the admin password to unlock edit &amp; delete controls.</div><input class="txt" id="aPw" type="password" placeholder="Password" autocomplete="off" style="width:100%;margin-bottom:12px"><button class="btn" id="aIn" type="button">Unlock</button><div id="aMsg" style="font-size:12.5px;color:var(--ink-3);margin-top:10px"></div>`;
   wrap.innerHTML=`<div class="mdl-box"><div class="mdl-top"><div><div class="eyebrow" style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--t-blue)">Admin</div><div style="font-size:12.5px;color:var(--ink-3)">Master access</div></div><button class="x" aria-label="Close" type="button">✕</button></div><div style="padding:2px">${inner}</div></div>`;
   wrap.addEventListener("click",e=>{if(e.target===wrap)closeMatchup();});
@@ -4041,8 +4065,41 @@ function adminLogin(){
     inBtn.onclick=go;pw.onkeydown=e=>{if(e.key==="Enter")go();};setTimeout(()=>pw.focus(),50);}
   const mng=wrap.querySelector("#aMng");if(mng)mng.onclick=()=>{closeMatchup();adminAnnounce();};
   const home=wrap.querySelector("#aHome");if(home)home.onclick=()=>{closeMatchup();adminHome();};
+  const setup=wrap.querySelector("#aSetup");if(setup)setup.onclick=adminNotificationChecklist;
   const push=wrap.querySelector("#aPush");if(push)push.onclick=()=>{closeMatchup();adminPush();};
   const out=wrap.querySelector("#aOut");if(out)out.onclick=()=>{adminSet(false);closeMatchup();showToast("Admin mode off");};
+}
+function notificationTeamStatus(rows){
+  const enabled=rows.filter(r=>r.subscribed===1&&r.permission==="granted").length;
+  return {enabled,installed:rows.some(r=>r.installedAt),bells:rows.reduce((n,r)=>n+r.bellCount,0),
+    status:enabled?"On":!rows.length?"Not observed":rows.some(r=>r.permission==="denied")?"Blocked / off":rows.every(r=>r.permission==="unsupported")?"Unsupported":"Off / not enabled",lastSeen:rows[0]?.lastSeen};
+}
+function adminNotificationChecklist(){
+  if(!ADMIN)return adminLogin();
+  closeMatchup();
+  const wrap=document.createElement("div");wrap.className="mdl";wrap.id="mdl";wrap.setAttribute("role","dialog");wrap.setAttribute("aria-modal","true");wrap.setAttribute("aria-label","Team notification checklist");
+  wrap.innerHTML=`<div class="mdl-box"><div class="mdl-top"><div><div class="eyebrow" style="color:var(--t-blue)">Admin · Setup tracker</div><h2 style="font-size:21px;margin:4px 0">Team notification checklist</h2></div><button class="x" aria-label="Close" type="button">✕</button></div>
+    <p class="metricnote">Tracking starts with this update. Teams are self-selected. Home Screen installs are confirmed by an app launch or a browser install event; earlier installs appear when people return. Browser permission changes are checked on return. Phone-level silencing and delivery cannot always be detected. Counts represent browsers/devices, not unique people.</p>
+    <form id="ncForm" style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0"><label style="flex:1;min-width:160px"><span class="fieldlbl">Verify admin password</span><input class="txt" id="ncPassword" type="password" autocomplete="current-password" required maxlength="1024" style="width:100%"></label><button class="btn" type="submit" style="align-self:end">Load / refresh</button></form>
+    <div id="ncResults" aria-live="polite"><p class="metricnote">Enter your existing admin password to load the checklist.</p></div></div>`;
+  wrap.querySelector(".x").onclick=closeMatchup;wrap.onclick=e=>{if(e.target===wrap)closeMatchup();};
+  document.body.appendChild(wrap);document.body.classList.add("mdl-open");document.addEventListener("keydown",mdlKey);
+  const form=wrap.querySelector("#ncForm"),results=wrap.querySelector("#ncResults"),button=form.querySelector("button");
+  form.onsubmit=async e=>{e.preventDefault();button.disabled=true;results.textContent="Loading device observations…";
+    try{
+      const r=await fetch("/api/notification-tracking",{headers:{"X-Admin-Password":wrap.querySelector("#ncPassword").value}});
+      const data=await r.json();if(!r.ok)throw new Error(data.error||"Could not load checklist.");
+      const rows=data.devices,teams=D.teams.slice().sort((a,b)=>a.name.localeCompare(b.name));
+      const enabledTeams=teams.filter(t=>notificationTeamStatus(rows.filter(r=>r.teamId===t.id)).enabled).length;
+      const installed=rows.filter(r=>r.installedAt).length,active=rows.filter(r=>r.subscribed===1&&r.permission==="granted").length;
+      const date=v=>v?new Date(v).toLocaleString():"Never";
+      results.innerHTML=`<div style="padding:14px 0;border-block:1px solid var(--line);line-height:1.8"><b>${enabledTeams} / ${teams.length} teams</b> with notifications on<br><b>${teams.filter(t=>rows.some(r=>r.teamId===t.id&&r.installedAt)).length} / ${teams.length} teams</b> with Home Screen confirmed<br><span style="color:var(--ink-3)">${active} subscribed devices · ${installed} observed Home Screen installs · ${rows.reduce((n,r)=>n+r.bellCount,0)} bell taps</span></div>
+        <ul style="list-style:none;padding:0;margin:0">${teams.map(t=>{const devices=rows.filter(r=>r.teamId===t.id),st=notificationTeamStatus(devices);return `<li style="padding:14px 0;border-bottom:1px solid var(--line)"><div style="display:flex;gap:10px;justify-content:space-between;align-items:baseline"><b>${esc(t.name)}</b><span style="color:${st.enabled?'var(--win)':'var(--ink-3)'};white-space:nowrap">${esc(st.status)}</span></div><div style="font-size:12.5px;margin-top:6px;line-height:1.8">${st.bells?'✓':'—'} Bell tapped${st.bells?' ('+st.bells+')':''} &nbsp; ${st.installed?'✓ Home Screen confirmed':'— Home Screen not observed'}<br>${st.enabled?'✓ Alerts on ('+st.enabled+' device'+(st.enabled===1?'':'s')+')':'— No active alerts observed'}<span style="display:block;color:var(--ink-3)">Last checked: ${esc(date(st.lastSeen))}</span></div></li>`;}).join('')}</ul>
+        <p class="metricnote">${rows.filter(r=>r.teamId===null).length} devices have no team selected. A check means observed on at least one device. No check means unconfirmed; it does not prove the app was removed. Clearing browser storage can count a returning device again.</p>
+        <details class="fold"><summary>Recent activity (latest 100)</summary><div class="fold-b">${data.activity.length?data.activity.map(a=>`<p style="font-size:12.5px"><b>${esc(teamById[a.teamId]?.name||'No team selected')}</b> · ${esc(({bell:'Bell tapped',installed:'Home Screen confirmed',enabled:'Notifications on',disabled:'Notifications off',blocked:'Permission blocked',team:'Team selection changed'})[a.event]||a.event)}<br><span style="color:var(--ink-3)">${esc(date(a.createdAt))}</span></p>`).join(''):'No activity recorded yet.'}</div></details>`;
+    }catch(error){results.textContent=error.message||"Could not load checklist. Try again.";}
+    finally{button.disabled=false;}
+  };
 }
 function adminAnnounce(){
   if(!ADMIN)return adminLogin();
