@@ -988,7 +988,7 @@ async function loadUpdates(){try{const {data,error}=await sb.from("league_update
   const b=document.getElementById("updBanner");if(b)b.outerHTML=updatesBanner();}catch(e){UPDATES=[];}}
 function updatesBanner(){if(!UPDATES||!UPDATES.length)return '<div id="updBanner"></div>';
   return `<div class="upd-banner" id="updBanner"><div class="ub-h">League updates</div>${UPDATES.map(u=>`<div class="ub-i"><span class="ub-d">${new Date(u.created_at).toLocaleDateString(undefined,{month:"short",day:"numeric"})}</span>${esc(u.message)}</div>`).join("")}</div>`;}
-function birthdayBanner(){const n=new Date();if(!(n.getMonth()===9&&n.getDate()===21))return "";return `<div class="bday-banner"><span class="bd-ic">${icon("sparkle")}</span><div><b>Happy birthday, Sam!</b> The whole league is wishing you a great one today.</div></div>`;}
+function birthdayBanner(){const n=new Date();if(!(n.getMonth()===9&&n.getDate()===21))return "";return `<div class="bday-banner"><span class="bd-ic">${icon("sparkle")}</span><div><b>Happy birthday, Sam!</b> Most of the league is wishing you a happy birthday today.</div></div>`;}
 /* ================= VIEWS ================= */
 const VIEWS={};
 
@@ -2269,7 +2269,7 @@ function openMatchup(mid){
         if(open(r))return `<td class="pts ${c} ${left?"l":""}"><span class="wi-off">${fmt(r.pts,1)}${r.proj!=null?`<small>proj ${fmt(r.proj,1)}</small>`:""}</span><span class="wi-cell"><input class="wi" type="number" step="0.1" inputmode="decimal" data-side="${side}" data-k="${key(r)}" data-pts="${r.pts}" data-def="${Math.max(r.pts,r.proj!=null?r.proj:r.pts).toFixed(1)}" value="${(+guess(r)).toFixed(1)}" aria-label="${esc(r.name)} final points"><small>now ${fmt(r.pts,1)}</small></span></td>`;
         return `<td class="pts ${c} ${left?"l":""} ${won?"won":""}" ${cur?`data-fx="${side}" data-v="${r.pts}"`:""}>${fmt(r.pts,1)}${r.proj!=null?`<small>proj ${fmt(r.proj,1)}</small>`:""}</td>`;};
       return `<tr>${cell(p,"ca")}${num(p,pw,"ca","a")}<td class="slot">${SLOTNAME[sl]}</td>${num(q,qw,"ch","h",true)}${cell(q,"ch",true)}</tr>`;}).join("")+`</tbody></table>`;
-    const bench=rows=>rows.filter(r=>r.slot===20||r.slot===21).sort((x,y)=>y.pts-x.pts).map(r=>`<div class="row"><span>${esc(r.name)} <span class="sub">${esc(r.pos)}${r.slot===21?" · IR":""}</span></span><span class="num">${fmt(r.pts,1)}</span></div>`).join("")||'<div class="sub">—</div>';
+    const bench=rows=>rows.filter(r=>r.slot===20||r.slot===21).sort((x,y)=>y.pts-x.pts).map(r=>`<div class="row"><span>${esc(r.name)} <span class="sub">${esc(r.pos)}${r.slot===21?" · IR":""}</span></span><span class="num" style="text-align:right;line-height:1.15">${fmt(r.pts,1)}${r.proj!=null?`<small style="display:block;font-size:10px;color:var(--ink-3);font-weight:400">proj ${fmt(r.proj,1)}</small>`:""}</span></div>`).join("")||'<div class="sub">—</div>';
     if(cur){const emp=rows=>STARTER_ORDER.map((sl,i)=>rows[i]?null:SLOTNAME[sl]).filter(Boolean);
       body=alertBox(lineupAlerts(la.filter(Boolean),emp(la),W),a)+alertBox(lineupAlerts(lh.filter(Boolean),emp(lh),W),h)+body;}
     body+=`<div class="lu-bench"><div><div class="k-label ca" style="margin-bottom:4px">Bench · ${esc(a.name)}</div>${bench(A)}</div><div><div class="k-label ch" style="margin-bottom:4px">Bench · ${esc(h.name)}</div>${bench(H)}</div></div>`;
