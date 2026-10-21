@@ -946,7 +946,7 @@ function setTab(id){
   el.innerHTML='<div style="display:grid;gap:16px;padding:8px 0"><div class="skel skel-card"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:16px"><div class="skel skel-kpi"></div><div class="skel skel-kpi"></div></div><div class="skel skel-card" style="height:160px"></div></div>';
   let node;try{node=VIEWS[id]();}catch(e){console.error(id,e);node=document.createElement("div");node.className="view";
     node.innerHTML=emptyState("flag","This page didn't load",`Something went wrong drawing ${esc(LABELS[id]||id)}. Refresh to try again; if it keeps happening, the error was: ${esc(e&&e.message||e)}`);}
-  el.appendChild(node); try{paintView(el);addTitleHelp(el);}catch(e){console.error(e);}
+  el.innerHTML="";el.appendChild(node); try{paintView(el);addTitleHelp(el);}catch(e){console.error(e);}
   if(id==="dash")updParlayMissing();
   window.scrollTo({top:keepY,behavior:"instant"});
   // visitor stats: each tab counts as its own page (/chat, /odds, ...); re-sorting a page doesn't count again
