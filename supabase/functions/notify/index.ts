@@ -1,7 +1,7 @@
 // Mitch Fantasy League — Web Push sender (Supabase Edge Function).
 //
 // Called by:
-//   • Supabase Database Webhooks on INSERT to chat_messages and INSERT/UPDATE to
+//   • Supabase Database Webhooks on INSERT/UPDATE to
 //     trade_block  → broadcasts a push to everyone subscribed.
 //   • The data cron (later) for "your matchup is live" → targeted by team_id.
 //
@@ -40,9 +40,6 @@ function buildNote(p: any): Note | null {
   // Supabase database webhook payload: { type, table, record, old_record, schema }.
   const table = p?.table;
   const rec = p?.record ?? {};
-  if (table === "chat_messages" && p?.type === "INSERT") {
-    return { title: "League chat", body: clip(`${rec.alias ?? "Someone"}: ${rec.body ?? ""}`), url: "/#chat", tag: "chat" };
-  }
   if (table === "trade_block" && (p?.type === "INSERT" || p?.type === "UPDATE")) {
     return { title: "Trade Block", body: "New activity on the Trade Block — tap to see who's shopping.", url: "/#block", tag: "tradeblock" };
   }
