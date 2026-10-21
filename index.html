@@ -4239,6 +4239,20 @@ function initPullRefresh(){
   document.documentElement.style.overscrollBehaviorY="none";
   const ind=document.createElement("div");ind.className="ptr";ind.setAttribute("role","status");ind.innerHTML='<div class="ptr-spin"></div><span>Pull to refresh</span>';document.body.appendChild(ind);
   const label=ind.querySelector("span");
+  // iOS 18+ can provide native switch feedback, but has no Vibration API.
+  // Keep the control rendered and out of the accessibility/focus order.
+  const iOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+  let hapticSwitch=null;
+  if(iOS){
+    hapticSwitch=document.createElement("input");hapticSwitch.type="checkbox";hapticSwitch.setAttribute("switch","");
+    hapticSwitch.tabIndex=-1;hapticSwitch.setAttribute("aria-hidden","true");
+    hapticSwitch.style.cssText="position:fixed;left:-100px;top:0;width:1px;height:1px;opacity:0;pointer-events:none";
+    document.body.appendChild(hapticSwitch);
+  }
+  const haptic=()=>{
+    // Best effort: device settings and WebKit versions may suppress feedback.
+    try{if(hapticSwitch)hapticSwitch.click();else if(typeof navigator.vibrate==="function")navigator.vibrate(15);}catch(e){}
+  };
   let startY=0,startX=0,pulling=false,dist=0,armed=false,loading=false;const TH=70;
   const atTop=()=>window.scrollY<=0;
   const reset=()=>{pulling=false;dist=0;armed=false;ind.style.transform="";ind.style.opacity="";ind.classList.remove("ready","armed");label.textContent="Pull to refresh";};
@@ -4255,8 +4269,7 @@ function initPullRefresh(){
     const d=Math.min(dist*.5,100),next=d>=TH;
     ind.style.transform=`translateX(-50%) translateY(${d}px)`;ind.style.opacity=String(Math.min(d/35,1));
     if(next!==armed){armed=next;ind.classList.toggle("armed",armed);label.textContent=armed?"Release to refresh":"Pull to refresh";
-      // Safari on iOS has no web haptic API; vibrate only where supported.
-      if(armed&&typeof navigator.vibrate==="function")navigator.vibrate(15);
+      if(armed)haptic();
     }
   },{passive:false});
   window.addEventListener("touchend",()=>{
