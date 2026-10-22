@@ -1316,8 +1316,9 @@ body.phone .lx-p{padding:11px 8px}.full-context{font-size:13px}.full-context .ga
 </div>
 
 <script type="module">
+import { optimalLineup, estimatedCeiling, eliminationNumber } from "./lineup-tools.mjs";
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-const sb=createClient("https://tcaqsuqoiinnmvmmojth.supabase.co","sb_publishable_dY9khbDJVWUnh6XfnBEf1w_Thn3r9t_");
+const sb=createClient("https://tcaqsuqoiinnmvmmojth.supabase.co","sb_publishable_dY9khbDJVWUnh6XfnBEf1w_Thn3r9t_",{global:{fetch:(...args)=>window.fetch(...args)}});
 let __LD=null;
 try{const r=await sb.from("league_data").select("data").eq("id","current").single();__LD=r.data&&r.data.data;}catch(e){console.error("load",e);}
 const __app=document.getElementById("app");
@@ -1478,7 +1479,7 @@ function powerRanks(){
 
 /* ---------- routing ---------- */
 const NAV=[
-  ["League","league","home",[["dash","Home"],["standings","Standings"],["power","Power Rankings"],["odds","Playoff Odds"],["history","History"],["parlay","Parlay"],["other","Games"]]],
+  ["League","league","home",[["dash","Home"],["standings","Standings"],["power","Power Rankings"],["odds","Playoff Odds"],["history","History"],["parlay","Parlay"],["other","Games"],["feedback","Problems & Suggestions"],["siteactivity","Site Log"]]],
   ["Matchup","matchup","swords",[["matchup","My Matchup"],["scoreboard","Scoreboard"],["h2h","Head-to-Head"]]],
   ["Team","team","users",[["myteam","My Team"],["teams","All Teams"],["block","Trade Block"],["trade","Trade Analyzer"],["faab","Waivers"],["draft","Draft"]]],
   ["Stats","stats","line",[["analytics","Analytics"],["outlook","Outlook"],["records","Record Book"],["defense","Manager D"],["shame","Hall of Shame"],["corrections","Stat Fixes"]]],
@@ -1503,6 +1504,7 @@ const TITLE_HELP={"All-Play Record":"Your record if you played all 11 other team
   "Playoff Picture":"Seeds if the season ended today, and the bracket that would follow.","Trade":"Season points for the players on each side of the trade."};
 function addTitleHelp(root){root.querySelectorAll(".sub-h").forEach(h=>{if(h.title)return;const t=(h.firstChild&&h.firstChild.nodeType===3?h.firstChild.textContent:h.textContent).trim();const k=Object.keys(TITLE_HELP).find(x=>t.startsWith(x));if(!k)return;h.title=TITLE_HELP[k];h.insertAdjacentHTML("beforeend",'<span class="qi" aria-hidden="true">?</span>');});}
 function setTab(id){
+  if(id!==setTab.activityPage){setTab.activityPage=id;trackSite("page_view",id);}
   if(id!==cur&&!swipingBack){VIEW_BACK.push(cur);if(VIEW_BACK.length>30)VIEW_BACK.shift();}
   // re-rendering the SAME view (sort, dropdown, week switch) keeps your scroll
   // position; only navigating to a DIFFERENT view jumps back to the top.
@@ -2077,6 +2079,7 @@ function productionChart(rows){
 }
 
 function openPlayer(pid){
+  trackSite("player_view",String(pid));
   closeMatchup();
   const meta=(D.players||{})[String(pid)]||[];
   let current=null,tid=null;Object.entries(D.rosters||{}).forEach(([id,roster])=>{const p=roster.find(x=>x.playerId===pid);if(p){current=p;tid=+id;}});
@@ -2292,6 +2295,7 @@ VIEWS.teams=function(){
   return v;
 };
 function showTeam(id,v,quiet){
+  if(!quiet)trackSite("team_view",String(id));
   v.dataset.teamDetail=String(id);
   const t=teamById[id],s=ST.S[id],r=(D.rosters[id]||[]);
   const picks=D.draft.filter(p=>p.teamId===id).sort((a,b)=>a.overall-b.overall);
@@ -2315,6 +2319,7 @@ function showTeam(id,v,quiet){
       h+=alertBox(lineupAlerts(starters.map(p=>({name:p.name,pro:p.proTeam,pid:p.playerId})),emp,W),t);}}
   h+=`<section class="card card-p manager-history"><div class="sub-h" style="margin-top:0">${esc(t.owner||t.name)} · Parlay</div><div data-manager-history="${id}">${managerHistoryHtml(id)}</div></section>`;
   h+=teamTrend(id);
+  h+=lineupAdvice(id);
   h+=`<div class="grid g-2" style="margin-top:14px">`;
   if(typeof TB!=="undefined"&&!TB.loaded&&!TB.sub)initTradeBlock();
   const _tbL=((typeof TB!=="undefined"&&TB.rows&&TB.rows.find(rr=>+rr.team_id===+id))||{}).listing||{};
@@ -3443,11 +3448,11 @@ function playoffPicture(){
   let od=null;try{od=playoffOdds();}catch(e){}
   const O={};if(od)od.rows.forEach(r=>O[r.id]=r);
   const cut=rows[P-1],gb=s=>{const d=((cut.w-cut.l)-(s.w-s.l))/2;return d<=0?"0":String(d);};
-  let h=`<div class="sub-h">Playoff Picture</div><div class="twrap"><table><thead><tr><th class="no-sort">Seed</th><th class="no-sort">Team</th><th class="no-sort">Record</th><th class="no-sort">PF</th><th class="no-sort">Games back</th><th class="no-sort">Playoff odds</th></tr></thead><tbody>`;
+  let h=`<div class="sub-h">Playoff Picture</div><div class="twrap"><table><thead><tr><th class="no-sort">Seed</th><th class="no-sort">Team</th><th class="no-sort">Record</th><th class="no-sort">PF</th><th class="no-sort">Games back</th><th class="no-sort">Elimination #</th><th class="no-sort">Playoff odds</th></tr></thead><tbody>`;
   rows.forEach((s,i)=>{const o=O[s.id];const tag=o&&o.clinched?' <span class="pill" style="color:var(--win)">Clinched</span>':o&&o.eliminated?' <span class="pill" style="color:var(--loss)">Eliminated</span>':"";
     const pct=o?(o.po>=.999?"99%+":o.po<.001?(o.eliminated?"0%":"<0.1%"):Math.round(o.po*100)+"%"):"—";
-    h+=`<tr style="${i===P?"border-top:2px dashed var(--line-2);":""}${i>=P?"opacity:.75":""}"><td class="rankcol ${i<2?"top":""}">${i<P?i+1:"—"}</td><td>${teamLine(s.team)}</td><td class="num">${s.w}-${s.l}${s.tie?"-"+s.tie:""}</td><td class="num">${fmt(s.pf,1)}</td><td class="num">${i<P?"":gb(s)}</td><td class="num">${pct}${tag}</td></tr>`;});
-  h+=`</tbody></table></div><div class="metricnote">Top ${P} make the playoffs; ties go to points for. Seeds 1 and 2 get a first-round bye. Games back = wins needed to catch the #${P} seed. Odds come from the Playoff Odds page.</div>`;
+    h+=`<tr style="${i===P?"border-top:2px dashed var(--line-2);":""}${i>=P?"opacity:.75":""}"><td class="rankcol ${i<2?"top":""}">${i<P?i+1:"—"}</td><td>${teamLine(s.team)}</td><td class="num">${s.w}-${s.l}${s.tie?"-"+s.tie:""}</td><td class="num">${fmt(s.pf,1)}</td><td class="num">${i<P?"":gb(s)}</td><td class="num">${i<P?"—":eliminationNumber(s,cut,D.schedule.filter(x=>x.week<=RS&&(x.homeTeamId===s.id||x.awayTeamId===s.id)&&(!x.winner||x.winner==="UNDECIDED")).length)}</td><td class="num">${pct}${tag}</td></tr>`;});
+  h+=`</tbody></table></div><div class="metricnote">Top ${P} make the playoffs; ties go to points for. Seeds 1 and 2 get a first-round bye. Games back = wins needed to catch the #${P} seed. Elimination # = combined losses by this team and wins by the current cutoff team needed to make the cutoff record unreachable. Ties count as half a win; equal records still depend on PF. Zero means the current cutoff is already unreachable. This is a moving-cutoff indicator, not a schedule-aware proof of elimination. Odds come from the Playoff Odds page.</div>`;
   if(P===6){const sd=i=>rows[i]?rows[i].team:null,tm=(n,t)=>t?`<div class="bt"><span class="sd">${n}</span>${badge(t)}<span class="nm" data-tid="${t.id}">${esc(t.name)}</span></div>`:"",
       tbd=l=>`<div class="bt"><span class="sd"></span><span class="nm" style="color:var(--ink-3)">${l}</span></div>`;
     h+=`<div class="sub-h">Bracket preview</div><div class="card card-p" style="overflow-x:auto"><div class="bracket" style="min-width:520px">
@@ -3968,6 +3973,63 @@ VIEWS.defense=function(){
   return el(html);
 };
 
+/* ---------- lineup recommendations ---------- */
+function lineupAdvice(id){
+  const roster=D.rosters[id]||[],week=D.meta.currentScoringPeriod;
+  const candidates=roster.filter(p=>p.slot!=="IR"&&!['OUT','O','IR','INJURED_RESERVE','SUSPENSION','SUSPENDED','DOUBTFUL','D'].includes(String(p.injury||'').toUpperCase())&&byeWk(p.proTeam)!==week);
+  const modes=[['projection','Best projected starters'],['ceiling','Highest estimated ceiling']];
+  return `<section class="card card-p" style="margin-top:14px"><div class="sub-h" style="margin-top:0">Lineup Lab · Week ${week}</div><p class="metricnote">Advisory only; set your lineup in ESPN. Uses QB, 2 RB, 2 WR, TE, FLEX, D/ST and K. Excludes IR, out, doubtful, suspended and bye players. Game locks are not enforced; already-started players can appear. Missing projections stay unavailable.</p>${modes.map(([mode,title])=>{
+    const pool=candidates.map(p=>{const projection=playerSeason(p.playerId).proj;const points=playerLog(p.playerId).map(r=>r.pts).filter(Number.isFinite);return {...p,value:mode==='ceiling'?estimatedCeiling(projection,points):projection};});
+    const result=optimalLineup(pool),missing=pool.filter(p=>!Number.isFinite(p.value)).length;
+    return `<details class="fold" data-lineup-mode="${mode}" data-lineup-team="${id}"><summary style="padding:12px 0;font-weight:700">${title} <span class="num" style="color:var(--accent)">${fmt(result.total,1)} pts${result.complete?'':' · incomplete'}</span></summary><div class="fold-b">${result.picks.map(p=>`<div class="rrow"><span class="posbadge">${p.assignedSlot}</span><button class="pclick" data-pid="${p.playerId}" type="button">${esc(p.name)}</button><span class="num" style="margin-left:auto">${fmt(p.value,1)}</span></div>`).join('')||'<p>No eligible players with available data.</p>'}${!result.complete?`<p class="metricnote">Filled ${result.picks.length} of 9 slots. This total is partial.</p>`:''}${missing?`<p class="metricnote">${missing} eligible player(s) omitted because ${mode==='ceiling'?'projection or sufficient history is':'projections are'} unavailable.</p>`:''}<p class="metricnote">${mode==='ceiling'?'Estimated ceiling = weekly projection + 1.28 × historical weekly standard deviation (at least 3 recorded games). An upside estimate, not an official ESPN ceiling or a team confidence bound.':'Maximizes total weekly projections across eligible rostered players without using a player twice.'}</p></div></details>`;
+  }).join('')}</section>`;
+}
+/* ---------- persistent site activity ---------- */
+let siteSession=null,siteDevice=null,siteOpenedAt=0;
+function trackSite(action,detail='',category='activity'){
+  if(!siteSession||!siteDevice)return;
+  const teamId=MEID>=0?MEID:null;
+  fetch('/api/site-activity',{method:'POST',headers:{'Content-Type':'application/json'},keepalive:true,body:JSON.stringify({eventId:crypto.randomUUID(),sessionId:siteSession,deviceId:siteDevice,teamId,category,action,detail:String(detail).slice(0,2000)})}).catch(()=>{});
+}
+function startSiteTracking(){
+  if(siteSession)return;
+  try{siteDevice=localStorage.getItem('mfl-tracking-device');if(!siteDevice){siteDevice=crypto.randomUUID();localStorage.setItem('mfl-tracking-device',siteDevice);}siteSession=crypto.randomUUID();}catch(e){return;}
+  const opened=()=>{if(document.visibilityState==='hidden')return;if(!siteOpenedAt||Date.now()-siteOpenedAt>30*60*1000){siteSession=crypto.randomUUID();trackSite('app_open',window.matchMedia('(display-mode: standalone)').matches?'Installed app':'Browser');}siteOpenedAt=Date.now();};
+  opened();document.addEventListener('visibilitychange',opened);
+  document.addEventListener('click',e=>{siteOpenedAt=Date.now();const n=e.target.closest('button,[data-mid]');if(!n||n.closest('#siteAdminForm')||n.closest('#feedbackForm'))return;const label=(n.getAttribute('aria-label')||n.textContent||'').trim().replace(/\s+/g,' ').slice(0,120);if(label)trackSite('interaction',cur+': '+label);});
+  document.addEventListener('change',e=>{if(e.target.tagName==='SELECT'&&!e.target.closest('#siteAdminForm,#feedbackForm'))trackSite('interaction',cur+': changed '+(e.target.name||e.target.id||'selector'));});
+  document.addEventListener('toggle',e=>{const n=e.target;if(n.dataset?.lineupMode&&n.open)trackSite('lineup_view',n.dataset.lineupTeam+': '+n.dataset.lineupMode);},true);
+  // Record successful site-content writes, never subscription keys, credentials or request headers.
+  const originalFetch=window.fetch.bind(window);
+  window.fetch=async(input,options)=>{
+    const response=await originalFetch(input,options);
+    try{const url=new URL(typeof input==='string'?input:input.url||String(input),location.href),method=(options?.method||(input instanceof Request?input.method:'GET')).toUpperCase();
+      const table=url.pathname.match(/\/rest\/v1\/(league_updates|site_settings|trade_block|push_queue)$/)?.[1];
+      if(response.ok&&['POST','PATCH','DELETE','PUT'].includes(method)&&(table||url.pathname==='/api/parlay')){
+        let detail=method+' '+(table||'parlay');
+        if(typeof options?.body==='string'){try{const p=JSON.parse(options.body);const safe=table==='push_queue'?{title:p.title,body:p.body,team_ids:p.team_ids}:table==='league_updates'?{message:p.message,active:p.active}:table==='site_settings'?{id:p.id,data:p.data}:table==='trade_block'?{team_id:p.team_id,listing:p.listing}:p;detail+=' '+JSON.stringify(safe);}catch(e){}}
+        trackSite(table==='push_queue'?'notification_queued':'content_change',detail,'change');
+      }
+    }catch(e){}return response;
+  };
+}
+VIEWS.feedback=function(){
+  const v=el(shead('Help improve the league site','Problems & Suggestions','')+`<div class="card card-p"><p>Report a broken page or share an idea. Reports go to the league admin.</p><form id="feedbackForm" style="display:grid;gap:16px"><label>Report type<select name="kind" style="display:block;width:100%"><option value="problem">Site problem</option><option value="suggestion">Suggestion</option></select></label><label>Your team<select name="team" style="display:block;width:100%"><option value="">Prefer not to say</option>${D.teams.map(t=>`<option value="${t.id}" ${t.id===MEID?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label><label>Title<input class="txt" name="title" required maxlength="140" style="display:block;width:100%"></label><label>Page or feature<input class="txt" name="page" maxlength="80" placeholder="e.g. My Team / Lineup Lab" style="display:block;width:100%"></label><label>Details<textarea class="txt" name="message" required maxlength="4000" rows="6" style="display:block;width:100%" placeholder="What happened, what you expected, and steps to reproduce — or how your suggestion would help."></textarea></label><p class="metricnote">Do not include passwords or private account details. App opens and feature interactions are logged for the league admin using your selected team and a device identifier. Team attribution is self-reported.</p><button class="btn" type="submit">Submit report</button><div aria-live="polite" id="feedbackResult"></div></form></div>`);
+  const form=v.querySelector('form');let requestId=crypto.randomUUID();
+  form.onsubmit=async e=>{e.preventDefault();const button=form.querySelector('button'),msg=v.querySelector('#feedbackResult'),fields=new FormData(form);button.disabled=true;msg.textContent='Submitting…';try{const r=await fetch('/api/site-feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId,kind:fields.get('kind'),teamId:fields.get('team')?+fields.get('team'):null,title:fields.get('title'),message:fields.get('message'),page:fields.get('page')})});const data=await r.json();if(!r.ok)throw new Error(data.error);form.reset();requestId=crypto.randomUUID();msg.textContent='Report #'+data.id+' submitted. Thank you.';}catch(e){msg.textContent=e.message||'Could not submit. Please retry.';}finally{button.disabled=false;}};return v;
+};
+VIEWS.siteactivity=function(){
+  const v=el(shead('League site operations','Site Log','')+`<div class="card card-p"><p>Admin access: review site changes, notification delivery reports, manager activity and feedback. Tracking begins with this release. Opens count page loads and returns after 30 minutes; activity uses the selected team, not a verified login. Browser blocking or offline use can leave gaps.</p><form id="siteAdminForm" style="display:flex;gap:10px;flex-wrap:wrap"><label>Admin password<input class="txt" name="password" type="password" required autocomplete="current-password" maxlength="1024" style="display:block"></label><label>Show<select name="category" style="display:block"><option value="">All logs</option><option value="activity">Manager activity</option><option value="change">Website changes & queued notifications</option><option value="notification">Push delivery reports</option><option value="feedback">Problems & suggestions</option></select></label><button class="btn" type="submit" style="align-self:end">Load records</button></form><div id="siteLogResult" aria-live="polite" style="margin-top:20px">Enter the admin password to load records.</div><button class="btn ghost" id="siteLogMore" type="button" hidden style="margin-top:14px">Load older records</button></div>`);
+  const form=v.querySelector('form'),box=v.querySelector('#siteLogResult'),more=v.querySelector('#siteLogMore');let cursor=null,category='',password='';
+  const team=id=>id==null?'Unassigned':teamById[id]?.name||'Team '+id;
+  async function load(append=false){const btn=form.querySelector('button');btn.disabled=true;more.disabled=true;try{const feedback=category==='feedback';const r=await fetch((feedback?'/api/site-feedback':'/api/site-activity')+'?category='+encodeURIComponent(category)+(append&&cursor?'&before='+cursor:''),{headers:{'X-Admin-Password':password}}),data=await r.json();if(!r.ok)throw new Error(data.error);const rows=feedback?data:data.rows;if(!append)box.innerHTML='';
+    if(!feedback&&!append)box.innerHTML=`<div class="sub-h">Last 30 days · manager usage</div><div class="twrap"><table><thead><tr><th>Team</th><th>Opens</th><th>Sessions</th><th>Actions</th><th>Last active</th></tr></thead><tbody>${data.managers.map(m=>`<tr><td>${esc(team(m.team_id))}</td><td>${m.opens}</td><td>${m.sessions}</td><td>${m.actions}</td><td>${esc(new Date(m.last_seen).toLocaleString())}</td></tr>`).join('')}</tbody></table></div><p class="metricnote">Self-reported activity; multiple devices may belong to one team. Notifications below distinguish queue acceptance from confirmed push delivery.</p>`;
+    if(!rows.length)box.insertAdjacentHTML('beforeend','<p>No records found.</p>');
+    rows.forEach(row=>{const article=document.createElement('article');article.className='card card-p';article.style.marginTop='10px';article.innerHTML=`<div class="metricnote">#${row.id} · ${esc(new Date(row.created_at).toLocaleString())} · ${esc(team(row.team_id))}</div><b>${esc(feedback?row.kind+' · '+row.title:row.category+' · '+row.action)}</b><p style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(feedback?row.message:row.detail)}</p>${feedback?`<p class="metricnote">Page: ${esc(row.page||'Unspecified')}</p><label>Status <select data-status="${row.id}">${['open','reviewing','resolved'].map(s=>`<option ${s===row.status?'selected':''}>${s}</option>`).join('')}</select></label><span data-status-msg aria-live="polite"></span>`:''}`;if(feedback){const select=article.querySelector('select');select.onchange=async()=>{const msg=article.querySelector('[data-status-msg]');select.disabled=true;try{const r=await fetch('/api/site-feedback',{method:'PATCH',headers:{'Content-Type':'application/json','X-Admin-Password':password},body:JSON.stringify({id:row.id,status:select.value})});if(!r.ok)throw new Error('Could not save status.');row.status=select.value;msg.textContent=' Saved.';}catch(e){select.value=row.status;msg.textContent=e.message;}finally{select.disabled=false;}};}box.appendChild(article);});cursor=rows.at(-1)?.id;more.hidden=rows.length<100;
+  }catch(e){if(!append)box.textContent=e.message;else showToast(e.message);}finally{btn.disabled=false;more.disabled=false;}}
+  form.onsubmit=e=>{e.preventDefault();password=form.elements.password.value;category=form.elements.category.value;cursor=null;more.hidden=true;load();};more.onclick=()=>load(true);return v;
+};
+
 /* ---------- boot ---------- */
 /* ---------- device observations (starting with this release) ---------- */
 let trackingQueue=Promise.resolve();
@@ -4389,6 +4451,7 @@ function initPullRefresh(){
 }
 
 function boot(){
+  startSiteTracking();
   const m=D.meta;
   if(MEID>=0&&!teamById[MEID])MEID=-1;
   const br=document.getElementById("abBrand");if(br)br.onclick=()=>setTab("dash");

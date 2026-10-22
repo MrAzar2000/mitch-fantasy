@@ -28,6 +28,7 @@ export default async () => {
       if (!response.ok) throw new Error('Trade digest delivery failed');
       const result = await response.json();
       if (result.failed > 0 || typeof result.sent !== 'number') throw new Error('Trade digest delivery was incomplete');
+      await client.query('INSERT INTO site_activity (event_id, category, action, detail) VALUES ($1, $2, $3, $4) ON CONFLICT (event_id) DO NOTHING', [`digest-${day}`, 'notification', 'digest_delivery', JSON.stringify({ day, players: count, sent: result.sent, failed: result.failed, source: 'nightly trade digest' })]);
       await client.query('UPDATE trade_digest_additions SET sent_at = $1 WHERE sent_at IS NULL AND created_at <= $1', [now]);
     }
     await client.query('INSERT INTO trade_digest_runs (day) VALUES ($1)', [day]);

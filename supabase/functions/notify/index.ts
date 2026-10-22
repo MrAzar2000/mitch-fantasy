@@ -40,6 +40,9 @@ function buildNote(p: any): Note | null {
   // Supabase database webhook payload: { type, table, record, old_record, schema }.
   const table = p?.table;
   const rec = p?.record ?? {};
+  if (table === "push_queue" && p?.type === "INSERT") {
+    return { title: rec.title || "League notification", body: rec.body || "", teamIds: rec.team_ids || undefined, url: rec.url, tag: rec.tag };
+  }
   if (table === "league_updates" && p?.type === "INSERT") {
     if (rec.active === false) return null;
     return { title: "League announcement", body: clip(rec.message ?? ""), url: "/", tag: "update" };
@@ -100,7 +103,18 @@ export default {
       }
     }));
 
-    return new Response(JSON.stringify({ sent, removed, failed, total: targets.length }), {
+    // Keep delivery outcomes in the Netlify site log. Never send subscription endpoints or keys.
+    let logged = false;
+    try {
+      const report = await fetch("https://mitch-fantasy.netlify.app/api/site-activity", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-notify-secret": NOTIFY_SECRET },
+        body: JSON.stringify({ category: "notification", detail: JSON.stringify({ title: note.title, body: note.body, teams: note.teamIds || "everyone", sent, removed, failed, total: targets.length }) }),
+        signal: AbortSignal.timeout(10000),
+      });
+      logged = report.ok;
+    } catch { /* Delivery already happened; do not retry pushes because logging failed. */ }
+    return new Response(JSON.stringify({ sent, removed, failed, total: targets.length, logged }), {
       headers: { "content-type": "application/json" },
     });
   },
