@@ -2927,7 +2927,10 @@ function renderPicksList(){
     return '<div style="display:flex;gap:10px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--line);'+(dup?"opacity:.45":"")+'">'
       +'<div style="flex:0 0 140px;font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(p.manager)+(dup?' <span style="font-weight:400;color:var(--ink-3);font-size:11px">older</span>':"")+'</div>'
       +'<div style="flex:1;font-size:13.5px">'+esc(p.pick)+(p.odds?' <span class="mono" style="color:var(--accent);font-weight:700;font-size:12.5px;white-space:nowrap">'+esc(p.odds)+'</span>':"")+'</div>'
-      +'<div style="flex:0 0 auto;font-size:11px;color:var(--ink-3);white-space:nowrap">'+__pt(p.created_at)+'</div>'+'</div>';}).join("");
+      +'<div style="flex:0 0 auto;font-size:11px;color:var(--ink-3);white-space:nowrap">'+__pt(p.created_at)+'</div>'
+      +(p.result==='won'?'<span style="flex:0 0 auto;font-size:10px;font-weight:800;color:var(--win);background:color-mix(in srgb,var(--win) 15%,transparent);padding:2px 7px;border-radius:6px">HIT</span>':p.result==='lost'?'<span style="flex:0 0 auto;font-size:10px;font-weight:800;color:var(--loss);background:color-mix(in srgb,var(--loss) 15%,transparent);padding:2px 7px;border-radius:6px">MISS</span>':'')
+      +(ADMIN?'<button class="parlay-del" data-pl="'+p.id+'" title="Delete pick" type="button" style="flex:0 0 auto;border:none;background:transparent;color:var(--loss);cursor:pointer;font-weight:800;padding:0 4px">✕</button>':'')
+      +'</div>';}).join("");
 }
 VIEWS.parlay=function(){
   const pw=parlayWk();if(pw!==parlayWeek){parlayWeek=pw;parlayPicks=[];parlayLoaded=false;if(__sb)__initParlay(__sb);}
@@ -4053,7 +4056,7 @@ function adminLogin(){
   closeMatchup();
   const wrap=document.createElement("div");wrap.className="mdl";wrap.id="mdl";wrap.setAttribute("role","dialog");wrap.setAttribute("aria-modal","true");
   const inner=ADMIN
-    ?`<div style="font-size:13.5px;margin-bottom:14px">You're in <b style="color:var(--win)">admin mode</b>. Edit/delete controls are visible across the site.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="aMng" type="button">Manage announcements</button><button class="btn" id="aHome" type="button">Edit home page</button><button class="btn" id="aSetup" type="button">Notification checklist</button><button class="btn" id="aPush" type="button">Send notification</button><button class="wi-reset" id="aOut" type="button">Exit admin</button></div>`
+    ?`<div style="font-size:13.5px;margin-bottom:14px">You're in <b style="color:var(--win)">admin mode</b>. Edit/delete controls are visible across the site.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="aMng" type="button">Manage announcements</button><button class="btn" id="aHome" type="button">Edit home page</button><button class="btn" id="aSetup" type="button">Notification checklist</button><button class="btn" id="aPush" type="button">Send notification</button><button class="btn" id="aParlayMng" type="button">Manage parlay picks</button><button class="btn" id="aGrade" type="button">Grade parlay</button><button class="btn" id="aTB" type="button">Manage trade block</button><button class="wi-reset" id="aOut" type="button">Exit admin</button></div>`
     :`<div style="font-size:13.5px;line-height:1.6;margin-bottom:12px">Enter the admin password to unlock edit &amp; delete controls.</div><input class="txt" id="aPw" type="password" placeholder="Password" autocomplete="off" style="width:100%;margin-bottom:12px"><button class="btn" id="aIn" type="button">Unlock</button><div id="aMsg" style="font-size:12.5px;color:var(--ink-3);margin-top:10px"></div>`;
   wrap.innerHTML=`<div class="mdl-box"><div class="mdl-top"><div><div class="eyebrow" style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--t-blue)">Admin</div><div style="font-size:12.5px;color:var(--ink-3)">Master access</div></div><button class="x" aria-label="Close" type="button">✕</button></div><div style="padding:2px">${inner}</div></div>`;
   wrap.addEventListener("click",e=>{if(e.target===wrap)closeMatchup();});
@@ -4067,6 +4070,9 @@ function adminLogin(){
   const home=wrap.querySelector("#aHome");if(home)home.onclick=()=>{closeMatchup();adminHome();};
   const setup=wrap.querySelector("#aSetup");if(setup)setup.onclick=adminNotificationChecklist;
   const push=wrap.querySelector("#aPush");if(push)push.onclick=()=>{closeMatchup();adminPush();};
+  const pmng=wrap.querySelector("#aParlayMng");if(pmng)pmng.onclick=()=>{closeMatchup();adminParlayManage();};
+  const grade=wrap.querySelector("#aGrade");if(grade)grade.onclick=()=>{closeMatchup();adminGradeParlay();};
+  const atb=wrap.querySelector("#aTB");if(atb)atb.onclick=()=>{closeMatchup();adminTradeBlock();};
   const out=wrap.querySelector("#aOut");if(out)out.onclick=()=>{adminSet(false);closeMatchup();showToast("Admin mode off");};
 }
 function notificationTeamStatus(rows){
@@ -4205,6 +4211,175 @@ function adminPush(){
     }catch(e){msg.innerHTML="<b style='color:var(--loss)'>Failed:</b> "+esc(e.message||String(e));}
   };
 }
+function adminGradeParlay(){
+  if(!ADMIN)return adminLogin();
+  closeMatchup();
+  const wrap=document.createElement("div");wrap.className="mdl";wrap.id="mdl";wrap.setAttribute("role","dialog");wrap.setAttribute("aria-modal","true");
+  const maxWk=D.meta.currentScoringPeriod||(ST.started?Math.max(...ST.weeks)+1:1);
+  wrap.innerHTML=`<div class="mdl-box" style="max-width:640px"><div class="mdl-top"><div><div class="eyebrow" style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--t-blue)">Admin</div><div style="font-size:12.5px;color:var(--ink-3)">Grade parlay picks (hit/miss)</div></div><button class="x" aria-label="Close" type="button">&#x2715;</button></div>
+    <div style="padding:2px">
+      <label class="fieldlbl" style="display:block;margin-bottom:6px">Week to grade</label>
+      <select class="txt" id="agpWk" style="width:120px;margin-bottom:14px">${Array.from({length:maxWk},(_,i)=>`<option value="${i+1}"${i+1===(maxWk>1?maxWk-1:1)?" selected":""}>Week ${i+1}</option>`).join("")}</select>
+      <div id="agpList" style="max-height:420px;overflow-y:auto"></div>
+      <div style="display:flex;gap:8px;margin-top:12px"><button class="btn" id="agpSave" type="button">Save grades</button></div>
+      <div id="agpMsg" style="font-size:12.5px;color:var(--ink-3);margin-top:10px;min-height:16px"></div>
+    </div></div>`;
+  wrap.addEventListener("click",e=>{if(e.target===wrap)closeMatchup();});
+  wrap.querySelector(".x").onclick=closeMatchup;
+  document.body.appendChild(wrap);document.body.classList.add("mdl-open");document.addEventListener("keydown",mdlKey);
+  const msg=wrap.querySelector("#agpMsg");
+  function loadWk(wk){
+    const list=wrap.querySelector("#agpList");
+    const picks=parlayHistory.filter(p=>p.week===wk);
+    const seen={};
+    const latest=picks.slice().reverse().filter(p=>{if(seen[p.manager])return false;seen[p.manager]=1;return true;}).reverse();
+    if(!latest.length){list.innerHTML='<div style="color:var(--ink-3);font-size:13px">No picks for this week.</div>';return;}
+    list.innerHTML=latest.map(p=>{
+      const cur=p.result||"pending";
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)" data-gid="${p.id}">
+        <div style="flex:1;min-width:0"><b style="font-size:13px">${esc(p.manager)}</b><div style="font-size:12.5px;color:var(--ink-2);margin-top:2px">${esc(p.pick)}${p.odds?` <span class="mono" style="color:var(--accent)">${esc(p.odds)}</span>`:""}</div></div>
+        <div style="display:flex;gap:4px;flex:0 0 auto">
+          <button type="button" class="grade-btn" data-gid="${p.id}" data-val="won" style="padding:4px 12px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer;border:2px solid ${cur==="won"?"var(--win)":"var(--line)"};background:${cur==="won"?"color-mix(in srgb,var(--win) 20%,transparent)":"transparent"};color:${cur==="won"?"var(--win)":"var(--ink-3)"}">HIT</button>
+          <button type="button" class="grade-btn" data-gid="${p.id}" data-val="lost" style="padding:4px 12px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer;border:2px solid ${cur==="lost"?"var(--loss)":"var(--line)"};background:${cur==="lost"?"color-mix(in srgb,var(--loss) 20%,transparent)":"transparent"};color:${cur==="lost"?"var(--loss)":"var(--ink-3)"}">MISS</button>
+        </div></div>`;}).join("");
+    list.querySelectorAll(".grade-btn").forEach(btn=>{btn.onclick=function(){
+      const gid=this.dataset.gid,val=this.dataset.val;
+      const row=list.querySelector(`[data-gid="${gid}"]`);
+      row.querySelectorAll(".grade-btn").forEach(b=>{
+        const active=b.dataset.val===val;const c=b.dataset.val==="won"?"var(--win)":"var(--loss)";
+        b.style.borderColor=active?c:"var(--line)";
+        b.style.background=active?`color-mix(in srgb,${c} 20%,transparent)`:"transparent";
+        b.style.color=active?c:"var(--ink-3)";
+      });
+    };});
+  }
+  wrap.querySelector("#agpWk").onchange=function(){loadWk(+this.value);};
+  loadWk(maxWk>1?maxWk-1:1);
+  wrap.querySelector("#agpSave").onclick=async()=>{
+    const wk=+wrap.querySelector("#agpWk").value;
+    const list=wrap.querySelector("#agpList");
+    const grades=[];
+    list.querySelectorAll("[data-gid]").forEach(row=>{
+      const gid=+row.dataset.gid;let val=null;
+      row.querySelectorAll(".grade-btn").forEach(b=>{if(b.style.borderColor&&b.style.borderColor!=="var(--line)")val=b.dataset.val;});
+      if(val)grades.push({id:gid,result:val});
+    });
+    if(!grades.length){msg.textContent="Mark at least one pick.";return;}
+    msg.textContent="Saving grades...";
+    try{
+      const r=await fetch("/api/parlay?season="+D.meta.season,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({grades})});
+      if(!r.ok)throw new Error("Save failed");
+      const updated=await r.json();
+      updated.forEach(u=>{const p=parlayHistory.find(x=>x.id===u.id);if(p)p.result=u.result;const q=parlayPicks.find(x=>x.id===u.id);if(q)q.result=u.result;});
+      renderPicksList();
+      document.querySelectorAll('[data-manager-history]').forEach(n=>{n.innerHTML=managerHistoryHtml(+n.dataset.managerHistory);});
+      msg.innerHTML=`<b style='color:var(--win)'>Saved ${grades.length} grades.</b>`;
+    }catch(e){msg.innerHTML="<b style='color:var(--loss)'>Error:</b> "+esc(e.message||String(e));}
+  };
+}
+function adminParlayManage(){
+  if(!ADMIN)return adminLogin();
+  closeMatchup();
+  const wrap=document.createElement("div");wrap.className="mdl";wrap.id="mdl";wrap.setAttribute("role","dialog");wrap.setAttribute("aria-modal","true");
+  const maxWk=D.meta.currentScoringPeriod||(ST.started?Math.max(...ST.weeks)+1:1);
+  wrap.innerHTML=`<div class="mdl-box" style="max-width:640px"><div class="mdl-top"><div><div class="eyebrow" style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--t-blue)">Admin</div><div style="font-size:12.5px;color:var(--ink-3)">Manage parlay picks</div></div><button class="x" aria-label="Close" type="button">&#x2715;</button></div>
+    <div style="padding:2px">
+      <label class="fieldlbl" style="display:block;margin-bottom:6px">Week</label>
+      <select class="txt" id="apmWk" style="width:120px;margin-bottom:14px">${Array.from({length:maxWk},(_,i)=>`<option value="${i+1}"${i+1===parlayWeek?" selected":""}>Week ${i+1}</option>`).join("")}</select>
+      <div id="apmList" style="max-height:400px;overflow-y:auto"></div>
+      <div id="apmMsg" style="font-size:12.5px;color:var(--ink-3);margin-top:10px;min-height:16px"></div>
+    </div></div>`;
+  wrap.addEventListener("click",e=>{if(e.target===wrap)closeMatchup();});
+  wrap.querySelector(".x").onclick=closeMatchup;
+  document.body.appendChild(wrap);document.body.classList.add("mdl-open");document.addEventListener("keydown",mdlKey);
+  const msg=wrap.querySelector("#apmMsg");
+  function loadWk(wk){
+    const list=wrap.querySelector("#apmList");
+    const picks=parlayHistory.filter(p=>p.week===wk).sort((a,b)=>Date.parse(a.created_at)-Date.parse(b.created_at));
+    if(!picks.length){list.innerHTML='<div style="color:var(--ink-3);font-size:13px">No picks for this week.</div>';return;}
+    list.innerHTML=picks.map(p=>`<div class="card card-p" style="margin-bottom:8px;padding:10px 12px" data-pid="${p.id}">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <b style="font-size:13px;min-width:100px">${esc(p.manager)}</b>
+        <input class="txt apm-pick" value="${esc(p.pick)}" style="flex:1;min-width:160px;font-size:13px" data-pid="${p.id}">
+        <input class="txt apm-odds" value="${esc(p.odds||"")}" style="width:80px;font-size:13px" placeholder="Odds" data-pid="${p.id}">
+        <button class="btn apm-save" data-pid="${p.id}" type="button" style="font-size:12px;padding:6px 12px">Save</button>
+        <button class="apm-del" data-pid="${p.id}" type="button" style="border:none;background:transparent;color:var(--loss);cursor:pointer;font-weight:800;font-size:16px" title="Delete">&#x2715;</button>
+      </div></div>`).join("");
+    list.querySelectorAll(".apm-save").forEach(btn=>{btn.onclick=async()=>{
+      const id=+btn.dataset.pid,row=list.querySelector(`[data-pid="${id}"]`);
+      const pick=row.querySelector(".apm-pick").value.trim(),odds=row.querySelector(".apm-odds").value.trim();
+      if(!pick){msg.textContent="Pick text is required.";return;}
+      btn.disabled=true;msg.textContent="Saving...";
+      try{const r=await fetch("/api/parlay?season="+D.meta.season,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,pick,odds:odds||null})});
+        if(!r.ok)throw new Error("Save failed");const u=await r.json();
+        const hp=parlayHistory.find(x=>x.id===id);if(hp){hp.pick=u.pick;hp.odds=u.odds;}
+        const pp=parlayPicks.find(x=>x.id===id);if(pp){pp.pick=u.pick;pp.odds=u.odds;}
+        renderPicksList();msg.innerHTML="<b style='color:var(--win)'>Saved.</b>";
+      }catch(e){msg.innerHTML="<b style='color:var(--loss)'>Error:</b> "+esc(e.message||String(e));}btn.disabled=false;};});
+    list.querySelectorAll(".apm-del").forEach(btn=>{btn.onclick=async()=>{
+      if(!confirm("Delete this pick?"))return;
+      const id=+btn.dataset.pid;msg.textContent="Deleting...";
+      try{const r=await fetch("/api/parlay?season="+D.meta.season,{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});
+        if(!r.ok)throw new Error("Delete failed");
+        btn.closest("[data-pid]").remove();
+        parlayHistory=parlayHistory.filter(x=>x.id!==id);parlayPicks=parlayPicks.filter(x=>x.id!==id);
+        renderPicksList();msg.innerHTML="<b style='color:var(--win)'>Deleted.</b>";
+      }catch(e){msg.innerHTML="<b style='color:var(--loss)'>Error:</b> "+esc(e.message||String(e));}};});
+  }
+  wrap.querySelector("#apmWk").onchange=function(){loadWk(+this.value);};
+  loadWk(parlayWeek);
+}
+function adminTradeBlock(){
+  if(!ADMIN)return adminLogin();
+  closeMatchup();
+  const wrap=document.createElement("div");wrap.className="mdl";wrap.id="mdl";wrap.setAttribute("role","dialog");wrap.setAttribute("aria-modal","true");
+  wrap.innerHTML=`<div class="mdl-box" style="max-width:560px"><div class="mdl-top"><div><div class="eyebrow" style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--t-blue)">Admin</div><div style="font-size:12.5px;color:var(--ink-3)">Manage trade block listings</div></div><button class="x" aria-label="Close" type="button">&#x2715;</button></div>
+    <div style="padding:2px">
+      <div id="atbList" style="max-height:420px;overflow-y:auto"></div>
+      <div id="atbMsg" style="font-size:12.5px;color:var(--ink-3);margin-top:10px;min-height:16px"></div>
+    </div></div>`;
+  wrap.addEventListener("click",e=>{if(e.target===wrap)closeMatchup();});
+  wrap.querySelector(".x").onclick=closeMatchup;
+  document.body.appendChild(wrap);document.body.classList.add("mdl-open");document.addEventListener("keydown",mdlKey);
+  const msg=wrap.querySelector("#atbMsg");
+  function render(){
+    const list=wrap.querySelector("#atbList");
+    const rows=TB.rows.filter(r=>r.listing&&((r.listing.available||[]).length||(r.listing.needs||[]).length||(r.listing.note||"").trim()||(r.listing.openTo||[]).length));
+    if(!rows.length){list.innerHTML='<div style="color:var(--ink-3);font-size:13px">No trade block listings.</div>';return;}
+    list.innerHTML=rows.map(r=>{
+      const t=teamById[r.team_id];if(!t)return"";
+      const L=r.listing||{};
+      const avail=(L.available||[]).map(pid=>esc(pname(pid))).join(", ")||"none";
+      const needs=(L.needs||[]).join(", ")||"none";
+      const note=L.note||"";
+      return `<div class="card card-p" style="margin-bottom:8px;padding:10px 12px" data-atb="${r.team_id}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+          <b style="font-size:13px">${esc(t.name)} <span style="font-weight:400;color:var(--ink-3)">(${esc(t.owner||"")})</span></b>
+          <button class="atb-del" data-atb="${r.team_id}" type="button" style="border:none;background:transparent;color:var(--loss);cursor:pointer;font-weight:800;font-size:16px" title="Delete listing">&#x2715;</button>
+        </div>
+        <div style="font-size:12.5px"><span style="color:var(--ink-3)">Shopping:</span> ${avail}</div>
+        <div style="font-size:12.5px"><span style="color:var(--ink-3)">Wants:</span> ${needs}</div>
+        ${note?`<div style="font-size:12.5px;margin-top:4px"><span style="color:var(--ink-3)">Note:</span> <input class="txt atb-note" value="${esc(note)}" data-atb="${r.team_id}" style="font-size:12.5px;width:calc(100% - 50px)"> <button class="atb-note-save" data-atb="${r.team_id}" type="button" style="font-size:11px;color:var(--accent);background:transparent;border:1px solid var(--accent);border-radius:6px;padding:2px 8px;cursor:pointer">Save</button></div>`:""}
+      </div>`;}).join("");
+    list.querySelectorAll(".atb-del").forEach(btn=>{btn.onclick=async()=>{
+      if(!confirm("Delete this trade block listing?"))return;
+      const tid=+btn.dataset.atb;msg.textContent="Deleting...";
+      try{const {error}=await sb.from("trade_block").delete().eq("team_id",tid);if(error)throw error;
+        TB.rows=TB.rows.filter(r=>+r.team_id!==tid);renderTBBoard();render();
+        msg.innerHTML="<b style='color:var(--win)'>Deleted.</b>";
+      }catch(e){msg.innerHTML="<b style='color:var(--loss)'>Error:</b> "+esc(e.message||String(e));}};});
+    list.querySelectorAll(".atb-note-save").forEach(btn=>{btn.onclick=async()=>{
+      const tid=+btn.dataset.atb;const note=list.querySelector(`.atb-note[data-atb="${tid}"]`).value.trim();
+      msg.textContent="Saving...";
+      const row=TB.rows.find(r=>+r.team_id===tid);if(!row)return;
+      const newListing={...row.listing,note};
+      try{const {error}=await sb.from("trade_block").update({listing:newListing,updated_at:new Date().toISOString()}).eq("team_id",tid);if(error)throw error;
+        row.listing=newListing;renderTBBoard();
+        msg.innerHTML="<b style='color:var(--win)'>Note saved.</b>";
+      }catch(e){msg.innerHTML="<b style='color:var(--loss)'>Error:</b> "+esc(e.message||String(e));}};});
+  }
+  render();
+}
 /* ---------- PWA polish: theme-color + pull-to-refresh ---------- */
 function setThemeColor(){try{const c=getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();const m=document.querySelector('meta[name="theme-color"]');if(m&&c)m.setAttribute("content",c);}catch(e){}}
 function initSwipeNavigation(){
@@ -4311,6 +4486,7 @@ function boot(){
     if(!ADMIN)return;
     const he=e.target.closest&&e.target.closest(".home-edit");if(he){e.preventDefault();e.stopPropagation();adminHome();return;}
     const td=e.target.closest&&e.target.closest(".tb-del[data-tid]");if(td){e.preventDefault();e.stopPropagation();if(confirm("Delete this trade listing?")){try{await sb.from("trade_block").delete().eq("team_id",+td.getAttribute("data-tid"));}catch(_){}}return;}
+    const pd=e.target.closest&&e.target.closest(".parlay-del[data-pl]");if(pd){e.preventDefault();e.stopPropagation();if(confirm("Delete this parlay pick?")){const id=+pd.getAttribute("data-pl");try{await fetch("/api/parlay?season="+D.meta.season,{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});parlayHistory=parlayHistory.filter(x=>x.id!==id);parlayPicks=parlayPicks.filter(x=>x.id!==id);renderPicksList();}catch(_){}}return;}
     });
   const prevSeen=checkSeen();
   if(prevSeen) PREV_SCORES=prevSeen;
