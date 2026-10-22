@@ -1504,6 +1504,7 @@ const TITLE_HELP={"All-Play Record":"Your record if you played all 11 other team
   "Playoff Picture":"Seeds if the season ended today, and the bracket that would follow.","Trade":"Season points for the players on each side of the trade."};
 function addTitleHelp(root){root.querySelectorAll(".sub-h").forEach(h=>{if(h.title)return;const t=(h.firstChild&&h.firstChild.nodeType===3?h.firstChild.textContent:h.textContent).trim();const k=Object.keys(TITLE_HELP).find(x=>t.startsWith(x));if(!k)return;h.title=TITLE_HELP[k];h.insertAdjacentHTML("beforeend",'<span class="qi" aria-hidden="true">?</span>');});}
 function setTab(id){
+  if(id==='siteactivity'&&!ADMIN)id='dash';
   if(id!==setTab.activityPage){setTab.activityPage=id;trackSite("page_view",id);}
   if(id!==cur&&!swipingBack){VIEW_BACK.push(cur);if(VIEW_BACK.length>30)VIEW_BACK.shift();}
   // re-rendering the SAME view (sort, dropdown, week switch) keeps your scroll
@@ -1551,8 +1552,9 @@ function renderNav(){
   const bn=document.getElementById("bnav");if(bn)bn.innerHTML=NAV.map(x=>tabBtn(x,"")).join("");
   document.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{const x=NAV.find(n=>n[1]===b.dataset.g);const to=(x===g)?x[3][0][0]:(LASTIN[x[1]]||x[3][0][0]);setTab(to);});
   const sub=document.getElementById("nav");
-  sub.hidden=g[3].length<2;
-  sub.innerHTML=g[3].length<2?"":g[3].map(it=>`<button class="st-i ${it[0]===cur?"on":""}" data-t="${it[0]}">${it[1]}</button>`).join("");
+  const items=g[3].filter(it=>it[0]!=='siteactivity'||ADMIN);
+  sub.hidden=items.length<2;
+  sub.innerHTML=items.length<2?"":items.map(it=>`<button class="st-i ${it[0]===cur?"on":""}" data-t="${it[0]}">${it[1]}</button>`).join("");
   sub.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>setTab(b.dataset.t));
   const on=sub.querySelector(".on");if(on&&sub.scrollWidth>sub.clientWidth)sub.scrollLeft=Math.max(0,on.offsetLeft-sub.clientWidth/2+on.offsetWidth/2);
   renderMeBtn();
@@ -4019,6 +4021,7 @@ VIEWS.feedback=function(){
   form.onsubmit=async e=>{e.preventDefault();const button=form.querySelector('button'),msg=v.querySelector('#feedbackResult'),fields=new FormData(form);button.disabled=true;msg.textContent='Submitting…';try{const r=await fetch('/api/site-feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId,kind:fields.get('kind'),teamId:fields.get('team')?+fields.get('team'):null,title:fields.get('title'),message:fields.get('message'),page:fields.get('page')})});const data=await r.json();if(!r.ok)throw new Error(data.error);form.reset();requestId=crypto.randomUUID();msg.textContent='Report #'+data.id+' submitted. Thank you.';}catch(e){msg.textContent=e.message||'Could not submit. Please retry.';}finally{button.disabled=false;}};return v;
 };
 VIEWS.siteactivity=function(){
+  if(!ADMIN)return VIEWS.dash();
   const v=el(shead('League site operations','Site Log','')+`<div class="card card-p"><p>Admin access: review site changes, notification delivery reports, manager activity and feedback. Tracking begins with this release. Opens count page loads and returns after 30 minutes; activity uses the selected team, not a verified login. Browser blocking or offline use can leave gaps.</p><form id="siteAdminForm" style="display:flex;gap:10px;flex-wrap:wrap"><label>Admin password<input class="txt" name="password" type="password" required autocomplete="current-password" maxlength="1024" style="display:block"></label><label>Show<select name="category" style="display:block"><option value="">All logs</option><option value="activity">Manager activity</option><option value="change">Website changes & queued notifications</option><option value="notification">Push delivery reports</option><option value="feedback">Problems & suggestions</option></select></label><button class="btn" type="submit" style="align-self:end">Load records</button></form><div id="siteLogResult" aria-live="polite" style="margin-top:20px">Enter the admin password to load records.</div><button class="btn ghost" id="siteLogMore" type="button" hidden style="margin-top:14px">Load older records</button></div>`);
   const form=v.querySelector('form'),box=v.querySelector('#siteLogResult'),more=v.querySelector('#siteLogMore');let cursor=null,category='',password='';
   const team=id=>id==null?'Unassigned':teamById[id]?.name||'Team '+id;
@@ -4116,6 +4119,7 @@ function initAdmin(){
   try{if(localStorage.getItem("mfl-admin")===ADMIN_HASH)ADMIN=true;}catch(e){}
   const b=document.getElementById("adminBtn");if(b){b.innerHTML=icon("shield");b.onclick=adminLogin;b.style.display=ADMIN?"":"none";}
   document.body.classList.toggle("is-admin",ADMIN);
+  renderNav();
   const chk=()=>{if(location.hash==="#admin"){adminLogin();try{history.replaceState(null,"",location.pathname+location.search);}catch(e){}}};
   setTimeout(chk,500);window.addEventListener("hashchange",chk);
 }

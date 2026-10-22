@@ -1,6 +1,6 @@
 # Site operations
 
-Problems & Suggestions and Site Log are under League. Feedback is stored in Netlify Database. Site Log requires the existing admin password on the server, independent of the browser's admin mode. Admins can paginate logs and feedback, filter by log type, review 30-day per-team opens/actions, and mark reports open, reviewing or resolved.
+Problems & Suggestions is under League. Site Log appears there only in admin mode; navigation to it outside admin mode returns to Home, and exiting admin mode closes the log. Feedback is stored in Netlify Database. Site Log also requires the existing admin password on the server, independent of the browser's admin mode. Admins can paginate logs and feedback, filter by log type, review 30-day per-team opens/actions, and mark reports open, reviewing or resolved.
 
 The additive migration is applied by Netlify during deployment. Existing migrations are unchanged. Opens are recorded on each page load and after returning from at least 30 minutes of inactivity. Page navigation, team/player details, lineup panels, button interactions and selector changes are tracked. Attribution uses My Team and a random persistent device ID; it is self-reported, not authenticated manager identity. No form input, subscription credentials or admin passwords are logged. An unselected team is Unassigned. Offline use, browser storage restrictions, blocking and failed analytics requests can create gaps. Tracking starts at this release and cannot recover earlier history.
 
