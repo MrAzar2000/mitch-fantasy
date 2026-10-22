@@ -1504,6 +1504,7 @@ const TITLE_HELP={"All-Play Record":"Your record if you played all 11 other team
   "Playoff Picture":"Seeds if the season ended today, and the bracket that would follow.","Trade":"Season points for the players on each side of the trade."};
 function addTitleHelp(root){root.querySelectorAll(".sub-h").forEach(h=>{if(h.title)return;const t=(h.firstChild&&h.firstChild.nodeType===3?h.firstChild.textContent:h.textContent).trim();const k=Object.keys(TITLE_HELP).find(x=>t.startsWith(x));if(!k)return;h.title=TITLE_HELP[k];h.insertAdjacentHTML("beforeend",'<span class="qi" aria-hidden="true">?</span>');});}
 function setTab(id){
+  if(id==='siteactivity'&&!ADMIN)id='dash';
   if(id!==setTab.activityPage){setTab.activityPage=id;trackSite("page_view",id);}
   if(id!==cur&&!swipingBack){VIEW_BACK.push(cur);if(VIEW_BACK.length>30)VIEW_BACK.shift();}
   // re-rendering the SAME view (sort, dropdown, week switch) keeps your scroll
@@ -1551,8 +1552,9 @@ function renderNav(){
   const bn=document.getElementById("bnav");if(bn)bn.innerHTML=NAV.map(x=>tabBtn(x,"")).join("");
   document.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{const x=NAV.find(n=>n[1]===b.dataset.g);const to=(x===g)?x[3][0][0]:(LASTIN[x[1]]||x[3][0][0]);setTab(to);});
   const sub=document.getElementById("nav");
-  sub.hidden=g[3].length<2;
-  sub.innerHTML=g[3].length<2?"":g[3].map(it=>`<button class="st-i ${it[0]===cur?"on":""}" data-t="${it[0]}">${it[1]}</button>`).join("");
+  const items=g[3].filter(it=>it[0]!=='siteactivity'||ADMIN);
+  sub.hidden=items.length<2;
+  sub.innerHTML=items.length<2?"":items.map(it=>`<button class="st-i ${it[0]===cur?"on":""}" data-t="${it[0]}">${it[1]}</button>`).join("");
   sub.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>setTab(b.dataset.t));
   const on=sub.querySelector(".on");if(on&&sub.scrollWidth>sub.clientWidth)sub.scrollLeft=Math.max(0,on.offsetLeft-sub.clientWidth/2+on.offsetWidth/2);
   renderMeBtn();
@@ -2919,7 +2921,37 @@ function updParlayMissing(){const e=document.getElementById("lbMiss");if(!e)retu
   const got=new Set(parlayPicks.map(p=>p.manager)),all=D.teams.map(t=>t.owner||t.name),miss=all.filter(n=>!got.has(n)).sort((a,b)=>a.localeCompare(b));
   const progress=document.getElementById("parlayProgress");if(progress)progress.innerHTML=`<span><b>${all.length-miss.length}/${all.length}</b> managers in</span><progress aria-label="Parlay picks submitted" value="${all.length-miss.length}" max="${all.length}"></progress>`;
   e.innerHTML=miss.length?`<b>Still waiting on ${miss.length} of ${all.length}:</b> `+miss.map(n=>`<span class="mchip">${esc(n)}</span>`).join(""):`<span class="ok">All ${all.length} picks submitted</span>`;}
+function currentParlayLegs(picks){
+  const seen=new Set();
+  return picks.slice().sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at)||b.id-a.id).filter(p=>{const key=p.teamId??p.manager;if(seen.has(key))return false;seen.add(key);return true;});
+}
+function parlayStatus(picks){
+  const legs=currentParlayLegs(picks),active=legs.filter(p=>p.result!=='void');
+  if(!legs.length)return {label:'Waiting for picks',tone:'var(--ink-3)'};
+  if(active.some(p=>p.result==='lost'))return {label:'BUSTED · A leg missed',tone:'var(--loss)'};
+  if(!active.length)return {label:'VOID · All legs voided',tone:'var(--ink-3)'};
+  if(active.every(p=>p.result==='won'))return {label:'HIT · All active legs hit',tone:'var(--win)'};
+  return {label:'ALIVE · '+active.filter(p=>p.result==='won').length+' hit · '+active.filter(p=>!p.result||p.result==='pending').length+' pending',tone:'var(--win)'};
+}
+function renderParlayStatus(){
+  const box=document.getElementById('plStatus');if(!box)return;
+  const status=parlayStatus(parlayPicks);box.style.color=status.tone;
+  box.textContent=parlayError?'Status unavailable — retrying…':!parlayLoaded?'Loading parlay status…':status.label;
+}
+async function saveParlayResult(id,result,button){
+  if(!ADMIN)return;
+  button.disabled=true;const msg=document.getElementById('plGradeMsg');if(msg)msg.textContent='Saving result…';
+  try{
+    const r=await fetch('/api/parlay?season='+D.meta.season,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,result})});
+    if(!r.ok)throw new Error('Result was not saved. Please try again.');
+    const saved=await r.json();
+    [parlayHistory,parlayPicks].forEach(rows=>{const pick=rows.find(p=>p.id===id);if(pick)Object.assign(pick,saved);});
+    const select=document.querySelector('[data-parlay-result="'+id+'"]');if(select)delete select.dataset.unsaved;
+    renderPicksList();if(msg)msg.textContent='Result saved. Everyone sees updates automatically within 10 seconds.';
+  }catch(e){if(msg)msg.textContent=e.message;}finally{button.disabled=false;}
+}
 function renderPicksList(){
+  renderParlayStatus();
   updParlayMissing();
   const box=document.getElementById("plList"); if(!box) return;
   const submitted=new Set(parlayPicks.map(p=>p.manager));
@@ -2927,36 +2959,40 @@ function renderPicksList(){
   if(parlayError){box.textContent=parlayError;return;}
   if(!parlayLoaded){box.textContent="Loading picks…";return;}
   if(!parlayPicks.length){box.innerHTML='<div style="color:var(--ink-3);font-size:13px;padding:6px 0">No picks submitted yet.</div>';return;}
-  const seen={}, ordered=parlayPicks.slice().reverse();
-  box.innerHTML=ordered.map(p=>{const dup=seen[p.manager];seen[p.manager]=1;
-    return '<div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line);'+(dup?"opacity:.45":"")+'">'
-      +'<div style="flex:0 0 140px;font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(p.manager)+(dup?' <span style="font-weight:400;color:var(--ink-3);font-size:11px">older</span>':"")+'</div>'
+  if(ADMIN&&box.querySelector('[data-unsaved="true"]'))return;
+  const ordered=currentParlayLegs(parlayPicks);
+  box.innerHTML=ordered.map(p=>{
+    return '<div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)">'
+      +'<div style="flex:0 0 140px;font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(p.manager)+'</div>'
       +'<div style="flex:1;font-size:13.5px">'+esc(p.pick)+(p.odds?' <span class="mono" style="color:var(--accent);font-weight:700;font-size:12.5px;white-space:nowrap">'+esc(p.odds)+'</span>':"")+'</div>'
       +'<div style="flex:0 0 auto;font-size:11px;color:var(--ink-3);white-space:nowrap">'+__pt(p.created_at)+'</div>'
-      +(p.result==='won'?'<span style="flex:0 0 auto;font-size:10px;font-weight:800;color:var(--win);background:color-mix(in srgb,var(--win) 15%,transparent);padding:2px 7px;border-radius:6px">HIT</span>':p.result==='lost'?'<span style="flex:0 0 auto;font-size:10px;font-weight:800;color:var(--loss);background:color-mix(in srgb,var(--loss) 15%,transparent);padding:2px 7px;border-radius:6px">MISS</span>':'')
-      +(ADMIN?'<button class="btn parlay-edit" data-week="'+p.week+'" type="button">Edit</button><button class="parlay-del" data-pl="'+p.id+'" title="Delete pick" type="button" style="flex:0 0 auto;border:none;background:transparent;color:var(--loss);cursor:pointer;font-weight:800;padding:0 4px">✕</button>':'')
+      +(p.result==='won'?'<span style="flex:0 0 auto;font-size:10px;font-weight:800;color:var(--win);background:color-mix(in srgb,var(--win) 15%,transparent);padding:2px 7px;border-radius:6px">HIT</span>':p.result==='lost'?'<span style="flex:0 0 auto;font-size:10px;font-weight:800;color:var(--loss);background:color-mix(in srgb,var(--loss) 15%,transparent);padding:2px 7px;border-radius:6px">MISS</span>':p.result==='void'?'<span class="pill">VOID</span>':'<span class="pill">PENDING</span>')
+      +(ADMIN?'<label>Result <select data-parlay-result="'+p.id+'" aria-label="Result for '+esc(p.manager)+'">'+[['pending','Pending'],['won','HIT'],['lost','MISS'],['void','Void']].map(([value,label])=>'<option value="'+value+'"'+((p.result||'pending')===value?' selected':'')+'>'+label+'</option>').join('')+'</select></label><button class="btn parlay-grade" data-pl="'+p.id+'" type="button">Save result</button><button class="btn parlay-edit" data-week="'+p.week+'" type="button">Edit</button><button class="parlay-del" data-pl="'+p.id+'" title="Delete pick" type="button" style="flex:0 0 auto;border:none;background:transparent;color:var(--loss);cursor:pointer;font-weight:800;padding:0 4px">✕</button>':'')
       +'</div>';}).join("");
+  box.querySelectorAll('[data-parlay-result]').forEach(select=>{select.onchange=()=>{select.dataset.unsaved='true';};});
 }
 VIEWS.parlay=function(){
   const pw=parlayWk();if(pw!==parlayWeek){parlayWeek=pw;parlayPicks=[];parlayLoaded=false;if(__sb)__initParlay(__sb);}
   let html=shead("This Week","Week "+parlayWeek+" Parlay","The weekly low scorer pays $10. Each manager submits one pick.");
+  html+='<div id="plStatus" class="card card-p" role="status" style="font-weight:800;margin-bottom:14px">Loading parlay status…</div>';
   html+='<div class="card card-p"><div class="sub-h" style="margin-top:0">Add your leg</div>'
     +'<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">'
     +'<div style="flex:0 0 190px"><label class="fieldlbl">Manager</label><select id="plMgr">'
-    +D.teams.slice().sort((a,b)=>(a.owner||a.name).localeCompare(b.owner||b.name)).map(t=>'<option value="'+esc(t.owner||t.name)+'">'+esc(t.owner||t.name)+'</option>').join("")
+    +'<option value="" disabled'+(meTeam()?'':' selected')+'>Choose your name</option>'+D.teams.slice().sort((a,b)=>(a.owner||a.name).localeCompare(b.owner||b.name)).map(t=>'<option value="'+esc(t.owner||t.name)+'"'+(t.id===MEID?' selected':'')+'>'+esc(t.owner||t.name)+'</option>').join("")
     +'</select></div>'
     +'<div style="flex:1;min-width:190px"><label class="fieldlbl">Your leg</label><input id="plPick" class="txt" type="text" maxlength="160" placeholder="e.g. Josh Allen 250+ pass yds"></div>'
     +'<div style="flex:0 0 110px"><label class="fieldlbl">Odds</label><input id="plOdds" class="txt" type="text" maxlength="14" placeholder="+150"></div>'
     +'<button id="plSubmit" class="btn">Submit leg</button></div>'
     +'<div id="plMsg" style="font-size:12.5px;margin-top:9px;min-height:16px;color:var(--ink-2)"></div></div>';
-  html+='<div id="plDetails" class="card card-p" style="margin-bottom:14px"></div>';
   if(ADMIN)html+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"><button class="btn" id="plManage" type="button">Edit picks &amp; grade / past weeks</button></div>';
   html+='<div class="sub-h">Submitted Legs <span id="plCount" style="font-weight:400;font-size:11px;color:var(--ink-3);text-transform:none;letter-spacing:0">\u2014</span></div><div id="plList" class="card card-p"></div>';
-  html+='<div class="metricnote">Picks are saved for the season. Submit again to replace your weekly leg; earlier submissions remain in history. Shared picks refresh every 30 seconds.</div>';
+  html+='<div id="plGradeMsg" role="status"></div><div id="plDetails" class="card card-p" style="margin-top:14px"></div>';
+  html+='<div class="metricnote">Picks are saved for the season. Submit again to replace your weekly leg; earlier submissions remain in history. Latest picks and results refresh every 10 seconds. Earlier submissions remain editable in the admin history.</div>';
   const v=el(html);
   const btn=v.querySelector("#plSubmit"), inp=v.querySelector("#plPick"), odd=v.querySelector("#plOdds"), mgr=v.querySelector("#plMgr"), msg=v.querySelector("#plMsg");
   async function submit(){
     const pick=inp.value.trim(); if(!pick){msg.textContent="Type your leg first.";return;}
+    if(!mgr.value){msg.textContent="Choose your name before submitting.";return;}
     const odds=odd.value.trim();
     btn.disabled=true; msg.textContent="Saving\u2026";
     try{ const team=D.teams.find(t=>(t.owner||t.name)===mgr.value);const r=await fetch("/api/parlay?season="+D.meta.season,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({week:parlayWeek,teamId:team.id,manager:mgr.value,pick,odds:odds||null})});if(!r.ok)throw new Error("Save failed");const saved=await r.json();parlayHistory.push(...saved);parlayPicks.push(...saved);parlayLoaded=true;parlayError="";renderPicksList();inp.value="";odd.value="";msg.textContent="Pick submitted.";fetchParlayHistory().catch(()=>{}); }
@@ -2988,7 +3024,7 @@ async function __initParlay(client){
     }
     await fetchParlayHistory();
   }catch{parlayError='Parlay history is unavailable. Please try again.';const e=document.getElementById('lbMiss');if(e)e.textContent=parlayError;const box=document.getElementById('plList');if(box)box.textContent=parlayError;document.querySelectorAll('[data-manager-history]').forEach(n=>{n.innerHTML=managerHistoryHtml(+n.dataset.managerHistory);});}
-  if(!__initParlay.poll){__initParlay.poll=setInterval(()=>{if(!document.hidden)fetchParlayHistory().catch(()=>{});},30000);}
+  if(!__initParlay.poll){__initParlay.poll=setInterval(()=>{if(!document.hidden)fetchParlayHistory().catch(()=>{});},10000);}
 }
 function managerHistoryHtml(tid){
   const rows=parlayHistory.filter(p=>p.teamId===tid).sort((a,b)=>b.week-a.week||Date.parse(b.created_at)-Date.parse(a.created_at)||b.id-a.id),latest=[];const weeks=new Set();
@@ -4019,6 +4055,7 @@ VIEWS.feedback=function(){
   form.onsubmit=async e=>{e.preventDefault();const button=form.querySelector('button'),msg=v.querySelector('#feedbackResult'),fields=new FormData(form);button.disabled=true;msg.textContent='Submitting…';try{const r=await fetch('/api/site-feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId,kind:fields.get('kind'),teamId:fields.get('team')?+fields.get('team'):null,title:fields.get('title'),message:fields.get('message'),page:fields.get('page')})});const data=await r.json();if(!r.ok)throw new Error(data.error);form.reset();requestId=crypto.randomUUID();msg.textContent='Report #'+data.id+' submitted. Thank you.';}catch(e){msg.textContent=e.message||'Could not submit. Please retry.';}finally{button.disabled=false;}};return v;
 };
 VIEWS.siteactivity=function(){
+  if(!ADMIN)return VIEWS.dash();
   const v=el(shead('League site operations','Site Log','')+`<div class="card card-p"><p>Admin access: review site changes, notification delivery reports, manager activity and feedback. Tracking begins with this release. Opens count page loads and returns after 30 minutes; activity uses the selected team, not a verified login. Browser blocking or offline use can leave gaps.</p><form id="siteAdminForm" style="display:flex;gap:10px;flex-wrap:wrap"><label>Admin password<input class="txt" name="password" type="password" required autocomplete="current-password" maxlength="1024" style="display:block"></label><label>Show<select name="category" style="display:block"><option value="">All logs</option><option value="activity">Manager activity</option><option value="change">Website changes & queued notifications</option><option value="notification">Push delivery reports</option><option value="feedback">Problems & suggestions</option></select></label><button class="btn" type="submit" style="align-self:end">Load records</button></form><div id="siteLogResult" aria-live="polite" style="margin-top:20px">Enter the admin password to load records.</div><button class="btn ghost" id="siteLogMore" type="button" hidden style="margin-top:14px">Load older records</button></div>`);
   const form=v.querySelector('form'),box=v.querySelector('#siteLogResult'),more=v.querySelector('#siteLogMore');let cursor=null,category='',password='';
   const team=id=>id==null?'Unassigned':teamById[id]?.name||'Team '+id;
@@ -4116,6 +4153,7 @@ function initAdmin(){
   try{if(localStorage.getItem("mfl-admin")===ADMIN_HASH)ADMIN=true;}catch(e){}
   const b=document.getElementById("adminBtn");if(b){b.innerHTML=icon("shield");b.onclick=adminLogin;b.style.display=ADMIN?"":"none";}
   document.body.classList.toggle("is-admin",ADMIN);
+  renderNav();
   const chk=()=>{if(location.hash==="#admin"){adminLogin();try{history.replaceState(null,"",location.pathname+location.search);}catch(e){}}};
   setTimeout(chk,500);window.addEventListener("hashchange",chk);
 }
@@ -4297,7 +4335,7 @@ function adminParlayManage(initialWeek=parlayWeek){
     content.innerHTML+=`<div class="card card-p" style="margin:14px 0"><b>Casino purchase details</b><p class="metricnote">Record who placed the whole parlay at the casino and the total odds printed on the purchase receipt. These details apply to the entire week's parlay.</p><label class="fieldlbl" for="apmPlayers">Placed by</label><input class="txt" id="apmPlayers" maxlength="2000" style="width:100%" placeholder="Name of the person who placed the parlay" value="${esc(details.participants||'')}"><label class="fieldlbl" for="apmTotal">Casino receipt total odds</label><input class="txt" id="apmTotal" maxlength="40" placeholder="Total odds as printed on the receipt, e.g. +4500" style="width:100%" value="${esc(details.totalOdds||'')}"><button class="btn" id="apmDetails" type="button" style="margin-top:12px">Save casino purchase details</button></div>`;
     content.querySelector('#apmDetails').onclick=async function(){
       const weekDetails={week,participants:content.querySelector('#apmPlayers').value,totalOdds:content.querySelector('#apmTotal').value.trim()||null};
-      await save(this,{weekDetails},saved=>{parlayWeekDetails=parlayWeekDetails.filter(w=>w.week!==week).concat(saved);renderParlayDetails();});
+      await save(this,{weekDetails},saved=>{parlayWeekDetails=parlayWeekDetails.filter(w=>w.week!==week).concat([saved]);renderParlayDetails();});
     };
     content.querySelectorAll('.apm-save').forEach(btn=>btn.onclick=async()=>{
       const row=btn.closest('[data-pid]'),id=+row.dataset.pid,pick=row.querySelector('.apm-pick').value.trim(),odds=row.querySelector('.apm-odds').value.trim()||null,result=row.querySelector('.apm-result').value;
@@ -4319,8 +4357,21 @@ function adminParlayManage(initialWeek=parlayWeek){
 }
 function renderParlayDetails(){
   const box=document.getElementById('plDetails');if(!box)return;
-  const d=parlayWeekDetails.find(w=>w.week===parlayWeek);
-  box.innerHTML=d?`<b>Week ${parlayWeek} parlay</b><p>Placed by: ${esc(d.participants||'Not recorded')}</p><p>Casino receipt total odds: <b class="mono">${esc(d.totalOdds||'Not recorded')}</b></p>`:'<p class="metricnote">Who placed the parlay and the casino receipt total odds have not been recorded yet.</p>';
+  // Polling must not overwrite an admin's unsaved casino details.
+  if(box.dataset.editing==='true'&&ADMIN)return;
+  const d=parlayWeekDetails.find(w=>w.week===parlayWeek)||{};
+  box.innerHTML=`<b>Casino purchase details</b><p>Placed by: ${esc(d.participants||'Not recorded')}</p><p>Casino receipt total odds: <b class="mono">${esc(d.totalOdds||'Not recorded')}</b></p>`;
+  if(!ADMIN)return;
+  box.insertAdjacentHTML('beforeend',`<div style="display:grid;gap:10px"><label>Placed by<input class="txt" id="plPlacedBy" maxlength="2000" style="display:block;width:100%" value="${esc(d.participants||'')}"></label><label>Casino receipt total odds<input class="txt" id="plReceiptOdds" maxlength="40" style="display:block;width:100%" value="${esc(d.totalOdds||'')}" placeholder="e.g. +4500"></label><button class="btn" id="plSaveDetails" type="button">Save casino purchase details</button><div id="plDetailsMsg" role="status"></div></div>`);
+  box.oninput=()=>{box.dataset.editing='true';};
+  box.querySelector('#plSaveDetails').onclick=async function(){
+    const week=parlayWeek,msg=box.querySelector('#plDetailsMsg');this.disabled=true;msg.textContent='Saving casino details…';
+    try{
+      const r=await fetch('/api/parlay?season='+D.meta.season,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({weekDetails:{week,participants:box.querySelector('#plPlacedBy').value,totalOdds:box.querySelector('#plReceiptOdds').value.trim()||null}})});
+      if(!r.ok)throw new Error('Casino details were not saved. Please try again.');
+      const saved=await r.json();parlayWeekDetails=parlayWeekDetails.filter(w=>w.week!==week).concat([saved]);box.dataset.editing='false';renderParlayDetails();box.querySelector('#plDetailsMsg').textContent='Casino details saved.';
+    }catch(e){msg.textContent=e.message;}finally{this.disabled=false;}
+  };
 }
 function adminTradeBlock(){
   if(!ADMIN)return adminLogin();
@@ -4480,8 +4531,9 @@ function boot(){
     if(!ADMIN)return;
     const he=e.target.closest&&e.target.closest(".home-edit");if(he){e.preventDefault();e.stopPropagation();adminHome();return;}
     const td=e.target.closest&&e.target.closest(".tb-del[data-tid]");if(td){e.preventDefault();e.stopPropagation();if(confirm("Delete this trade listing?")){try{await sb.from("trade_block").delete().eq("team_id",+td.getAttribute("data-tid"));}catch(_){}}return;}
+    const grade=e.target.closest&&e.target.closest('.parlay-grade');if(grade){const id=+grade.dataset.pl;const select=document.querySelector('[data-parlay-result="'+id+'"]');if(select)await saveParlayResult(id,select.value,grade);return;}
     const pe=e.target.closest&&e.target.closest(".parlay-edit");if(pe){adminParlayManage(+pe.dataset.week);return;}
-    const pd=e.target.closest&&e.target.closest(".parlay-del[data-pl]");if(pd){e.preventDefault();e.stopPropagation();if(confirm("Delete this parlay pick?")){const id=+pd.getAttribute("data-pl");try{await fetch("/api/parlay?season="+D.meta.season,{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});parlayHistory=parlayHistory.filter(x=>x.id!==id);parlayPicks=parlayPicks.filter(x=>x.id!==id);renderPicksList();}catch(_){}}return;}
+    const pd=e.target.closest&&e.target.closest(".parlay-del[data-pl]");if(pd){e.preventDefault();e.stopPropagation();if(confirm("Delete this parlay pick?")){const id=+pd.getAttribute("data-pl");try{const r=await fetch("/api/parlay?season="+D.meta.season,{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});if(!r.ok)throw new Error("Could not delete pick. Please try again.");parlayHistory=parlayHistory.filter(x=>x.id!==id);parlayPicks=parlayPicks.filter(x=>x.id!==id);renderPicksList();}catch(e){showToast(e.message);}}return;}
     });
   const prevSeen=checkSeen();
   if(prevSeen) PREV_SCORES=prevSeen;

@@ -40,3 +40,48 @@ test('page inline scripts parse',()=>{
     if(!match[1].includes('src=')&&!match[1].includes('application/'))new vm.Script('(async()=>{'+match[2].replace(/^import .*;$/gm,'')+'\n})');
   }
 });
+
+const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+function liveHarness(extra={}){
+ const ctx=vm.createContext({Date,Set,...extra});
+ vm.runInContext(html.slice(html.indexOf('function currentParlayLegs('),html.indexOf('function renderParlayStatus(')),ctx);
+ return ctx;
+}
+test('live parlay uses latest team submissions and responds to corrected grades',()=>{
+ const ctx=liveHarness();
+ const legs=[{id:1,teamId:1,result:'lost',created_at:'2026-10-20'}, {id:2,teamId:1,result:'won',created_at:'2026-10-21'}, {id:3,teamId:2,result:'pending',created_at:'2026-10-21'}];
+ assert.match(ctx.parlayStatus(legs).label,/ALIVE/);
+ legs[2].result='lost';assert.match(ctx.parlayStatus(legs).label,/BUSTED/);
+ legs[2].result='won';assert.match(ctx.parlayStatus(legs).label,/HIT/);
+ legs[2].result='pending';assert.match(ctx.parlayStatus(legs).label,/ALIVE/);
+ legs[2].result='void';assert.match(ctx.parlayStatus(legs).label,/HIT/);
+ assert.match(ctx.parlayStatus([]).label,/Waiting/);
+ assert.match(ctx.parlayStatus([{teamId:1,result:'void'}]).label,/VOID/);
+});
+test('current-week result saves persist independently and can be corrected or cleared',async()=>{
+ const h=harness();
+ for(const result of ['won','lost','pending','void','won']){
+  assert.equal((await h.handler(patch({id:7,result}))).status,200);
+  assert.deepEqual({...h.writes.at(-1).values},{result});
+ }
+});
+test('pick entry defaults to selected team manager and requires a choice when unassigned',()=>{
+ for(const selected of [2,-1]){
+  const fields=new Map();let markup='';
+  const ctx=vm.createContext({VIEWS:{},D:{teams:[{id:1,owner:'Drew'},{id:2,owner:'Mitch'}],meta:{}},MEID:selected,meTeam:()=>selected===2?{id:2}:null,parlayWk:()=>8,parlayWeek:8,ADMIN:false,shead:()=>'',esc:s=>s,setTimeout:()=>{},el:s=>{markup=s;return {querySelector:key=>{if(!fields.has(key))fields.set(key,{});return fields.get(key);}}}});
+  vm.runInContext(html.slice(html.indexOf('VIEWS.parlay=function(){'),html.indexOf('async function fetchParlayHistory(){')),ctx);
+  ctx.VIEWS.parlay();
+  assert.match(markup,selected===2?/<option value="Mitch" selected>/:/<option value="" disabled selected>/);
+  assert.doesNotMatch(markup,/<option value="Drew" selected>/);
+  assert.ok(markup.indexOf('id="plDetails"')>markup.indexOf('id="plList"'));
+ }
+});
+test('failed live grading keeps local result and reports failure; successful corrections update both caches',async()=>{
+ const pick={id:7,result:'pending'},history={...pick},messages={textContent:''};let renderCount=0,ok=false;
+ const ctx=vm.createContext({ADMIN:true,D:{meta:{season:2026}},parlayPicks:[pick],parlayHistory:[history],document:{getElementById:()=>messages,querySelector:()=>null},renderPicksList:()=>renderCount++,fetch:async()=>({ok,json:async()=>({id:7,result:'won'})})});
+ vm.runInContext(html.slice(html.indexOf('async function saveParlayResult('),html.indexOf('function renderPicksList(')),ctx);
+ const button={disabled:false};await ctx.saveParlayResult(7,'won',button);
+ assert.equal(pick.result,'pending');assert.equal(renderCount,0);assert.match(messages.textContent,/not saved/);assert.equal(button.disabled,false);
+ ok=true;await ctx.saveParlayResult(7,'won',button);
+ assert.equal(pick.result,'won');assert.equal(history.result,'won');assert.equal(renderCount,1);
+});
