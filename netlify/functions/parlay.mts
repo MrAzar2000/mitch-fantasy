@@ -1,12 +1,16 @@
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { database } from '../../db/index.js';
-import { parlayLegs } from '../../db/schema.js';
+import { parlayLegs, parlayWeeks } from '../../db/schema.js';
 export default async (req: Request) => {
   const url = new URL(req.url);
   const season = Number(url.searchParams.get('season'));
   if (!Number.isInteger(season) || season < 2020 || season > 2100) return Response.json({ error: 'Invalid season' }, { status: 400 });
   try {
     if (req.method === 'GET') {
+      if (url.searchParams.get('details') === 'weeks') {
+        const rows = await database().select().from(parlayWeeks).where(eq(parlayWeeks.season, season));
+        return Response.json(rows, { headers: { 'Cache-Control': 'no-store' } });
+      }
       const team = url.searchParams.get('team');
       if (team !== null && (!Number.isInteger(Number(team)) || Number(team) < 0)) return Response.json({ error: 'Invalid team' }, { status: 400 });
       const db = database();
@@ -20,10 +24,17 @@ export default async (req: Request) => {
       const input = await req.json();
       if (!input || typeof input !== 'object') throw new Error('Invalid input');
       const db = database();
+      if (input.weekDetails) {
+        const { week, participants, totalOdds } = input.weekDetails;
+        if (!Number.isInteger(week) || week < 1 || week > 22 || typeof participants !== 'string' || participants.length > 2000 || (totalOdds !== null && (typeof totalOdds !== 'string' || totalOdds.length > 40))) return Response.json({ error: 'Invalid week details' }, { status: 400 });
+        const details = { participants: participants.trim(), totalOdds: totalOdds?.trim() || null };
+        const [saved] = await db.insert(parlayWeeks).values({ season, week, ...details }).onConflictDoUpdate({ target: [parlayWeeks.season, parlayWeeks.week], set: details }).returning();
+        return Response.json(saved);
+      }
       if (Array.isArray(input.grades)) {
         const valid = ['won', 'lost', 'void', 'pending'];
         const grades = input.grades.filter((g: any) => g && Number.isInteger(g.id) && valid.includes(g.result));
-        if (!grades.length) return Response.json({ error: 'No valid grades' }, { status: 400 });
+        if (grades.length !== input.grades.length || grades.length > 500 || !grades.length) return Response.json({ error: 'No valid grades' }, { status: 400 });
         const results: any[] = [];
         for (const g of grades) {
           const [updated] = await db.update(parlayLegs).set({ result: g.result }).where(and(eq(parlayLegs.id, g.id), eq(parlayLegs.season, season))).returning();
@@ -33,7 +44,14 @@ export default async (req: Request) => {
       }
       if (Number.isInteger(input.id)) {
         const updates: any = {};
-        if (typeof input.pick === 'string' && input.pick.trim()) updates.pick = input.pick.trim().slice(0, 160);
+        if (input.result !== undefined) {
+          if (!['pending', 'won', 'lost', 'void'].includes(input.result)) return Response.json({ error: 'Invalid result' }, { status: 400 });
+          updates.result = input.result;
+        }
+        if (input.pick !== undefined) {
+          if (typeof input.pick !== 'string' || !input.pick.trim() || input.pick.length > 160) return Response.json({ error: 'Invalid pick' }, { status: 400 });
+          updates.pick = input.pick.trim();
+        }
         if (input.odds !== undefined) updates.odds = (typeof input.odds === 'string' && input.odds.trim()) ? input.odds.trim().slice(0, 14) : null;
         if (!Object.keys(updates).length) return Response.json({ error: 'Nothing to update' }, { status: 400 });
         const [updated] = await db.update(parlayLegs).set(updates).where(and(eq(parlayLegs.id, input.id), eq(parlayLegs.season, season))).returning();
