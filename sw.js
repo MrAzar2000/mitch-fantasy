@@ -16,7 +16,13 @@ self.addEventListener("push", (e) => {
     renotify: !!d.tag,
     data: { url: d.url || "/" }
   };
-  e.waitUntil(self.registration.showNotification(title, opts));
+  e.waitUntil((async () => {
+    if (d.tag) {
+      const shown = await self.registration.getNotifications({tag:d.tag});
+      if (shown.some(n => n.title === title && n.body === opts.body)) return;
+    }
+    await self.registration.showNotification(title, opts);
+  })());
 });
 
 self.addEventListener("notificationclick", (e) => {
