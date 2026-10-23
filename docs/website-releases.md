@@ -1,0 +1,5 @@
+The footer shows the website release separately from league and player-feed timestamps. It remains available when league data fails to load. Dates use the visitor's local timezone; the date tooltip includes UTC.
+
+Netlify's build command runs `scripts/write-site-version.mjs` before publishing the static site. This stamps the release with the build time and adds an eight-character content fingerprint to the version, so future code changes receive a distinct version automatically. A redeploy updates the date even when the content fingerprint stays the same. The timestamp represents when the deployed files were prepared, rather than the exact second publication completed.
+
+Edit the base version and the short, manager-facing `changes` list in `site-version.json` for a named release. The current release starts at 1.1.0. The build replaces its null date automatically; local source previews explicitly show that the date becomes available after deployment. Keep release notes about user-visible changes, without credentials or deployment internals. The generator reads no environment variables.

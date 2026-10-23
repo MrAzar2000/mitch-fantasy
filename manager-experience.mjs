@@ -216,7 +216,14 @@ export function installManagerExperience(api) {
   function fresh() {
     const updated = kickoffTime(data().meta.lastUpdated),
       old = !updated || Date.now() - updated > 10 * 60000;
-    return `<div class="mx-fresh ${old ? "mx-warning" : ""}" role="status"><span>League data: ${stamp(data().meta.lastUpdated)}${old ? " · data over 10 minutes old" : ""}${api.getRefreshError() ? " · last refresh failed" : ""}</span><span>Player feed: ${knownFeed() ? stamp(research.updatedAt) : researchPending ? "Loading…" : researchError ? "Unavailable" : "Not loaded"}</span><button class="wi-reset" type="button" data-mx-refresh>Refresh</button></div>`;
+    const feed = knownFeed();
+    const feedOld = feed && (!kickoffTime(research.updatedAt) || Date.now() - kickoffTime(research.updatedAt) > 10 * 60000);
+    return `<div class="mx-fresh ${old || feedOld || researchError || api.getRefreshError() ? "mx-warning" : ""}" role="status"><span>League data: ${stamp(data().meta.lastUpdated)}${old ? " · data over 10 minutes old" : ""}${api.getRefreshError() ? " · last refresh failed; showing previous data" : ""}</span><span>Player feed: ${feed ? stamp(research.updatedAt) : researchPending ? "Loading…" : researchError ? "Unavailable" : "Not loaded"}${feedOld ? " · data over 10 minutes old" : ""}${feed && researchError ? " · last refresh failed; showing previous data" : ""}${feed && researchPending ? " · refreshing…" : ""}</span><button class="wi-reset" type="button" data-mx-refresh>Refresh</button></div>`;
+  }
+  function updateFreshness() {
+    document.querySelectorAll("#app .mx-fresh").forEach((node) => {
+      node.outerHTML = fresh();
+    });
   }
   function weeklyCenter() {
     const id = me();
@@ -1070,8 +1077,11 @@ export function installManagerExperience(api) {
       b.disabled = true;
       await Promise.allSettled([ensureResearch(true), api.refreshData()]);
       b.disabled = false;
+      updateFreshness();
       showToast(
-        researchError
+        api.getRefreshError()
+          ? "League refresh failed; showing previous data"
+          : researchError
           ? "Player feed unavailable; retry shortly"
           : "Refresh checked",
       );
@@ -1307,6 +1317,7 @@ export function installManagerExperience(api) {
       ["dash", "players", "myteam", "faab", "trade"].includes(api.getCurrent())
     )
       void ensureResearch();
+    updateFreshness();
     const id = me();
     if (id == null) return;
     const lockKey =
@@ -1329,6 +1340,7 @@ export function installManagerExperience(api) {
   return {
     lineup,
     enhanceView,
+    updateFreshness,
     route,
     updateUrl,
     ensureResearch,
