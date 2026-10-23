@@ -1309,13 +1309,14 @@ body.phone .lx-p{padding:11px 8px}.full-context{font-size:13px}.full-context .ga
     <nav class="stabs" id="nav" aria-label="Pages"></nav>
   </header>
   <div class="page">
-    <main><span id="pageTitle" hidden></span><div class="ticker" id="ticker"></div><div id="app"></div></main>
+    <main><span id="pageTitle" hidden></span><div class="ticker" id="ticker"></div><div id="app"></div><footer class="site-release" id="siteRelease" aria-label="Website release">Loading website version…</footer></main>
     <aside class="rail" id="rail"><div id="railBody"></div>
       <div class="rail-meta"><div class="chiprow" id="chips"></div></div></aside>
   </div>
   <nav class="bnav" id="bnav" aria-label="Sections"></nav>
 </div>
 
+<script type="module" src="/site-version.mjs"></script>
 <script type="module">
 import { optimalLineup, estimatedCeiling, eliminationNumber, ESPN_SLOTS } from "./lineup-tools.mjs";
 import { installManagerExperience } from "./manager-experience.mjs";
@@ -4592,9 +4593,13 @@ async function refreshData(){
     // poll only the update time (a few bytes); download the full league only when it changed
     loadHeartbeat();
     const q=await sb.from("league_data").select("lu:data->meta->>lastUpdated").eq("id","current").single();
-    if(q.error)throw q.error;leagueRefreshError=false;const lu=q.data&&q.data.lu;
+    if(q.error)throw q.error;const lu=q.data&&q.data.lu;
+    if(!lu)throw new Error('League update time unavailable');
     const r=(lu&&lu!==D.meta.lastUpdated)?await sb.from("league_data").select("data").eq("id","current").single():null;
     const nd=r&&r.data&&r.data.data;
+    if(r?.error)throw r.error;
+    if(r&&!nd?.meta?.lastUpdated)throw new Error('League update unavailable');
+    leagueRefreshError=false;
     if(nd&&nd.meta&&nd.meta.lastUpdated!==D.meta.lastUpdated){
       const prev=scoreSnap();
       D=nd; indexTeams(); ST=computeStats(); setFresh();loadNflInsights();EXPERIENCE?.ensureResearch();
@@ -4610,7 +4615,7 @@ async function refreshData(){
       showToast((D.meta.liveWeek?"Live scores updated · ":"Data updated · ")+new Date(D.meta.lastUpdated).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit",second:"2-digit"}));
     }
   }catch(e){leagueRefreshError=true;console.error("refresh",e);}
-  finally{__refreshing=false;}
+  finally{__refreshing=false;EXPERIENCE?.updateFreshness();}
 }
 function startLiveRefresh(){
   setInterval(refreshData,60000);                 // check once a minute

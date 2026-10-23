@@ -1,0 +1,8 @@
+[build]
+  command = "node scripts/write-site-version.mjs"
+  publish = "."
+
+[[headers]]
+  for = "/site-version.json"
+  [headers.values]
+    Cache-Control = "no-cache"
