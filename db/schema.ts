@@ -34,3 +34,8 @@ export const parlayWeeks = pgTable('parlay_weeks', {
   id: serial('id').primaryKey(), season: integer('season').notNull(), week: integer('week').notNull(),
   participants: text('participants').notNull().default(''), totalOdds: text('total_odds'),
 }, t => [uniqueIndex('parlay_week_season').on(t.season, t.week)]);
+
+export const rosterAlertDeliveries = pgTable('roster_alert_deliveries', {
+  alertKey: text('alert_key').primaryKey(),
+  sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
+});

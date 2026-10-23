@@ -30,12 +30,12 @@ const clip = (s: unknown, n = 120): string => {
   return t.length > n ? t.slice(0, n - 1) + "…" : t;
 };
 
-type Note = { title: string; body: string; url?: string; tag?: string; teamIds?: number[] };
+type Note = { title: string; body: string; url?: string; tag?: string; teamIds?: number[]; subscriptionHashes?: string[] };
 
 function buildNote(p: any): Note | null {
   // Direct event (cron / manual test): a ready-made notification.
   if (p && typeof p.title === "string") {
-    return { title: p.title, body: p.body ?? "", url: p.url, tag: p.tag, teamIds: p.teamIds };
+    return { title: p.title, body: p.body ?? "", url: p.url, tag: p.tag, teamIds: p.teamIds, subscriptionHashes: p.subscriptionHashes };
   }
   // Supabase database webhook payload: { type, table, record, old_record, schema }.
   const table = p?.table;
@@ -52,7 +52,7 @@ function buildNote(p: any): Note | null {
 
 export default {
   async fetch(req: Request): Promise<Response> {
-    if (req.method === "GET") return new Response(JSON.stringify({ preferences: true }), {headers:{"content-type":"application/json","cache-control":"no-store"}});
+    if (req.method === "GET") return new Response(JSON.stringify({ preferences: true, rosterAlerts: true, testNotifications: true }), {headers:{"content-type":"application/json","cache-control":"no-store"}});
     if (req.method !== "POST") return new Response("method not allowed", { status: 405 });
     if (req.headers.get("x-notify-secret") !== NOTIFY_SECRET) {
       return new Response("unauthorized", { status: 401 });
@@ -60,6 +60,14 @@ export default {
 
     let payload: any = {};
     try { payload = await req.json(); } catch { /* empty / non-JSON body */ }
+
+    // Authenticated server-to-server source for scheduled roster checks.
+    // This is the same public league snapshot used by the website.
+    if(payload?.action==='lineup-source'){
+      const {data,error}=await supabase.from('league_data').select('data').eq('id','current').single();
+      if(error||!data?.data?.meta)return new Response('League data unavailable',{status:503});
+      return new Response(JSON.stringify(data.data),{headers:{'content-type':'application/json','cache-control':'no-store'}});
+    }
 
     // Keep the existing database webhook, but queue trade events instead of pushing.
     if (payload?.table === "trade_block") {
@@ -89,6 +97,10 @@ export default {
       targets = targets.filter((r: any) => note.teamIds!.includes(r.team_id));
     }
 
+    if(Array.isArray(note.subscriptionHashes)){
+      targets=await Promise.all(targets.map(async(r:any)=>({r,hash:Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(r.endpoint)))).map(n=>n.toString(16).padStart(2,'0')).join('')}))).then(rows=>rows.filter(x=>note.subscriptionHashes!.includes(x.hash)).map(x=>x.r));
+    }
+
     // Resolve browser preferences before sending a user-visible push.
     // Raw subscription endpoints never leave the existing push sender.
     let suppressed = 0;
@@ -107,9 +119,9 @@ export default {
         if (!Array.isArray(result.allowed)) throw new Error("Invalid preferences response");
         result.allowed.forEach((h: string) => allowed.add(h));
       }
-      const filtered = targets.filter((_: any, i: number) => allowed.has(hashes[i]));
+      const filtered = targets.filter((_: any, i: number) => allowed.has(hashes[i]) && (!Array.isArray(note.subscriptionHashes) || note.subscriptionHashes.includes(hashes[i])));
       suppressed = targets.length - filtered.length; targets = filtered;
-    } catch { /* Preserve existing delivery if the preferences service is unavailable. */ }
+    } catch { return new Response(JSON.stringify({error:"Notification preferences unavailable"}),{status:503,headers:{"content-type":"application/json"}}); }
 
     const message = JSON.stringify({ title: note.title, body: note.body, url: note.url ?? "/", tag: note.tag });
     let sent = 0, removed = 0, failed = 0;
