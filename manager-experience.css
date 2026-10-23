@@ -1,0 +1,351 @@
+/* Weekly workspace: existing league palette, deliberate hierarchy. */
+.mx-center {
+  border-top: 3px solid var(--accent);
+  margin-bottom: 22px;
+  background: var(--surface);
+  padding: clamp(18px, 3vw, 30px);
+}
+.mx-center h2 {
+  font-size: clamp(24px, 4vw, 34px);
+  letter-spacing: -0.035em;
+  margin: 8px 0 16px;
+  line-height: 1.12;
+}
+.mx-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.mx-heading h3 {
+  font-size: 20px;
+  margin: 4px 0;
+  letter-spacing: -0.025em;
+}
+.mx-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.mx-actions .btn {
+  font-size: 12px;
+  padding: 8px 12px;
+  min-height: 36px;
+}
+.mx-shortcuts {
+  margin-bottom: 14px;
+}
+.mx-alerts {
+  padding-left: 20px;
+  line-height: 1.9;
+  font-weight: 650;
+}
+.mx-fresh {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  font-size: 11px;
+  color: var(--ink-3);
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  margin-top: 18px;
+}
+.mx-warning {
+  color: var(--t-amber);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.mx-lineup {
+  margin-top: 16px;
+}
+.mx-lineup summary {
+  padding: 14px 0;
+}
+.mx-lineup summary b {
+  float: right;
+}
+.mx-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+.mx-line small {
+  margin-left: auto;
+  color: var(--ink-3);
+}
+.mx-line .num {
+  min-width: 42px;
+  text-align: right;
+}
+.mx-swap {
+  border-left: 3px solid var(--accent);
+  padding: 12px 16px;
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  margin: 14px 0;
+}
+.mx-delta {
+  color: var(--win);
+  font-size: 18px;
+  font-weight: 750;
+}
+.mx-filters {
+  display: grid;
+  grid-template-columns: minmax(180px, 2fr) repeat(3, minmax(110px, 1fr));
+  gap: 12px;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  margin: 18px 0;
+}
+.mx-filters label,
+#mxAlertPrefs label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: var(--ink-2);
+}
+.mx-filters input[type="search"],
+.mx-filters select,
+#mxAlertPrefs select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  border-radius: 7px;
+  padding: 9px;
+  font: inherit;
+  font-size: 13px;
+}
+.mx-filters .mx-check,
+#mxAlertPrefs .mx-check {
+  flex-direction: row;
+  align-items: center;
+  font-size: 13px;
+  min-height: 36px;
+}
+.mx-filters .btn {
+  align-self: end;
+  min-height: 42px;
+}
+.mx-player-table .pclick {
+  font-weight: 750;
+  font-size: 13px;
+  white-space: normal;
+  text-align: left;
+}
+.mx-player-table td {
+  vertical-align: middle;
+}
+.mx-player-table .metricnote {
+  font-size: 10px;
+  margin-top: 5px;
+}
+.mx-player-table .btn {
+  min-height: 34px;
+  font-size: 11px;
+  padding: 5px 8px;
+}
+.mx-comparison {
+  margin-top: 24px;
+}
+.mx-comparison td {
+  min-width: 130px;
+}
+.mx-comparison th:first-child {
+  min-width: 120px;
+}
+.mx-page-tools {
+  border-top: 1px solid var(--line);
+  margin-top: 28px;
+  padding-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.mx-page-tools .btn {
+  font-size: 11px;
+  padding: 7px 10px;
+  min-height: 34px;
+}
+.mx-help {
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+  background: var(--surface);
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  margin-left: 8px;
+  cursor: pointer;
+}
+.mx-sticky tr > :first-child {
+  position: sticky;
+  left: 0;
+  background: var(--surface);
+  z-index: 1;
+}
+.mx-sticky thead tr > :first-child {
+  z-index: 2;
+}
+.mx-check input {
+  accent-color: var(--accent);
+}
+#mxAlertPrefs {
+  margin-top: 18px;
+}
+#mxAlertPrefs > .mx-actions {
+  margin-top: 12px;
+}
+#mxAlertPrefs .mx-check {
+  margin: 8px 0;
+}
+.mx-scenario {
+  margin: 16px 0;
+}
+.mx-scenario label {
+  font-size: 13px;
+  display: block;
+  margin-bottom: 8px;
+}
+.mx-scenario select {
+  color: var(--ink);
+  background: var(--surface);
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+.twrap:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+@media (max-width: 900px) {
+  .mx-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .mx-filters > label:first-child {
+    grid-column: 1/-1;
+  }
+}
+@media (max-width: 700px) {
+  .mx-player-table .mx-extra {
+    display: none;
+  }
+  .mx-expanded .mx-extra {
+    display: table-cell;
+  }
+  .mx-center {
+    padding: 20px 16px;
+  }
+  .mx-line {
+    gap: 8px;
+  }
+  .mx-line .pclick {
+    max-width: 155px;
+  }
+  .mx-line small {
+    font-size: 10px;
+  }
+  .mx-player-table td:first-child {
+    min-width: 150px;
+  }
+  .mx-fresh {
+    gap: 8px;
+  }
+  .mx-heading {
+    align-items: flex-start;
+  }
+  .mx-lineup summary b {
+    float: none;
+    display: block;
+    margin-left: 18px;
+  }
+  .mx-filters {
+    padding: 14px;
+  }
+  .mx-actions .btn {
+    min-height: 40px;
+  }
+  .mx-sticky tr > :first-child {
+    max-width: 180px;
+    white-space: normal;
+  }
+}
+button.pclick {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--ink) 25%, transparent);
+  text-underline-offset: 3px;
+}
+button.pclick:hover {
+  color: var(--accent);
+}
+@media (max-width: 700px) {
+  .mx-player-table .mx-secondary {
+    display: none;
+  }
+  .mx-expanded .mx-secondary {
+    display: table-cell;
+  }
+  .mx-player-table td:first-child {
+    min-width: 125px;
+    max-width: 155px;
+  }
+  .mx-player-table td:last-child .mx-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 5px;
+  }
+  .mx-player-table td:last-child {
+    min-width: 76px;
+  }
+  .mx-player-table .btn {
+    min-height: 34px;
+    padding: 5px 7px;
+  }
+  .mx-player-table td,
+  .mx-player-table th {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}
+.mx-filters [data-mx-filter-toggle] {
+  display: none;
+}
+@media (max-width: 700px) {
+  .mx-filters .mx-filter-extra {
+    display: none;
+  }
+  .mx-filters.mx-filter-expanded .mx-filter-extra {
+    display: flex;
+  }
+  .mx-filters [data-mx-filter-toggle] {
+    display: block;
+  }
+  .mx-filters .mx-check {
+    grid-column: 1/-1;
+  }
+}

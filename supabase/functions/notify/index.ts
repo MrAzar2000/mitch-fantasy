@@ -52,6 +52,7 @@ function buildNote(p: any): Note | null {
 
 export default {
   async fetch(req: Request): Promise<Response> {
+    if (req.method === "GET") return new Response(JSON.stringify({ preferences: true }), {headers:{"content-type":"application/json","cache-control":"no-store"}});
     if (req.method !== "POST") return new Response("method not allowed", { status: 405 });
     if (req.headers.get("x-notify-secret") !== NOTIFY_SECRET) {
       return new Response("unauthorized", { status: 401 });
@@ -88,6 +89,28 @@ export default {
       targets = targets.filter((r: any) => note.teamIds!.includes(r.team_id));
     }
 
+    // Resolve browser preferences before sending a user-visible push.
+    // Raw subscription endpoints never leave the existing push sender.
+    let suppressed = 0;
+    try {
+      const tag = String(note.tag || "").toLowerCase();
+      const category = /trade|block/.test(tag) ? "trade" : /match|score|lineup|kickoff/.test(tag) ? "matchup" : "league";
+      const hashes = await Promise.all(targets.map(async (r: any) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(r.endpoint)))).map(n => n.toString(16).padStart(2, "0")).join("")));
+      const allowed = new Set<string>();
+      for (let offset = 0; offset < hashes.length; offset += 500) {
+        const policy = await fetch("https://mitch-fantasy.netlify.app/api/push-policy", {
+          method: "POST", headers: { "content-type": "application/json", "x-notify-secret": NOTIFY_SECRET },
+          body: JSON.stringify({ hashes: hashes.slice(offset, offset + 500), category }), signal: AbortSignal.timeout(8000),
+        });
+        if (!policy.ok) throw new Error("Preferences unavailable");
+        const result = await policy.json();
+        if (!Array.isArray(result.allowed)) throw new Error("Invalid preferences response");
+        result.allowed.forEach((h: string) => allowed.add(h));
+      }
+      const filtered = targets.filter((_: any, i: number) => allowed.has(hashes[i]));
+      suppressed = targets.length - filtered.length; targets = filtered;
+    } catch { /* Preserve existing delivery if the preferences service is unavailable. */ }
+
     const message = JSON.stringify({ title: note.title, body: note.body, url: note.url ?? "/", tag: note.tag });
     let sent = 0, removed = 0, failed = 0;
     await Promise.all(targets.map(async (r: any) => {
@@ -109,12 +132,12 @@ export default {
       const report = await fetch("https://mitch-fantasy.netlify.app/api/site-activity", {
         method: "POST",
         headers: { "content-type": "application/json", "x-notify-secret": NOTIFY_SECRET },
-        body: JSON.stringify({ category: "notification", detail: JSON.stringify({ title: note.title, body: note.body, teams: note.teamIds || "everyone", sent, removed, failed, total: targets.length }) }),
+        body: JSON.stringify({ category: "notification", detail: JSON.stringify({ title: note.title, body: note.body, teams: note.teamIds || "everyone", sent, removed, failed, suppressed, total: targets.length }) }),
         signal: AbortSignal.timeout(10000),
       });
       logged = report.ok;
     } catch { /* Delivery already happened; do not retry pushes because logging failed. */ }
-    return new Response(JSON.stringify({ sent, removed, failed, total: targets.length, logged }), {
+    return new Response(JSON.stringify({ sent, removed, failed, suppressed, total: targets.length, logged }), {
       headers: { "content-type": "application/json" },
     });
   },
