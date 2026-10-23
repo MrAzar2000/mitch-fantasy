@@ -1,9 +1,9 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "updatedAt": null,
   "changes": [
-    "Website version, update date and release notes are available at the bottom of every page.",
-    "Data freshness warnings stay current, including failed refreshes while older data remains visible.",
-    "Your matchup stays first on Home, followed by your weekly roster checks."
+    "Player watchlists now save to your selected team profile across devices.",
+    "My Team includes watched players, projections and injury status.",
+    "Removed page-wide Share page and Save shortcut controls."
   ]
 }
