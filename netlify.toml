@@ -1,4 +1,5 @@
 [build]
+  # Rebuild requested 2026-10-24: retain the published 02997bb build configuration.
   command = "node scripts/write-site-version.mjs"
   publish = "."
 
