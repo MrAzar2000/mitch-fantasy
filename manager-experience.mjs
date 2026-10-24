@@ -1,4 +1,3 @@
-import { installArchiveTools } from './archive-tools.mjs';
 import {
   STARTER_SLOTS,
   ESPN_SLOTS,
@@ -50,7 +49,6 @@ export function installManagerExperience(api) {
     },
     compare = [],
     details = false;
-  installArchiveTools(api);
   const data = () => api.getData(),
     me = () => api.getMe(),
     week = () => Number(data().meta.currentScoringPeriod || 1);
@@ -186,7 +184,6 @@ export function installManagerExperience(api) {
         : "Kickoff unconfirmed";
   }
   function lineup(id) {
-    if(api.isSnapshot?.())return `<section class="card card-p mx-lineup"><h3>Lineup Lab</h3><p>Reconnect and refresh before reviewing lineup recommendations.</p></section>`;
     return `<section class="card card-p mx-lineup"><div class="mx-heading"><div><div class="eyebrow">Before kickoff</div><h3>Lineup Lab · Week ${week()}</h3></div><a class="btn ghost" href="https://fantasy.espn.com/football/team?leagueId=${encodeURIComponent(data().meta.leagueId)}&teamId=${id}&seasonId=${data().meta.season}" target="_blank" rel="noopener">Open ESPN</a></div><p class="metricnote">Set your lineup in ESPN. Started players stay in their current slots; locked bench players stay on the bench.</p>${[
       "projection",
       "ceiling",
@@ -229,7 +226,6 @@ export function installManagerExperience(api) {
     });
   }
   function weeklyCenter() {
-    if(api.isSnapshot?.())return `<section class="card card-p mx-center"><h3>Saved league view</h3><p>Reconnect to check this week’s roster needs.</p></section>`;
     const id = me();
     if (id == null || !data().teams.some((t) => t.id === id))
       return `<section class="card card-p mx-center"><div class="eyebrow">Your weekly edge</div><h2>One team. Everything to watch.</h2><p>Choose your team to see lineup checks, player comparisons and your next roster needs.</p>${button("Choose my team", "data-mx-pick", "")}</section>`;
@@ -298,7 +294,6 @@ export function installManagerExperience(api) {
           : "Availability unconfirmed";
   }
   async function ensureResearch(force = false) {
-    if(api.isSnapshot?.())return;
     const key = `${data().meta.season}:${week()}:${data().meta.leagueId}`;
     if (researchPending) return researchPending;
     if (
@@ -340,32 +335,6 @@ export function installManagerExperience(api) {
     })();
     return researchPending;
   }
-  let teamWatch = { key: "", players: [], ready: false, pending: false, busy: false };
-  const watchScope = () => me() == null ? "" : new URLSearchParams({
-    league: data().meta.leagueId, season: data().meta.season, team: me(),
-  }).toString();
-  async function loadWatchlist(retry = false) {
-    const key = watchScope();
-    if (teamWatch.key === key && (!retry || teamWatch.pending)) return;
-    const state = teamWatch = { key, players: [], ready: false, pending: !!key, busy: false };
-    if (!key) return;
-    try {
-      const r = await fetch(`/api/team-watchlist?${key}`);
-      if (!r.ok) throw new Error();
-      state.players = (await r.json()).watched_players;
-      state.ready = true;
-    } catch {} finally {
-      state.pending = false;
-      if (teamWatch === state && ["players", "dash", "myteam"].includes(api.getCurrent()))
-        setTab(api.getCurrent());
-    }
-  }
-  function watchNote() {
-    if (me() == null) return "Choose your team to save a watchlist to its profile.";
-    if (teamWatch.pending) return "Loading team watchlist…";
-    if (!teamWatch.ready) return "Team watchlist unavailable. Tap Watch to retry.";
-    return `Saved to ${esc(data().teams.find(t => t.id === me())?.name || "your team")}'s profile · shared across devices. Anyone selecting this team can update it.`;
-  }
   async function preferences() {
     try {
       let device = api.getDevice();
@@ -377,7 +346,8 @@ export function installManagerExperience(api) {
       prefs = { ...prefs, ...p };
       prefsReady = true;
       if (
-        !document.querySelector("#app input:focus,#app select:focus,#app textarea:focus")
+        ["players", "dash", "trade"].includes(api.getCurrent()) &&
+        !document.querySelector("#app input:focus")
       )
         setTab(api.getCurrent());
     } catch {
@@ -385,7 +355,6 @@ export function installManagerExperience(api) {
     }
   }
   async function savePreferences(change) {
-    if(api.isSnapshot?.()){showToast("Reconnect to save changes");return;}
     if (prefsBusy) return;
     if (!prefsReady) {
       showToast("Preferences unavailable. Retrying…");
@@ -424,20 +393,16 @@ export function installManagerExperience(api) {
       if (!r.ok) throw new Error();
       prefs = next;
       showToast("Saved for this browser");
-      setTab(api.getCurrent());
+      if (["players", "dash", "trade"].includes(api.getCurrent()))
+        setTab(api.getCurrent());
     } catch {
       showToast("Could not save. Your saved preferences are unchanged.");
     } finally {
       prefsBusy = false;
     }
   }
-  function compareStarter(p){
-    if(me()==null)return '';
-    const candidate=rosterPlayers(me()).filter(x=>x.id!==p.id&&!['BE','IR'].includes(x.slot)&&x.pos===p.pos).sort((a,b)=>(a.proj??Infinity)-(b.proj??Infinity))[0];
-    return candidate?button('Compare my starter',`data-mx-compare="${p.id},${candidate.id}"`):'';
-  }
   function playerTable(rows, waivers = false) {
-    return `<div class="twrap mx-player-table"><table><thead><tr><th>Player</th><th class="mx-secondary">${waivers ? "Roster gain" : "Team / status"}</th><th>Proj</th><th class="mx-extra">Season avg</th><th class="mx-extra">Last 3</th><th class="mx-extra">Games</th><th>Research</th></tr></thead><tbody>${rows.map((p) => `<tr><td><span class="posbadge">${esc(p.pos)}</span> ${playerButton(p)}<div class="metricnote">${esc(p.pro)}${p.injury && !["ACTIVE", "NORMAL"].includes(p.injury) ? " · " + esc(api.injLabel(p.injury)) : ""}${p.bye ? " · Bye W" + p.bye : ""}${waivers && p.gain != null ? " · " + (p.gain >= 0 ? "+" : "") + value(p.gain) + " projected lineup pts" : ""}${waivers && p.bid ? " · Planning bid " + esc(p.bid) : ""}</div></td><td class="mx-secondary">${waivers ? `${p.gain == null ? "—" : (p.gain > 0 ? "+" : "") + value(p.gain)}<div class="metricnote">${esc(ownership(p))}</div>` : esc(ownership(p))}</td><td class="num">${value(p.proj)}</td><td class="num mx-extra">${value(p.avg)}</td><td class="num mx-extra">${value(p.l3)}</td><td class="num mx-extra">${p.games || "—"}</td><td><div class="mx-actions">${button(compare.includes(p.id) ? "Compared" : "Compare", `data-mx-add="${p.id}" aria-pressed="${compare.includes(p.id)}"`)}${compareStarter(p)}${button(teamWatch.players.includes(p.id) ? "Watching" : "Watch", `data-mx-watch="${p.id}" aria-pressed="${teamWatch.players.includes(p.id)}"`)}</div></td></tr>`).join("") || `<tr><td colspan="7">No players match these filters.</td></tr>`}</tbody></table></div>`;
+    return `<div class="twrap mx-player-table"><table><thead><tr><th>Player</th><th class="mx-secondary">${waivers ? "Roster gain" : "Team / status"}</th><th>Proj</th><th class="mx-extra">Season avg</th><th class="mx-extra">Last 3</th><th class="mx-extra">Games</th><th>Research</th></tr></thead><tbody>${rows.map((p) => `<tr><td><span class="posbadge">${esc(p.pos)}</span> ${playerButton(p)}<div class="metricnote">${esc(p.pro)}${p.injury && !["ACTIVE", "NORMAL"].includes(p.injury) ? " · " + esc(api.injLabel(p.injury)) : ""}${p.bye ? " · Bye W" + p.bye : ""}${waivers && p.gain != null ? " · " + (p.gain >= 0 ? "+" : "") + value(p.gain) + " projected lineup pts" : ""}${waivers && p.bid ? " · Planning bid " + esc(p.bid) : ""}</div></td><td class="mx-secondary">${waivers ? `${p.gain == null ? "—" : (p.gain > 0 ? "+" : "") + value(p.gain)}<div class="metricnote">${esc(ownership(p))}</div>` : esc(ownership(p))}</td><td class="num">${value(p.proj)}</td><td class="num mx-extra">${value(p.avg)}</td><td class="num mx-extra">${value(p.l3)}</td><td class="num mx-extra">${p.games || "—"}</td><td><div class="mx-actions">${button(compare.includes(p.id) ? "Compared" : "Compare", `data-mx-add="${p.id}" aria-pressed="${compare.includes(p.id)}"`)}${button(prefs.watched_players.includes(p.id) ? "Watching" : "Watch", `data-mx-watch="${p.id}" aria-pressed="${prefs.watched_players.includes(p.id)}"`)}</div></td></tr>`).join("") || `<tr><td colspan="7">No players match these filters.</td></tr>`}</tbody></table></div>`;
   }
   function comparison() {
     const list = allPlayers(),
@@ -470,10 +435,9 @@ export function installManagerExperience(api) {
     return `<section class="card card-p mx-comparison" id="mxComparison"><div class="mx-heading"><h3>Side by side</h3><div class="mx-actions">${button("Share comparison", "data-mx-share")}${button("Clear", "data-mx-clear")}</div></div><div class="twrap"><table><thead><tr><th>League scoring</th>${players.map((p) => `<th>${playerButton(p)} ${button("Remove", `data-mx-add="${p.id}" aria-label="Remove ${esc(p.name)} from comparison"`)}</th>`).join("")}</tr></thead><tbody>${metrics.map(([label, render]) => `<tr><th>${label}</th>${players.map((p) => `<td>${render(p)}</td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="metricnote">Roster history uses recorded league weeks. Expanded feed averages use available ESPN weekly records through Week ${week() - 1}; neither substitutes for missing games. Missing data stays blank.</p></section>`;
   }
   views.players = () => {
-    void loadWatchlist();
     void ensureResearch();
     const v = el(
-      `<div class="shead"><div><div class="eyebrow">The scouting desk</div><h2>Players</h2></div>${button("Share this view", "data-mx-share")}</div><p class="metricnote">Find a name, compare your options, keep an eye on what changes.</p><p class="metricnote" role="status">${watchNote()}</p><form class="mx-filters" id="mxFilters"><label>Search players<input type="search" name="search" value="${esc(filters.search)}" placeholder="Name or NFL team" autocomplete="off"></label><label>Position<select name="position"><option value="">All positions</option>${["QB", "RB", "WR", "TE", "K", "DST"].map((p) => `<option ${filters.position === p ? "selected" : ""}>${p}</option>`).join("")}</select></label><label>Fantasy team<select name="owner"><option value="">All players</option><option value="available" ${filters.owner === "available" ? "selected" : ""}>Available players</option>${data()
+      `<div class="shead"><div><div class="eyebrow">The scouting desk</div><h2>Players</h2></div>${button("Share this view", "data-mx-share")}</div><p class="metricnote">Find a name, compare your options, keep an eye on what changes.</p><form class="mx-filters" id="mxFilters"><label>Search players<input type="search" name="search" value="${esc(filters.search)}" placeholder="Name or NFL team" autocomplete="off"></label><label>Position<select name="position"><option value="">All positions</option>${["QB", "RB", "WR", "TE", "K", "DST"].map((p) => `<option ${filters.position === p ? "selected" : ""}>${p}</option>`).join("")}</select></label><label>Fantasy team<select name="owner"><option value="">All players</option><option value="available" ${filters.owner === "available" ? "selected" : ""}>Available players</option>${data()
         .teams.map(
           (t) =>
             `<option value="${t.id}" ${String(t.id) === filters.owner ? "selected" : ""}>${esc(t.name)}</option>`,
@@ -578,7 +542,7 @@ export function installManagerExperience(api) {
             (filters.health === "flagged") ===
               !!(p.injury && !["ACTIVE", "NORMAL"].includes(p.injury))) &&
           (!filters.bye || Number(p.bye) === Number(filters.bye)) &&
-          (!filters.watch || teamWatch.players.includes(p.id)),
+          (!filters.watch || prefs.watched_players.includes(p.id)),
       )
       .sort(
         (a, b) =>
@@ -618,7 +582,6 @@ export function installManagerExperience(api) {
       )}${!knownFeed()?.settingsVerified ? '<p class="metricnote">Standard lineup template until league settings are confirmed.</p>' : ""}</section>`;
   }
   function waiverPanel() {
-    if(api.isSnapshot?.())return `<section class="card card-p"><h3>Pickup recommendations paused</h3><p>Reconnect and refresh to confirm current availability.</p></section>`;
     const id = me(),
       f = knownFeed(),
       pool = (f?.players || []).filter(
@@ -702,7 +665,6 @@ export function installManagerExperience(api) {
   }
   const home = views.dash;
   views.dash = () => {
-    void loadWatchlist();
     void ensureResearch();
     const v = home();
     if (me() == null) v.querySelector(".hero-pick")?.remove();
@@ -714,7 +676,7 @@ export function installManagerExperience(api) {
       v.insertAdjacentHTML("afterbegin", weeklyCenter());
     }
     const watched = allPlayers()
-      .filter((p) => teamWatch.players.includes(p.id))
+      .filter((p) => prefs.watched_players.includes(p.id))
       .slice(0, 4);
     if (watched.length) {
       const pulse = document.createElement("section");
@@ -722,11 +684,14 @@ export function installManagerExperience(api) {
       pulse.innerHTML = `<div class="mx-heading"><div><div class="eyebrow">Keep an eye on</div><h3>Your watchlist</h3></div>${button("View watchlist", "data-mx-watchlist")}</div>${watched.map((p) => `<div class="mx-line">${playerButton(p)}<span>${esc(p.pos)} · ${esc(p.pro)}</span><b>${value(p.proj)} proj</b><small>${esc(api.injLabel(p.injury) || "")} ${p.bye === week() ? "· Bye this week" : ""}</small></div>`).join("")}`;
       v.querySelector(".mx-center")?.after(pulse);
     }
+    const shortcuts = document.createElement("div");
+    shortcuts.className = "mx-actions mx-shortcuts";
+    shortcuts.innerHTML = `${prefs.favorite_pages.filter((id) => id !== "players").map((id) => button(esc(api.labels[id] || id), `data-mx-go="${id}"`)).join("")}${button("Browse players", 'data-mx-go="players"')}`;
+    v.querySelector(".mx-center").after(shortcuts);
     return v;
   };
   const myTeam = views.myteam;
   views.myteam = () => {
-    void loadWatchlist();
     void ensureResearch();
     const v = myTeam(),
       id = me();
@@ -738,11 +703,6 @@ export function installManagerExperience(api) {
       );
       if (rosterCard)
         rosterCard.insertAdjacentHTML("afterend", coveragePanel(id));
-      const watched = allPlayers().filter(p => teamWatch.players.includes(p.id));
-      v.insertAdjacentHTML("beforeend", `<section class="card card-p"><div class="mx-heading"><h3>Team watchlist</h3>${button("Browse players", 'data-mx-go="players"')}${button("View watchlist", "data-mx-watchlist")}</div><p class="metricnote" role="status">${watchNote()}</p>${watched.length ? playerTable(watched) : '<p>Watch players in the Players tab to track your next roster move here.</p>'}</section>`);
-      const team=data().teams.find(t=>t.id===id);
-      const owner=(data().history?.owners||[]).find(o=>o.active2026&&o.team2026===team?.name);
-      if(owner){const career=document.createElement('section');career.className='card card-p';career.innerHTML=`<h3>Manager career</h3><p>${esc(owner.name)} · ${owner.seasons} seasons · ${owner.titles} titles</p><a class="btn ghost" href="#history?manager=${encodeURIComponent(owner.ownerId)}">Career results & rivalries</a>`;v.append(career);}
       const parlay = v.querySelector(".manager-history");
       if (parlay) {
         const fold = document.createElement("details");
@@ -757,7 +717,6 @@ export function installManagerExperience(api) {
   };
   const waivers = views.faab;
   views.faab = () => {
-    void loadWatchlist();
     void ensureResearch();
     const v = waivers();
     v.insertAdjacentHTML("afterbegin", waiverPanel());
@@ -905,7 +864,7 @@ export function installManagerExperience(api) {
       )
       .join(
         "",
-      )}</div><p>${esc(api.injLabel(p.injury) || "")} ${p.bye ? "· Bye W" + p.bye : ""} · ${stamp(p.kickoff)}</p><div class="mx-actions">${button("Compare", `data-mx-compare="${p.id}"`)}${compareStarter(p)}${button(teamWatch.players.includes(p.id) ? "Watching" : "Watch", `data-mx-watch="${p.id}"`)}${button("Share player", "data-mx-share")}</div><h3>Game log</h3><div class="twrap"><table><thead><tr><th>Week</th><th>League points</th></tr></thead><tbody>${
+      )}</div><p>${esc(api.injLabel(p.injury) || "")} ${p.bye ? "· Bye W" + p.bye : ""} · ${stamp(p.kickoff)}</p><div class="mx-actions">${button("Compare", `data-mx-compare="${p.id}"`)}${button(prefs.watched_players.includes(p.id) ? "Watching" : "Watch", `data-mx-watch="${p.id}"`)}${button("Share player", "data-mx-share")}</div><h3>Game log</h3><div class="twrap"><table><thead><tr><th>Week</th><th>League points</th></tr></thead><tbody>${
       (p.log || [])
         .slice()
         .reverse()
@@ -986,7 +945,6 @@ export function installManagerExperience(api) {
         .filter((x) => Number.isInteger(x) && x > 0)
         .slice(0, 4);
     }
-    if(page==="myteam"&&q.has("team"))api.restoreTeam?.(Number(q.get("team")));
     if (page === "teams" && q.has("team")) {
       const id = Number(q.get("team"));
       if (data().teams.some((t) => t.id === id))
@@ -1039,19 +997,6 @@ export function installManagerExperience(api) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   function enhanceView(root) {
-    if(api.isSnapshot?.()){
-      let banner=document.getElementById('mxSnapshotNotice');
-      if(!banner){banner=document.createElement('div');banner.id='mxSnapshotNotice';banner.className='mx-snapshot';banner.setAttribute('role','status');document.getElementById('app').before(banner);}
-      banner.innerHTML=`<b>Saved view · ${stamp(data().meta.lastUpdated)}</b><span>Scores and roster data are out of date. Reconnect and refresh before making decisions.</span>${button('Retry connection','data-mx-refresh')}`;
-      // Offline browsing never queues writes or presents a stale calculator as current advice.
-      if(['trade','block','parlay','other','feedback'].includes(api.getCurrent())){
-        root.innerHTML='<section class="card card-p"><h2>Reconnect to use this page</h2><p>Your saved league stats remain available from Home, Players and League.</p></section>';
-      }
-      root.querySelectorAll('form:not(.mx-archive form):not(#mxFilters),[data-lineup-mode]').forEach(n=>n.setAttribute('inert',''));
-      root.querySelectorAll('[data-mx-watch],[data-mx-save-trade]').forEach(n=>n.disabled=true);
-    }
-
-    void loadWatchlist();
     // Turn static team targets into keyboard-operable controls without changing visual styling.
     root.querySelectorAll("[data-tid]:not(button):not(a)").forEach((n) => {
       if (n.closest("button,a,[data-mid],[data-goto],[data-team]")) return;
@@ -1096,13 +1041,6 @@ export function installManagerExperience(api) {
       n.appendChild(b);
       n.after(p);
     });
-    root.querySelectorAll('.twrap table').forEach((table)=>{
-      if(table.rows[0]?.cells.length<7 || table.closest('.mx-player-table') || table.dataset.mxCompact)return;
-      table.dataset.mxCompact='true';table.classList.add('mx-compact');
-      const toggle=document.createElement('button');toggle.type='button';toggle.className='btn ghost mx-columns';toggle.textContent='Show all columns';toggle.setAttribute('aria-expanded','false');
-      toggle.onclick=()=>{const compact=table.classList.toggle('mx-compact');toggle.textContent=compact?'Show all columns':'Compact columns';toggle.setAttribute('aria-expanded',String(!compact));};
-      table.closest('.twrap').before(toggle);
-    });
     root.querySelectorAll(".twrap").forEach((n) => {
       if (!n.querySelector("table")) return;
       n.tabIndex = 0;
@@ -1112,11 +1050,7 @@ export function installManagerExperience(api) {
     if (!root.querySelector(".mx-page-tools")) {
       const bar = document.createElement("div");
       bar.className = "mx-page-tools";
-      const saved=prefs.favorite_pages.includes(api.getCurrent());
-      const allowed=['dash','myteam','players','matchup','scoreboard','standings','block','trade','faab','odds','history','analytics','records','draft','outlook','h2h','power'];
-      bar.innerHTML = (root.querySelector("table") ? button("Export tables", "data-mx-export") : "")+(allowed.includes(api.getCurrent())&&!api.isSnapshot?.()?button(saved?'Remove shortcut':'Save page shortcut',`data-mx-favorite aria-pressed="${saved}"`):'');
-      const shortcuts=prefs.favorite_pages.filter(id=>api.labels[id]);
-      if(shortcuts.length)bar.innerHTML+=`<nav class="mx-actions" aria-label="Saved pages">${shortcuts.map(id=>button(esc(api.labels[id]),`data-mx-go="${id}"`)).join('')}</nav>`;
+      bar.innerHTML = `${button("Share page", "data-mx-share")}${["dash", "myteam", "players", "matchup", "scoreboard", "standings", "block", "trade", "faab", "odds", "history", "analytics", "records", "draft", "outlook", "h2h", "power"].includes(api.getCurrent()) ? button(prefs.favorite_pages.includes(api.getCurrent()) ? "Remove shortcut" : "Save shortcut", "data-mx-favorite") : ""}${root.querySelector("table") ? button("Export tables", "data-mx-export") : ""}`;
       root.appendChild(bar);
     }
     root
@@ -1125,14 +1059,9 @@ export function installManagerExperience(api) {
   }
   document.addEventListener("click", async (e) => {
     const b = e.target.closest(
-      "[data-mx-favorite],[data-mx-go],[data-mx-pick],[data-mx-refresh],[data-mx-add],[data-mx-compare],[data-mx-watch],[data-mx-clear],[data-mx-share],[data-mx-waivers],[data-mx-stream],[data-mx-export],[data-mx-export-players],[data-mx-reset],[data-mx-watchlist],[data-mx-partner]",
+      "[data-mx-go],[data-mx-pick],[data-mx-refresh],[data-mx-add],[data-mx-compare],[data-mx-watch],[data-mx-clear],[data-mx-share],[data-mx-waivers],[data-mx-stream],[data-mx-export],[data-mx-export-players],[data-mx-favorite],[data-mx-reset],[data-mx-watchlist],[data-mx-partner]",
     );
     if (!b) return;
-    if(b.hasAttribute('data-mx-favorite')){
-      const id=api.getCurrent(),list=prefs.favorite_pages;
-      if(!list.includes(id)&&list.length>=6){showToast('Save up to six page shortcuts');return;}
-      await savePreferences({favorite_pages:list.includes(id)?list.filter(p=>p!==id):[...list,id]});return;
-    }
     if (b.hasAttribute("data-mx-partner")) {
       api.restoreTrade(
         new URLSearchParams({
@@ -1174,26 +1103,22 @@ export function installManagerExperience(api) {
         .querySelector("#mxComparison")
         ?.scrollIntoView({ block: "start" });
     } else if (b.hasAttribute("data-mx-watch")) {
-      if (me() == null) { showToast("Choose your team first"); return; }
-      if (teamWatch.busy) return;
-      if (!teamWatch.ready) await loadWatchlist(true);
-      if (!teamWatch.ready || teamWatch.key !== watchScope()) { showToast("Watchlist unavailable. Please retry shortly."); return; }
-      const state = teamWatch, id = Number(b.dataset.mxWatch);
-      state.busy = true;
-      try {
-        const r = await fetch(`/api/team-watchlist?${state.key}`, {
-          method: state.players.includes(id) ? "DELETE" : "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ player: id }),
-        });
-        if (!r.ok) throw new Error();
-        state.players = (await r.json()).watched_players;
-        if (state.key === watchScope()) {
-          showToast("Watchlist saved to team profile");
-          setTab(api.getCurrent());
+      if (!prefsReady) {
+        await preferences();
+        if (!prefsReady) {
+          showToast("Watchlist unavailable. Please retry shortly.");
+          return;
         }
-      } catch { showToast("Could not save watchlist. Please retry."); }
-      finally { state.busy = false; }
+      }
+      const id = Number(b.dataset.mxWatch),
+        list = prefs.watched_players.includes(id)
+          ? prefs.watched_players.filter((x) => x !== id)
+          : [...prefs.watched_players, id];
+      if (list.length > 100) {
+        showToast("Your watchlist is full. Remove a player first.");
+        return;
+      }
+      await savePreferences({ watched_players: list });
     } else if (b.hasAttribute("data-mx-clear")) {
       compare = [];
       setTab("players");
@@ -1221,6 +1146,21 @@ export function installManagerExperience(api) {
       };
       setTab("players");
       updateUrl();
+    } else if (b.hasAttribute("data-mx-favorite")) {
+      if (!prefsReady) {
+        await preferences();
+        if (!prefsReady) {
+          showToast("Shortcuts unavailable. Please retry shortly.");
+          return;
+        }
+      }
+      const id = api.getCurrent(),
+        list = prefs.favorite_pages.includes(id)
+          ? prefs.favorite_pages.filter((x) => x !== id)
+          : [...prefs.favorite_pages, id];
+      if (list.length > 6)
+        showToast("Save up to six shortcuts. Remove one first.");
+      else await savePreferences({ favorite_pages: list });
     } else if (b.hasAttribute("data-mx-export-players"))
       download(
         [
@@ -1355,10 +1295,15 @@ export function installManagerExperience(api) {
           Notification.permission !== "granted"
         )
           throw new Error("Enable notifications first.");
-        status.textContent='Sending remote test…';
-        const response=await fetch('/api/test-notification',{method:'POST'}),result=await response.json();
-        if(!response.ok)throw new Error(result.error||'Remote test failed.');
-        status.textContent=result.sent>0?'Remote push accepted. Check for the notification on this device.':result.suppressed>0?'Test suppressed by your alert categories or quiet hours.':'No active subscription matched. Enable notifications and save alert settings again.';
+        const sw = await navigator.serviceWorker.ready;
+        await sw.showNotification("MFL is ready", {
+          body: "Notifications can appear on this device.",
+          icon: "/icon-192.png",
+          tag: "mfl-test",
+          data: { url: "/" },
+        });
+        status.textContent =
+          "Test displayed. This checks device permission; remote push delivery is separate.";
       } catch (e) {
         status.textContent = e.message || "Could not show a test notification.";
       }
