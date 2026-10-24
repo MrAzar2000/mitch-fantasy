@@ -1,42 +1,7 @@
-/* Network-first app shell; API responses and user writes are never cached here. */
-const SHELL_CACHE='mfl-shell-v2';
-const SHELL=['/','/index.html','/lineup-tools.mjs','/manager-experience.mjs','/archive-tools.mjs','/snapshot-cache.mjs','/manager-experience.css','/site-version.mjs','/manifest.webmanifest','/icon-192.png'];
-const CDN='https://cdn.jsdelivr.net';
-async function cacheModule(cache,url,seen=new Set()){
-  if(seen.has(url)||seen.size>=50)return;seen.add(url);
-  const response=await fetch(url);if(!response.ok)throw new Error('Module unavailable');
-  await cache.put(url,response.clone());
-  const source=await response.text();
-  const children=[...source.matchAll(/(?:from\s*|import\s*)["']([^"']+)["']/g)].map(m=>new URL(m[1],url)).filter(u=>u.origin===CDN);
-  await Promise.all(children.map(u=>cacheModule(cache,u.href,seen)));
-}
-self.addEventListener('install',e=>e.waitUntil((async()=>{
-  const cache=await caches.open(SHELL_CACHE);
-  await cache.addAll(SHELL);
-  // Keep the existing Supabase client available for offline startup too.
-  try{await cacheModule(cache,CDN+'/npm/@supabase/supabase-js@2/+esm');}catch{}
-  await self.skipWaiting();
-})()));
-self.addEventListener('activate',e=>e.waitUntil((async()=>{
-  for(const key of await caches.keys())if(key.startsWith('mfl-shell-')&&key!==SHELL_CACHE)await caches.delete(key);
-  await self.clients.claim();
-})()));
-self.addEventListener('fetch',e=>{
-  const req=e.request,url=new URL(req.url);
-  if(req.method!=='GET')return;
-  const local=url.origin===self.location.origin;
-  const shell=local&&(req.mode==='navigate'||SHELL.includes(url.pathname));
-  const script=url.origin===CDN&&url.pathname.startsWith('/npm/')&&(req.destination==='script'||url.pathname.endsWith('/+esm'));
-  if(!shell&&!script)return;
-  e.respondWith((async()=>{
-    let cache;try{cache=await caches.open(SHELL_CACHE);}catch{return fetch(req);}
-    try{
-      const response=await fetch(req);
-      if(response.ok){try{await cache.put(shell&&req.mode==='navigate'?'/':req,response.clone());}catch{}return response;}
-      throw new Error('Unavailable');
-    }catch{const saved=await cache.match(req.mode==='navigate'?'/':req);return saved||Response.error();}
-  })());
-});
+/* Mitch Fantasy League — push-only service worker (no offline caching, so the
+   site always loads fresh from Netlify/Supabase). Handles Web Push + taps. */
+self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 
 self.addEventListener("push", (e) => {
   let d = {};

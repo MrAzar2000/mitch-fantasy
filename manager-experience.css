@@ -365,11 +365,3 @@ button.pclick:hover {
     grid-column: 1/-1;
   }
 }
-
-.mx-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-.mx-archive{margin:14px 0 24px}.mx-archive h3{margin:0}.mx-archive label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--ink-2)}
-.mx-archive input,.mx-archive select{min-height:40px;max-width:100%;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:8px;padding:8px;font:inherit}
-.mx-archive .mx-actions{align-items:end}.mx-archive [data-count]{font-size:12px;color:var(--ink-2)}.mx-columns{margin:10px 0}
-.mx-snapshot{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:14px;margin-bottom:16px;border:1px solid var(--t-amber);border-radius:10px;background:var(--surface);font-size:13px}.mx-snapshot span{flex:1 1 240px}
-@media(max-width:700px){.mx-compact tr>:nth-child(n+5){display:none}.mx-archive .mx-actions>label{flex:1 1 130px;min-width:0}.mx-archive .mx-actions>label:first-child{flex-basis:100%}.mx-columns{font-size:12px}body.phone .bnav button{min-width:0}body.phone .bnav button span{font-size:10px}}
-@media(min-width:701px){.mx-columns{display:none}}
