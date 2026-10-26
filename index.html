@@ -975,6 +975,11 @@ body.phone[data-view="dash"] .view>.shead{display:none}
 .pickt small{color:var(--ink-3);font-size:12px}
 .pickbox{width:min(760px,100%)}
 .pickbox h3{font-family:var(--font-display)}
+.pick-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px}
+.pick-admin{display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--line);border-radius:8px;padding:5px 10px;color:var(--ink-3);font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.pick-admin:hover{color:var(--accent);border-color:var(--accent)}
+.pick-admin svg{width:14px;height:14px}
+body.is-admin .pick-admin{color:var(--accent)}
 
 /* ---- head-to-head lineup ---- */
 .lx{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
@@ -1608,9 +1613,10 @@ function teamPickerGrid(){return `<div class="pickgrid">${D.teams.map(t=>`<butto
 function wirePicker(root){root.querySelectorAll("[data-pick]").forEach(b=>b.onclick=e=>{e.stopPropagation();setMe(+b.dataset.pick);});}
 function pickTeamModal(){closeMatchup();
   const wrap=document.createElement("div");wrap.className="mdl";wrap.id="mdl";
-  wrap.innerHTML=`<div class="mdl-box pickbox"><div class="mdl-top"><div><h3 style="font-size:20px">Which team is yours?</h3><div style="font-size:13px;color:var(--ink-3);margin-top:3px">Your matchup, roster and rank get front and center. Saved on this device only.</div></div><button class="x" aria-label="Close">✕</button></div>${teamPickerGrid()}${MEID>=0?'<button class="btn ghost" data-pick="-1" style="margin-top:14px">Clear my team</button>':""}</div>`;
+  wrap.innerHTML=`<div class="mdl-box pickbox"><div class="mdl-top"><div><h3 style="font-size:20px">Which team is yours?</h3><div style="font-size:13px;color:var(--ink-3);margin-top:3px">Your matchup, roster and rank get front and center. Saved on this device only.</div></div><button class="x" aria-label="Close">✕</button></div>${teamPickerGrid()}<div class="pick-foot">${MEID>=0?'<button class="btn ghost" data-pick="-1" type="button">Clear my team</button>':"<span></span>"}<button class="pick-admin" id="pickAdmin" type="button">${icon("shield")}${ADMIN?"Admin mode on":"Admin mode"}</button></div></div>`;
   wrap.onclick=e=>{if(e.target===wrap)closeMatchup();};
   wrap.querySelector(".x").onclick=closeMatchup;wirePicker(wrap);
+  wrap.querySelector("#pickAdmin").onclick=adminLogin;
   document.body.appendChild(wrap);document.body.classList.add("mdl-open");document.addEventListener("keydown",mdlKey);}
 function pickPrompt(what){return `<div class="hero hero-pick"><div class="hero-in"><div class="eyebrow">Welcome, manager</div><h2>Pick your team to see ${what}</h2><p>Choose once and this device remembers it.</p></div></div>${teamPickerGrid()}`;}
 
