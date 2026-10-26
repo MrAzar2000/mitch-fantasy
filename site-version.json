@@ -1,9 +1,27 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.4",
   "updatedAt": null,
   "changes": [
-    "Website version, update date and release notes are available at the bottom of every page.",
-    "Data freshness warnings stay current, including failed refreshes while older data remains visible.",
-    "Your matchup stays first on Home, followed by your weekly roster checks."
+    "Rounded page shortcuts stay side by side in a single swipeable row.",
+    "The shortcut scrollbar is hidden, including on mobile."
+  ],
+  "history": [
+    {
+      "version": "1.2.3",
+      "title": "Shortcut button styling",
+      "changes": [
+        "Restored the original rounded shortcut buttons at the top of each page.",
+        "Mobile shortcuts fit within the page and wrap when needed, without a scrolling strip or scrollbar."
+      ]
+    },
+    {
+      "version": "1.2.2",
+      "title": "Simpler player lists",
+      "changes": [
+        "Top shortcuts stay in one horizontally scrolling row instead of stacking.",
+        "Expandable sections use simple disclosure arrows, and select menus use their normal browser controls.",
+        "Roster and matchup lists use compact aligned rows with subtle dividers instead of separate player boxes."
+      ]
+    }
   ]
 }

@@ -191,7 +191,7 @@ export function installManagerExperience(api) {
       .map((mode, i) => {
         const p = plan(id, mode),
           safe = p.locksKnown && p.verified;
-        return `<details class="fold" data-lineup-mode="${mode}" data-lineup-team="${id}" ${i === 0 ? "open" : ""}><summary>${i === 0 ? "Best projected starters" : "Highest estimated ceiling"} <b class="num">${value(p.total)}${p.complete ? "" : " · partial"}</b></summary><div class="fold-b">
+        return `<details class="fold" data-lineup-mode="${mode}" data-lineup-team="${id}" ${i === 0 && plan(id).additions.length ? "open" : ""}><summary>${i === 0 ? "Best projected starters" : "Highest estimated ceiling"} <b class="num">${value(p.total)}${p.complete ? "" : " · partial"}</b></summary><div class="fold-b">
       ${!safe ? `<p class="mx-warning">${!p.verified ? "League slot settings are unconfirmed; showing the standard lineup template. " : ""}${!p.locksKnown ? "Some kickoff times are unconfirmed. " : ""}Verify these suggestions in ESPN before making changes.</p>` : ""}
       ${p.delta != null && safe ? `<p class="mx-delta">${p.delta > 0 ? "+" : ""}${value(p.delta)} projected points vs your current lineup</p>` : ""}
       ${
@@ -207,7 +207,7 @@ export function installManagerExperience(api) {
             ? "<p>Your current starters already match this selection.</p>"
             : ""
       }
-      ${p.picks.map((x) => `<div class="mx-line"><span class="posbadge">${x.assignedSlot}</span>${playerButton(x)}<small>${kickoff(x)}</small><b class="num">${value(x.value)}</b></div>`).join("") || "<p>No eligible players with available data.</p>"}
+      <details class="fold"><summary>Full suggested lineup</summary>${p.picks.map((x) => `<div class="mx-line"><span class="posbadge">${x.assignedSlot}</span>${playerButton(x)}<small>${kickoff(x)}</small><b class="num">${value(x.value)}</b></div>`).join("") || "<p>No eligible players with available data.</p>"}</details>
       ${!p.complete ? `<p class="metricnote">${p.picks.length} of ${slots().length} slots filled${p.missing ? `; ${p.missing} locked starter projection(s) missing` : ""}. Total is partial.</p>` : ""}
       <p class="metricnote">${mode === "ceiling" ? "Estimated ceiling = projection + 1.28 × recorded weekly standard deviation, with at least three games. Estimates are per player; the sum is not a team confidence bound." : "Uses available weekly projections and position eligibility. Unavailable players and byes are excluded from new selections. Missing projections are omitted."}</p></div></details>`;
       })
@@ -218,11 +218,12 @@ export function installManagerExperience(api) {
       old = !updated || Date.now() - updated > 10 * 60000;
     const feed = knownFeed();
     const feedOld = feed && (!kickoffTime(research.updatedAt) || Date.now() - kickoffTime(research.updatedAt) > 10 * 60000);
-    return `<div class="mx-fresh ${old || feedOld || researchError || api.getRefreshError() ? "mx-warning" : ""}" role="status"><span>League data: ${stamp(data().meta.lastUpdated)}${old ? " · data over 10 minutes old" : ""}${api.getRefreshError() ? " · last refresh failed; showing previous data" : ""}</span><span>Player feed: ${feed ? stamp(research.updatedAt) : researchPending ? "Loading…" : researchError ? "Unavailable" : "Not loaded"}${feedOld ? " · data over 10 minutes old" : ""}${feed && researchError ? " · last refresh failed; showing previous data" : ""}${feed && researchPending ? " · refreshing…" : ""}</span><button class="wi-reset" type="button" data-mx-refresh>Refresh</button></div>`;
+    const warning=old || feedOld || researchError || api.getRefreshError();
+    return `<details class="mx-fresh ${old || feedOld || researchError || api.getRefreshError() ? "mx-warning" : ""}" ><summary>${warning?"Data needs attention":"Data status"} · ${stamp(data().meta.lastUpdated)}</summary><div role="status"><span>League data: ${stamp(data().meta.lastUpdated)}${old ? " · data over 10 minutes old" : ""}${api.getRefreshError() ? " · last refresh failed; showing previous data" : ""}</span><span>Player feed: ${feed ? stamp(research.updatedAt) : researchPending ? "Loading…" : researchError ? "Unavailable" : "Not loaded"}${feedOld ? " · data over 10 minutes old" : ""}${feed && researchError ? " · last refresh failed; showing previous data" : ""}${feed && researchPending ? " · refreshing…" : ""}</span><button class="wi-reset" type="button" data-mx-refresh>Refresh</button></div></details>`;
   }
   function updateFreshness() {
     document.querySelectorAll("#app .mx-fresh").forEach((node) => {
-      node.outerHTML = fresh();
+      const open=node.open;node.outerHTML = fresh();if(open)document.querySelector("#app .mx-fresh").open=true;
     });
   }
   function weeklyCenter() {
@@ -257,7 +258,7 @@ export function installManagerExperience(api) {
         ? [`${empty} empty starting slot${empty === 1 ? "" : "s"}`]
         : []),
     ];
-    return `<section class="card card-p mx-center"><div class="mx-heading"><div><div class="eyebrow">${phase} · Week ${week()}</div><h2>This week, ${esc(data().teams.find((t) => t.id === id)?.owner || "manager")}.</h2></div><span class="pill ${issues.length ? "l" : "w"}">${issues.length ? `${issues.length} to check` : "Roster check"}</span></div>${issues.length ? `<ul class="mx-alerts">${issues.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "<p>No empty slots or unavailable unlocked starters found.</p>"}${upcoming ? `<p class="metricnote">Next roster kickoff: ${stamp(upcoming.kickoff)}. Players lock at their individual game times.</p>` : '<p class="metricnote">Check player lock times in ESPN before making changes.</p>'}<div class="mx-actions">${button("Review my lineup", 'data-mx-go="myteam"', "")}${button("Find a replacement", "data-mx-waivers")}${button("My matchup", 'data-mx-go="matchup"')}${button("Watchlist", "data-mx-watchlist")}</div>${fresh()}</section>`;
+    return `<section class="card card-p mx-center" data-roster-issues="${issues.length}"><div class="mx-heading"><div><div class="eyebrow">${phase} · Week ${week()}</div><h2>This week, ${esc(data().teams.find((t) => t.id === id)?.owner || "manager")}.</h2></div><span class="pill ${issues.length ? "l" : "w"}">${issues.length ? `${issues.length} to check` : "Roster check"}</span></div>${issues.length ? `<ul class="mx-alerts">${issues.slice(0,3).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>${issues.length>3?`<p class="metricnote">${issues.length-3} more issues · review your lineup for all alerts.</p>`:""}` : "<p>No empty slots or unavailable unlocked starters found.</p>"}${upcoming ? `<p class="metricnote">Next roster kickoff: ${stamp(upcoming.kickoff)}. Players lock at their individual game times.</p>` : '<p class="metricnote">Check player lock times in ESPN before making changes.</p>'}<div class="mx-actions">${button("Review my lineup", 'data-mx-go="myteam"', "")}${button("Find a replacement", `data-mx-waivers data-mx-position="${esc(warnings[0]?.pos||"")}"`)}${button("My matchup", 'data-mx-go="matchup"')}${button("Watchlist", "data-mx-watchlist")}</div>${fresh()}</section>`;
   }
   function allPlayers() {
     const map = new Map();
@@ -285,7 +286,7 @@ export function installManagerExperience(api) {
     return [...map.values()];
   }
   function ownership(p) {
-    return p.owner
+    return p.owner != null
       ? data().teams.find((t) => t.id === p.owner)?.name || "Rostered"
       : p.availability === "FREEAGENT"
         ? "Free agent"
@@ -402,7 +403,7 @@ export function installManagerExperience(api) {
     }
   }
   function playerTable(rows, waivers = false) {
-    return `<div class="twrap mx-player-table"><table><thead><tr><th>Player</th><th class="mx-secondary">${waivers ? "Roster gain" : "Team / status"}</th><th>Proj</th><th class="mx-extra">Season avg</th><th class="mx-extra">Last 3</th><th class="mx-extra">Games</th><th>Research</th></tr></thead><tbody>${rows.map((p) => `<tr><td><span class="posbadge">${esc(p.pos)}</span> ${playerButton(p)}<div class="metricnote">${esc(p.pro)}${p.injury && !["ACTIVE", "NORMAL"].includes(p.injury) ? " · " + esc(api.injLabel(p.injury)) : ""}${p.bye ? " · Bye W" + p.bye : ""}${waivers && p.gain != null ? " · " + (p.gain >= 0 ? "+" : "") + value(p.gain) + " projected lineup pts" : ""}${waivers && p.bid ? " · Planning bid " + esc(p.bid) : ""}</div></td><td class="mx-secondary">${waivers ? `${p.gain == null ? "—" : (p.gain > 0 ? "+" : "") + value(p.gain)}<div class="metricnote">${esc(ownership(p))}</div>` : esc(ownership(p))}</td><td class="num">${value(p.proj)}</td><td class="num mx-extra">${value(p.avg)}</td><td class="num mx-extra">${value(p.l3)}</td><td class="num mx-extra">${p.games || "—"}</td><td><div class="mx-actions">${button(compare.includes(p.id) ? "Compared" : "Compare", `data-mx-add="${p.id}" aria-pressed="${compare.includes(p.id)}"`)}${button(prefs.watched_players.includes(p.id) ? "Watching" : "Watch", `data-mx-watch="${p.id}" aria-pressed="${prefs.watched_players.includes(p.id)}"`)}</div></td></tr>`).join("") || `<tr><td colspan="7">No players match these filters.</td></tr>`}</tbody></table></div>`;
+    return `<div class="twrap mx-player-table"><table><thead><tr><th>Player</th><th class="mx-secondary">${waivers ? "Roster gain" : "Team / status"}</th><th>Proj</th><th class="mx-extra">Season avg</th><th class="mx-extra">Last 3</th><th class="mx-extra">Games</th><th>Research</th></tr></thead><tbody>${rows.map((p) => `<tr><td><span class="posbadge">${esc(p.pos)}</span> ${playerButton(p)}<div class="manager-ownership">${esc(ownership(p))}</div><div class="metricnote">${kickoffTime(p.kickoff)?(kickoffTime(p.kickoff)<=Date.now()?"Game started":"Kickoff "+stamp(p.kickoff)):"Kickoff unconfirmed"}</div><div class="metricnote">${esc(p.pro)}${p.injury && !["ACTIVE", "NORMAL"].includes(p.injury) ? " · " + esc(api.injLabel(p.injury)) : ""}${p.bye ? " · Bye W" + p.bye : ""}${waivers && p.gain != null ? " · " + (p.gain >= 0 ? "+" : "") + value(p.gain) + " projected lineup pts" : ""}${waivers && p.bid ? " · Planning bid " + esc(p.bid) : ""}</div></td><td class="mx-secondary">${waivers ? `${p.gain == null ? "—" : (p.gain > 0 ? "+" : "") + value(p.gain)}<div class="metricnote">${esc(ownership(p))}</div>` : esc(ownership(p))}</td><td class="num">${value(p.proj)}</td><td class="num mx-extra">${value(p.avg)}</td><td class="num mx-extra">${value(p.l3)}</td><td class="num mx-extra">${p.games || "—"}</td><td><div class="mx-actions">${button(compare.includes(p.id) ? "Compared" : "Compare", `data-mx-add="${p.id}" aria-pressed="${compare.includes(p.id)}"`)}${button(prefs.watched_players.includes(p.id) ? "Watching" : "Watch", `data-mx-watch="${p.id}" aria-pressed="${prefs.watched_players.includes(p.id)}"`)}</div></td></tr>`).join("") || `<tr><td colspan="7">No players match these filters.</td></tr>`}</tbody></table></div>`;
   }
   function comparison() {
     const list = allPlayers(),
@@ -432,7 +433,7 @@ export function installManagerExperience(api) {
       ["Kickoff", (p) => stamp(p.kickoff)],
       ["Fantasy team", (p) => esc(ownership(p))],
     ];
-    return `<section class="card card-p mx-comparison" id="mxComparison"><div class="mx-heading"><h3>Side by side</h3><div class="mx-actions">${button("Share comparison", "data-mx-share")}${button("Clear", "data-mx-clear")}</div></div><div class="twrap"><table><thead><tr><th>League scoring</th>${players.map((p) => `<th>${playerButton(p)} ${button("Remove", `data-mx-add="${p.id}" aria-label="Remove ${esc(p.name)} from comparison"`)}</th>`).join("")}</tr></thead><tbody>${metrics.map(([label, render]) => `<tr><th>${label}</th>${players.map((p) => `<td>${render(p)}</td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="metricnote">Roster history uses recorded league weeks. Expanded feed averages use available ESPN weekly records through Week ${week() - 1}; neither substitutes for missing games. Missing data stays blank.</p></section>`;
+    return `<section class="card card-p mx-comparison" id="mxComparison"><div class="mx-heading"><h3>Side by side</h3><div class="mx-actions">${button("Clear", "data-mx-clear")}</div></div><div class="twrap"><table><thead><tr><th>League scoring</th>${players.map((p) => `<th>${playerButton(p)} ${button("Remove", `data-mx-add="${p.id}" aria-label="Remove ${esc(p.name)} from comparison"`)}</th>`).join("")}</tr></thead><tbody>${metrics.map(([label, render]) => `<tr><th>${label}</th>${players.map((p) => `<td>${render(p)}</td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="metricnote">Roster history uses recorded league weeks. Expanded feed averages use available ESPN weekly records through Week ${week() - 1}; neither substitutes for missing games. Missing data stays blank.</p></section>`;
   }
   views.players = () => {
     void ensureResearch();
@@ -661,12 +662,13 @@ export function installManagerExperience(api) {
           Number.isFinite(p.proj),
       )
       .sort((a, b) => a.proj - b.proj)[0];
-    return `<section class="card card-p"><div class="mx-heading"><div><div class="eyebrow">League-specific options</div><h3>Find your next pickup</h3></div>${button("Player research", 'data-mx-go="players"')}</div><div class="mx-actions">${["", "QB", "RB", "WR", "TE", "DST", "K"].map((p) => button(p || "All", `data-mx-stream="${p}" aria-pressed="${filters.position === p}"`, filters.position === p ? "" : "ghost")).join("")}</div><p class="metricnote">${id != null ? "Roster gain compares the best projected lineup with and without each pickup. " : "Choose your team for roster-specific gains. "}Verify waiver status, roster limits and locks in ESPN. Gains are unavailable when projections are incomplete. Adding a player may require a drop.</p>${researchError ? `<p class="mx-warning">${researchError} ${button("Retry", "data-mx-refresh")}</p>` : researchPending ? '<p role="status">Loading available players…</p>' : ""}${!f && !researchPending ? "<p>Expanded player data is unavailable.</p>" : f && !pool.length ? "<p>No confirmed available players match this position.</p>" : ""}${drop ? `<div class="mx-swap"><b>Review a potential drop</b><p>${esc(drop.name)} is the lowest projected unlocked bench option outside your recommended starters. Consider longer-term value before dropping.</p>${button("Compare against a pickup", `data-mx-compare="${drop.id}"`)}</div>` : ""}${rows.length ? playerTable(rows, true) : ""}<p class="metricnote">Planning bids use 0–3%, 3–8%, or 8–15% of remaining FAAB as projected lineup gain rises. These are budget heuristics, not predicted winning bids. Check the league minimum bid and prioritize future value. Sorted within the returned ESPN player pool. Projections do not account for a successful waiver claim. FAAB bid history is unavailable, so no league-derived bid price is implied.</p></section>${id != null ? coveragePanel(id) : ""}`;
+    return `<section class="card card-p"><div class="mx-heading"><div><div class="eyebrow">League-specific options</div><h3>Find your next pickup</h3></div>${button("Player research", 'data-mx-go="players"')}</div><div class="mx-actions">${["", "QB", "RB", "WR", "TE", "DST", "K"].map((p) => button(p || "All", `data-mx-stream="${p}" aria-pressed="${filters.position === p}"`, filters.position === p ? "" : "ghost")).join("")}</div><p class="metricnote">${id != null ? "Roster gain compares the best projected lineup with and without each pickup. " : "Choose your team for roster-specific gains. "}Verify waiver status, roster limits and locks in ESPN. Gains are unavailable when projections are incomplete. Adding a player may require a drop.</p>${researchError ? `<p class="mx-warning">${researchError} ${button("Retry", "data-mx-refresh")}</p>` : researchPending ? '<p role="status">Loading available players…</p>' : ""}${!f && !researchPending ? "<p>Expanded player data is unavailable.</p>" : f && !pool.length ? "<p>No confirmed available players match this position.</p>" : ""}${drop ? `<div class="mx-swap"><b>Review a potential drop</b><p>${esc(drop.name)} is the lowest projected unlocked bench option outside your recommended starters. Consider longer-term value before dropping.</p>${button("Compare against a pickup", `data-mx-compare="${drop.id}"`)}</div>` : ""}${rows.length ? playerTable(rows.slice(0,5), true) : ""}${rows.length>5?`<details class="fold"><summary>More pickup options (${rows.length-5})</summary>${playerTable(rows.slice(5),true)}</details>`:""}<p class="metricnote">Planning bids use 0–3%, 3–8%, or 8–15% of remaining FAAB as projected lineup gain rises. These are budget heuristics, not predicted winning bids. Check the league minimum bid and prioritize future value. Sorted within the returned ESPN player pool. Projections do not account for a successful waiver claim. FAAB bid history is unavailable, so no league-derived bid price is implied.</p></section>${id != null ? coveragePanel(id) : ""}`;
   }
   const home = views.dash;
   views.dash = () => {
     void ensureResearch();
     const v = home();
+    v.querySelector(".shead")?.remove();
     if (me() == null) v.querySelector(".hero-pick")?.remove();
     const matchup = v.querySelector(".hero.hx[data-mid]");
     if (matchup) {
@@ -684,10 +686,12 @@ export function installManagerExperience(api) {
       pulse.innerHTML = `<div class="mx-heading"><div><div class="eyebrow">Keep an eye on</div><h3>Your watchlist</h3></div>${button("View watchlist", "data-mx-watchlist")}</div>${watched.map((p) => `<div class="mx-line">${playerButton(p)}<span>${esc(p.pos)} · ${esc(p.pro)}</span><b>${value(p.proj)} proj</b><small>${esc(api.injLabel(p.injury) || "")} ${p.bye === week() ? "· Bye this week" : ""}</small></div>`).join("")}`;
       v.querySelector(".mx-center")?.after(pulse);
     }
-    const shortcuts = document.createElement("div");
-    shortcuts.className = "mx-actions mx-shortcuts";
-    shortcuts.innerHTML = `${prefs.favorite_pages.filter((id) => id !== "players").map((id) => button(esc(api.labels[id] || id), `data-mx-go="${id}"`)).join("")}${button("Browse players", 'data-mx-go="players"')}`;
-    v.querySelector(".mx-center").after(shortcuts);
+    const center=v.querySelector('.mx-center');
+    if(center?.dataset.rosterIssues==='0'){
+      const fold=document.createElement('details');fold.className='fold manager-fold weekly-checks';fold.dataset.sectionKey='weekly-checks';
+      fold.innerHTML='<summary>This week · no roster problems</summary>';
+      center.before(fold);fold.append(center);
+    }
     return v;
   };
   const myTeam = views.myteam;
@@ -719,7 +723,11 @@ export function installManagerExperience(api) {
   views.faab = () => {
     void ensureResearch();
     const v = waivers();
+    const history=document.createElement("details");history.className="fold card card-p";history.innerHTML="<summary>FAAB spending & pickup history</summary>";
+    while(v.firstChild) history.appendChild(v.firstChild);v.appendChild(history);
     v.insertAdjacentHTML("afterbegin", waiverPanel());
+    const id=me(), budget=data().faab?.teams?.find(t=>t.teamId===id);
+    if(id!=null) v.insertAdjacentHTML("afterbegin",`<div class="mx-heading"><h2>Waivers</h2><a class="btn ghost" href="https://fantasy.espn.com/football/players/add?leagueId=${encodeURIComponent(data().meta.leagueId)}&teamId=${id}&seasonId=${data().meta.season}" target="_blank" rel="noopener">Open ESPN waivers</a></div><p class="metricnote">${budget?`$${budget.remaining} FAAB remaining · `:""}Verify claim timing and availability in ESPN.</p>`);
     return v;
   };
 
@@ -864,7 +872,7 @@ export function installManagerExperience(api) {
       )
       .join(
         "",
-      )}</div><p>${esc(api.injLabel(p.injury) || "")} ${p.bye ? "· Bye W" + p.bye : ""} · ${stamp(p.kickoff)}</p><div class="mx-actions">${button("Compare", `data-mx-compare="${p.id}"`)}${button(prefs.watched_players.includes(p.id) ? "Watching" : "Watch", `data-mx-watch="${p.id}"`)}${button("Share player", "data-mx-share")}</div><h3>Game log</h3><div class="twrap"><table><thead><tr><th>Week</th><th>League points</th></tr></thead><tbody>${
+      )}</div><p>${esc(api.injLabel(p.injury) || "")} ${p.bye ? "· Bye W" + p.bye : ""} · ${stamp(p.kickoff)}</p><div class="mx-actions">${button("Compare", `data-mx-compare="${p.id}"`)}${button(prefs.watched_players.includes(p.id) ? "Watching" : "Watch", `data-mx-watch="${p.id}"`)}</div><h3>Game log</h3><div class="twrap"><table><thead><tr><th>Week</th><th>League points</th></tr></thead><tbody>${
       (p.log || [])
         .slice()
         .reverse()
@@ -997,6 +1005,8 @@ export function installManagerExperience(api) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   function enhanceView(root) {
+    api.enhanceLayout?.(root);
+    if(!root.querySelector(".mx-fresh"))root.insertAdjacentHTML("beforeend",fresh());
     // Turn static team targets into keyboard-operable controls without changing visual styling.
     root.querySelectorAll("[data-tid]:not(button):not(a)").forEach((n) => {
       if (n.closest("button,a,[data-mid],[data-goto],[data-team]")) return;
@@ -1047,12 +1057,6 @@ export function installManagerExperience(api) {
       n.setAttribute("role", "region");
       n.setAttribute("aria-label", "Statistics table, scroll for more columns");
     });
-    if (!root.querySelector(".mx-page-tools")) {
-      const bar = document.createElement("div");
-      bar.className = "mx-page-tools";
-      bar.innerHTML = `${button("Share page", "data-mx-share")}${["dash", "myteam", "players", "matchup", "scoreboard", "standings", "block", "trade", "faab", "odds", "history", "analytics", "records", "draft", "outlook", "h2h", "power"].includes(api.getCurrent()) ? button(prefs.favorite_pages.includes(api.getCurrent()) ? "Remove shortcut" : "Save shortcut", "data-mx-favorite") : ""}${root.querySelector("table") ? button("Export tables", "data-mx-export") : ""}`;
-      root.appendChild(bar);
-    }
     root
       .querySelectorAll(".twrap table")
       .forEach((t) => t.classList.add("mx-sticky"));

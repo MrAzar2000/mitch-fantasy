@@ -7,7 +7,7 @@ if (footer) {
     const release = await response.json();
     if (typeof release.version !== 'string') throw new Error('Invalid release');
     const version = document.createElement('span');
-    version.textContent = `Website v${release.version}`;
+    version.textContent = `Website v${release.version.split("+")[0]}`;
     const date = new Date(release.updatedAt || NaN);
     const updated = document.createElement('span');
     if (Number.isFinite(date.getTime())) {
@@ -25,13 +25,21 @@ if (footer) {
       const details = document.createElement('details');
       const summary = document.createElement('summary');
       summary.textContent = 'What’s new';
-      const list = document.createElement('ul');
-      for (const change of release.changes) {
-        const item = document.createElement('li');
-        item.textContent = String(change);
-        list.append(item);
+      const releases = [release, ...(Array.isArray(release.history) ? release.history.slice(0, 2) : [])];
+      for (const entry of releases) {
+        const section = document.createElement('section');
+        const heading = document.createElement('h3');
+        heading.textContent = `v${String(entry.version).split('+')[0]}${entry.title ? ' · ' + entry.title : ' · Latest update'}`;
+        const list = document.createElement('ul');
+        for (const change of Array.isArray(entry.changes) ? entry.changes : []) {
+          const item = document.createElement('li');
+          item.textContent = String(change);
+          list.append(item);
+        }
+        section.append(heading, list);
+        details.append(section);
       }
-      details.append(summary, list);
+      details.prepend(summary);
       footer.append(details);
     }
   } catch {
