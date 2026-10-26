@@ -497,3 +497,27 @@ body details.fold[open] > summary::after,body .explain[open] > summary::after { 
 body select { appearance:auto;-webkit-appearance:auto;background-image:none;padding-right:8px; }
 body .lx-row:last-child { border-bottom:0; }
 body .mx-player-table td:last-child .btn { background:transparent;border-color:transparent;box-shadow:none;color:var(--accent);border-radius:4px; }
+
+/* Keep player totals beside names, including on narrow matchup screens. */
+body .lx-p,body.phone .lx-p { display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8px; }
+body .lx-p.r { grid-template-columns:auto minmax(0,1fr); }
+body .lx-p.r .lx-txt { grid-column:2;grid-row:1; }
+body .lx-p.r .lx-pts { grid-column:1;grid-row:1; }
+body .lx-pts,body.phone .lx-pts { width:auto;margin:0;padding:0;line-height:1.4;white-space:nowrap; }
+body .lx-pts.pending { color:var(--ink-3);opacity:.45; }
+body .lx-nm { white-space:normal;overflow-wrap:anywhere; }
+body .lx-row.lx-hd .lx-p { display:block; }
+
+/* Roster rows share the matchup list's flat, compact player treatment. */
+body .myteam .rrow { align-items:start;padding:12px 0; }
+body .myteam .roster-slot { background:none;color:var(--ink-3);border-radius:0;font-size:10px; }
+body .myteam .roster-name { min-height:0;font-size:14px;line-height:1.4;font-weight:700;padding:0;text-align:left; }
+body .myteam .roster-meta { margin-top:3px;font-size:11.5px;gap:3px 6px; }
+body .myteam .roster-meta .posbadge { background:none;padding:0;border-radius:0; }
+body .myteam .roster-production { margin-top:4px;font-size:12px;font-weight:500;border:0;padding:0; }
+body .myteam .roster-projection { align-self:start; }
+body .myteam .roster-projection .num { font:700 17px/1.4 var(--font-display); }
+@media(max-width:700px) {
+  body.phone .lx-p { padding:12px 6px;gap:5px; }
+  body .lx-pts { font-size:16px; }
+}

@@ -1802,7 +1802,8 @@ function matchupHero(x,meFirst){
     ${wa!=null?`<div class="hx-wp"><span style="width:${Math.round(wa*100)}%"></span></div><div class="hx-wpl"><b>${Math.round(wa*100)}%</b><span>win probability</span><b>${100-Math.round(wa*100)}%</b></div>`:""}</div>`;}
 function luSide(r,won,right,W,blank){if(!r)return `<div class="lx-p ${right?"r":""} emp"><div class="lx-nm">${blank?"":"Empty"}</div></div>`;
   const inj=pFlags(r.pid,r.pro,W),bt=byeTxt(r.pro,W);
-  return `<div class="lx-p ${right?"r":""}"><div class="lx-txt"><div class="lx-nm"><span class="pclick" data-pid="${r.pid}">${esc(r.name)}</span>${inj}</div><div class="lx-sub"><span class="tag-${String(r.pos).toLowerCase()}">${esc(r.pos)}</span> · ${esc(r.pro||"FA")}${bt&&bt!=="on bye"?" · "+bt:""}</div><span class="lx-proj">Proj ${r.proj!=null?fmt(r.proj,1):"—"}</span>${playerGameContext(r,W)}</div><div class="lx-pts ${won?"won":""}">${fmt(r.pts||0,1)}</div></div>`;}
+  const pending=!(r.pts||0)&&(W>D.meta.currentScoringPeriod||(W===D.meta.currentScoringPeriod&&gameStatus(r.pro,W)==="pre"));
+  return `<div class="lx-p ${right?"r":""}"><div class="lx-txt"><div class="lx-nm"><span class="pclick" data-pid="${r.pid}">${esc(r.name)}</span>${inj}</div><div class="lx-sub"><span class="tag-${String(r.pos).toLowerCase()}">${esc(r.pos)}</span> · ${esc(r.pro||"FA")}${bt&&bt!=="on bye"?" · "+bt:""}</div><span class="lx-proj">Proj ${r.proj!=null?fmt(r.proj,1):"—"}</span>${playerGameContext(r,W)}</div><div class="lx-pts ${pending?"pending":won?"won":""}"${pending?' title="Not played yet" aria-label="Not played yet, 0.0 points"':""}>${fmt(r.pts||0,1)}</div></div>`;}
 VIEWS.matchup=function(){
   if(!meTeam()){const v=el(pickPrompt("your matchup"));wirePicker(v);return v;}
   const games=D.schedule.filter(x=>x.homeTeamId===MEID||x.awayTeamId===MEID).sort((a,b)=>a.week-b.week);
@@ -3240,7 +3241,7 @@ function teamTrend(tid){
   try{ranks=wks.map(w=>{ST=computeStats(w);const r=powerRanks().find(x=>x.team.id===tid);return {w,rank:r?r.rank:null};});}finally{ST=saved;}
   const chips=ranks.map((r,i)=>{const prev=i?ranks[i-1].rank:null,d=prev!=null&&r.rank!=null?prev-r.rank:0;
     return `<li><span>Week ${r.w}</span><b>#${r.rank??"—"}</b><span class="${d>0?"up":d<0?"dn":""}">${d>0?"↑ "+d:d<0?"↓ "+(-d):"—"}</span></li>`;}).reverse().join("");
-  return `<div class="card card-p" style="margin-top:14px"><div class="sub-h" style="margin-top:0">Weekly scores</div>${svg}<details class="fold" style="margin-top:12px"><summary>Weekly score details</summary><div class="fold-b twrap"><table><thead><tr><th>Week</th><th>Team</th><th>League avg</th></tr></thead><tbody>${pts.map(p=>`<tr><td>${p.w}</td><td style="color:${p.me>=p.av?"var(--win)":"var(--loss)"}">${fmt(p.me,1)}</td><td>${fmt(p.av,1)}</td></tr>`).join("")}</tbody></table></div></details><details class="fold rank-history"><summary>Weekly power rankings</summary><ol class="rank-history-list fold-b">${chips}</ol></details></div>`;
+  return `<div class="card card-p team-season-trend" style="margin-top:14px"><div class="sub-h" style="margin-top:0">Weekly scores</div>${svg}<details class="fold" style="margin-top:12px"><summary>Weekly score details</summary><div class="fold-b twrap"><table><thead><tr><th>Week</th><th>Team</th><th>League avg</th></tr></thead><tbody>${pts.map(p=>`<tr><td>${p.w}</td><td style="color:${p.me>=p.av?"var(--win)":"var(--loss)"}">${fmt(p.me,1)}</td><td>${fmt(p.av,1)}</td></tr>`).join("")}</tbody></table></div></details><details class="fold rank-history"><summary>Weekly power rankings</summary><ol class="rank-history-list fold-b">${chips}</ol></details></div>`;
 }
 
 /* ---------- draft report card ---------- */

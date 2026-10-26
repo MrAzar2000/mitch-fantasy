@@ -112,7 +112,10 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
 
   if(page==='myteam') {
     view.querySelector('.g-kpi')?.remove();
-    teamLayout(view.querySelector('#teamDetail'));
+    const detail=view.querySelector('#teamDetail');
+    const trend=detail?.querySelector('.team-season-trend');
+    if(trend)view.querySelector('.hero.hm')?.after(trend);
+    teamLayout(detail);
   }
   if(page==='teams')teamLayout(view.querySelector('#teamDetail'));
   if(page==='dash') {
