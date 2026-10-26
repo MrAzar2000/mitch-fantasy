@@ -151,7 +151,7 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
       summary.innerHTML='<h3>Selected package</h3>'+[...grid.children].map(c=>`<p><b>${esc(c.querySelector('.sub-h')?.textContent||'')}</b><br>${[...c.querySelectorAll('.tp')].filter(r=>r.querySelector('input')?.checked).map(r=>esc(r.querySelector('.pn')?.textContent||'')).join(', ')||'No players selected'}</p>`).join('');grid.before(summary);
     }}
   }
-  if(['outlook','analytics','records','history','h2h','shame','defense'].includes(page))sectionFolds(view);
+  if(['outlook','records','history','h2h','shame','defense'].includes(page))sectionFolds(view);
   if(page==='outlook'&&team>=0) {
     const label=document.createElement('label');label.className='manager-search';label.textContent='Outlook for';
     const select=document.createElement('select');select.innerHTML='<option value="mine">My team</option><option value="all">All league</option>';select.dataset.remember='outlook-scope';label.append(select);
@@ -160,11 +160,6 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
     view.querySelector('.shead')?.after(label,status);
     const rows=[...view.querySelectorAll('tbody tr')];
     select.oninput=()=>rows.forEach(row=>{const target=row.querySelector(`[data-tid="${Number(team)}"]`);row.classList.toggle('me',!!target);row.hidden=select.value==='mine'&&!target;});select.oninput();
-  }
-  if(page==='analytics') {
-    const folds=[...view.querySelectorAll(':scope > .manager-fold')];
-    if(folds.length){const label=document.createElement('label');label.className='manager-search';label.textContent='Explore a metric';const select=document.createElement('select');select.dataset.remember='analytics-section';
-    folds.forEach((f,i)=>select.add(new Option(f.querySelector('summary').textContent,String(i))));select.onchange=()=>{const fold=folds[Number(select.value)];fold.open=true;fold.scrollIntoView({behavior:'smooth',block:'start'});};label.append(select);view.querySelector('.shead')?.after(label);}
   }
   if(page==='corrections') {
     const rows=[...view.querySelectorAll('.corr-row')];

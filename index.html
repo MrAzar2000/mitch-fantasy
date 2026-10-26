@@ -1802,8 +1802,8 @@ function matchupHero(x,meFirst){
     ${wa!=null?`<div class="hx-wp"><span style="width:${Math.round(wa*100)}%"></span></div><div class="hx-wpl"><b>${Math.round(wa*100)}%</b><span>win probability</span><b>${100-Math.round(wa*100)}%</b></div>`:""}</div>`;}
 function luSide(r,won,right,W,blank){if(!r)return `<div class="lx-p ${right?"r":""} emp"><div class="lx-nm">${blank?"":"Empty"}</div></div>`;
   const inj=pFlags(r.pid,r.pro,W),bt=byeTxt(r.pro,W);
-  const pending=!(r.pts||0)&&(W>D.meta.currentScoringPeriod||(W===D.meta.currentScoringPeriod&&gameStatus(r.pro,W)==="pre"));
-  return `<div class="lx-p ${right?"r":""}"><div class="lx-txt"><div class="lx-nm"><span class="pclick" data-pid="${r.pid}">${esc(r.name)}</span>${inj}</div><div class="lx-sub"><span class="tag-${String(r.pos).toLowerCase()}">${esc(r.pos)}</span> · ${esc(r.pro||"FA")}${bt&&bt!=="on bye"?" · "+bt:""}</div><span class="lx-proj">Proj ${r.proj!=null?fmt(r.proj,1):"—"}</span>${playerGameContext(r,W)}</div><div class="lx-pts ${pending?"pending":won?"won":""}"${pending?' title="Not played yet" aria-label="Not played yet, 0.0 points"':""}>${fmt(r.pts||0,1)}</div></div>`;}
+  const pending=playerScorePending(r,W);
+  return `<div class="lx-p ${right?"r":""}"><div class="lx-txt"><div class="lx-nm"><span class="pclick" data-pid="${r.pid}">${esc(r.name)}</span>${inj}</div><div class="lx-sub"><span class="tag-${String(r.pos).toLowerCase()}">${esc(r.pos)}</span> · ${esc(r.pro||"FA")}${bt&&bt!=="on bye"?" · "+bt:""}</div><span class="lx-proj">Proj ${r.proj!=null?fmt(r.proj,1):"—"}</span>${playerGameContext(r,W)}</div><div class="lx-pts ${pending?"pending":won?"won":""}"${pending?' title="Not played yet" aria-label="No points recorded yet"':""}>${playerScoreText(r,W)}</div></div>`;}
 VIEWS.matchup=function(){
   if(!meTeam()){const v=el(pickPrompt("your matchup"));wirePicker(v);return v;}
   const games=D.schedule.filter(x=>x.homeTeamId===MEID||x.awayTeamId===MEID).sort((a,b)=>a.week-b.week);
@@ -3068,6 +3068,13 @@ function gameStatus(proTeam,week){
   const now=Date.now();return now<k?"pre":now<k+3.5*3600e3?"live":"done";
 }
 
+// Keep unplayed games distinct from an actual zero-point performance.
+function playerScorePending(r,week){
+  if(r.pts!=null&&r.pts!==0)return false;
+  return week>D.meta.currentScoringPeriod||(week===D.meta.currentScoringPeriod&&["pre","bye"].includes(gameStatus(r.pro,week)));
+}
+function playerScoreText(r,week){return playerScorePending(r,week)?"—":r.pts==null?"—":fmt(r.pts,1);}
+
 /* ---------- injuries, game day, lineup alerts ---------- */
 const INJ_SHORT={QUESTIONABLE:"Q",DOUBTFUL:"D",OUT:"OUT",INJURY_RESERVE:"IR",SUSPENSION:"SUS",DAY_TO_DAY:"DTD",PROBABLE:"P"};
 function isHalloween(){const n=new Date(),m=n.getMonth(),d=n.getDate();return (m===9&&d>=15)||(m===10&&d<=1);}
@@ -3151,10 +3158,10 @@ function openMatchup(mid){
       const cell=(r,c,right)=>{if(!r)return `<td class="${c} ${right?"r":""}"><span class="sub">empty</span></td>`;
         return `<td class="${c} ${right?"r":""} ${cur&&playsToday(r.pro,W)?"gd":""}"><div class="pl pclick" data-pid="${r.pid}">${esc(r.name)}${pFlags(r.pid,r.pro,W)}${cur?todayTag(r.pro,W):""}</div><div class="sub">${esc(r.pos)} · ${esc(r.pro)}${stTag(r)}</div>${playerGameContext(r,W)}</td>`;};
       const num=(r,won,c,side,left)=>{if(!r)return `<td class="pts ${c}"></td>`;
-        if(open(r))return `<td class="pts ${c} ${left?"l":""}"><span class="wi-off">${fmt(r.pts,1)}${r.proj!=null?`<small>proj ${fmt(r.proj,1)}</small>`:""}</span><span class="wi-cell"><input class="wi" type="number" step="0.1" inputmode="decimal" data-side="${side}" data-k="${key(r)}" data-pts="${r.pts}" data-def="${Math.max(r.pts,r.proj!=null?r.proj:r.pts).toFixed(1)}" value="${(+guess(r)).toFixed(1)}" aria-label="${esc(r.name)} final points"><small>now ${fmt(r.pts,1)}</small></span></td>`;
-        return `<td class="pts ${c} ${left?"l":""} ${won?"won":""}" ${cur?`data-fx="${side}" data-v="${r.pts}"`:""}>${fmt(r.pts,1)}${r.proj!=null?`<small>proj ${fmt(r.proj,1)}</small>`:""}</td>`;};
+        if(open(r))return `<td class="pts ${c} ${left?"l":""}"><span class="wi-off">${playerScoreText(r,W)}${r.proj!=null?`<small>proj ${fmt(r.proj,1)}</small>`:""}</span><span class="wi-cell"><input class="wi" type="number" step="0.1" inputmode="decimal" data-side="${side}" data-k="${key(r)}" data-pts="${r.pts}" data-def="${Math.max(r.pts,r.proj!=null?r.proj:r.pts).toFixed(1)}" value="${(+guess(r)).toFixed(1)}" aria-label="${esc(r.name)} final points"><small>now ${playerScoreText(r,W)}</small></span></td>`;
+        return `<td class="pts ${c} ${left?"l":""} ${won?"won":""}" ${cur?`data-fx="${side}" data-v="${r.pts}"`:""}>${playerScoreText(r,W)}${r.proj!=null?`<small>proj ${fmt(r.proj,1)}</small>`:""}</td>`;};
       return `<tr>${cell(p,"ca")}${num(p,pw,"ca","a")}<td class="slot">${SLOTNAME[sl]}</td>${num(q,qw,"ch","h",true)}${cell(q,"ch",true)}</tr>`;}).join("")+`</tbody></table>`;
-    const bench=rows=>rows.filter(r=>r.slot===20||r.slot===21).sort((x,y)=>y.pts-x.pts).map(r=>`<div class="row"><span><span class="pclick" data-pid="${r.pid}">${esc(r.name)}</span>${pFlags(r.pid,r.pro,W)}${cur?todayTag(r.pro,W):""} <span class="sub">${esc(r.pos)} · ${esc(r.pro)}${r.slot===21?" · IR":""}${stTag(r)}</span>${playerGameContext(r,W)}</span><span class="num" style="text-align:right;line-height:1.15">${fmt(r.pts,1)}<small style="display:block;font-size:10px;color:var(--ink-3);font-weight:400">proj ${r.proj!=null?fmt(r.proj,1):"—"}</small></span></div>`).join("")||'<div class="sub">—</div>';
+    const bench=rows=>rows.filter(r=>r.slot===20||r.slot===21).sort((x,y)=>y.pts-x.pts).map(r=>`<div class="row"><span><span class="pclick" data-pid="${r.pid}">${esc(r.name)}</span>${pFlags(r.pid,r.pro,W)}${cur?todayTag(r.pro,W):""} <span class="sub">${esc(r.pos)} · ${esc(r.pro)}${r.slot===21?" · IR":""}${stTag(r)}</span>${playerGameContext(r,W)}</span><span class="num" style="text-align:right;line-height:1.15">${playerScoreText(r,W)}<small style="display:block;font-size:10px;color:var(--ink-3);font-weight:400">proj ${r.proj!=null?fmt(r.proj,1):"—"}</small></span></div>`).join("")||'<div class="sub">—</div>';
     if(cur){const emp=rows=>STARTER_ORDER.map((sl,i)=>rows[i]?null:SLOTNAME[sl]).filter(Boolean);
       body=alertBox(lineupAlerts(la.filter(Boolean),emp(la),W),a)+alertBox(lineupAlerts(lh.filter(Boolean),emp(lh),W),h)+body;}
     body+=`<div class="lu-bench"><div><div class="k-label ca" style="margin-bottom:4px">Bench · ${esc(a.name)}</div>${bench(A)}</div><div><div class="k-label ch" style="margin-bottom:4px">Bench · ${esc(h.name)}</div>${bench(H)}</div></div>`;
