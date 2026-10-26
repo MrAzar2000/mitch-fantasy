@@ -1,26 +1,28 @@
 {
-  "version": "1.2.4",
+  "version": "1.3.0",
   "updatedAt": null,
   "changes": [
-    "Rounded page shortcuts stay side by side in a single swipeable row.",
-    "The shortcut scrollbar is hidden, including on mobile."
+    "The app opens instantly from the last league update saved on your phone, then refreshes to live scores within seconds.",
+    "Works on weak signal or offline: a notice shows when you're viewing saved scores, and updates resume automatically.",
+    "New League Rules page (More → Help): trade deadline, playoffs, waivers, roster and full scoring, pulled live from ESPN.",
+    "One consistent accent color on every page, a fixed color for each team, and larger small text.",
+    "Retired the Trade Analyzer, Stat Fixes and casino games (Blackjack, Sportsbook, Slots). Extras stays in More."
   ],
   "history": [
+    {
+      "version": "1.2.4",
+      "title": "Shortcut row polish",
+      "changes": [
+        "Rounded page shortcuts stay side by side in a single swipeable row.",
+        "The shortcut scrollbar is hidden, including on mobile."
+      ]
+    },
     {
       "version": "1.2.3",
       "title": "Shortcut button styling",
       "changes": [
         "Restored the original rounded shortcut buttons at the top of each page.",
         "Mobile shortcuts fit within the page and wrap when needed, without a scrolling strip or scrollbar."
-      ]
-    },
-    {
-      "version": "1.2.2",
-      "title": "Simpler player lists",
-      "changes": [
-        "Top shortcuts stay in one horizontally scrolling row instead of stacking.",
-        "Expandable sections use simple disclosure arrows, and select menus use their normal browser controls.",
-        "Roster and matchup lists use compact aligned rows with subtle dividers instead of separate player boxes."
       ]
     }
   ]

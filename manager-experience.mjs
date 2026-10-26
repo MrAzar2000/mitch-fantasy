@@ -347,7 +347,7 @@ export function installManagerExperience(api) {
       prefs = { ...prefs, ...p };
       prefsReady = true;
       if (
-        ["players", "dash", "trade"].includes(api.getCurrent()) &&
+        ["players", "dash"].includes(api.getCurrent()) &&
         !document.querySelector("#app input:focus")
       )
         setTab(api.getCurrent());
@@ -394,7 +394,7 @@ export function installManagerExperience(api) {
       if (!r.ok) throw new Error();
       prefs = next;
       showToast("Saved for this browser");
-      if (["players", "dash", "trade"].includes(api.getCurrent()))
+      if (["players", "dash"].includes(api.getCurrent()))
         setTab(api.getCurrent());
     } catch {
       showToast("Could not save. Your saved preferences are unchanged.");
@@ -731,90 +731,6 @@ export function installManagerExperience(api) {
     return v;
   };
 
-  const originalTrade = views.trade;
-  views.trade = () => {
-    void ensureResearch();
-    const v = originalTrade(),
-      t = api.getTrade(),
-      saved = prefs.saved_trades || [];
-    const section = document.createElement("section");
-    section.className = "card card-p";
-    section.innerHTML = `<div class="mx-heading"><div><div class="eyebrow">Come back to a deal</div><h3>Saved comparisons</h3></div>${button("Save this trade", "data-mx-save-trade")}</div>${saved.length ? saved.map((t, i) => `<div class="mx-line"><b>${esc(t.label)}</b>${button("Open", `data-mx-open-trade="${i}"`)}${button("Remove", `data-mx-remove-trade="${i}"`)}</div>`).join("") : '<p class="metricnote">Save up to eight trade comparisons for this browser.</p>'}`;
-    v.appendChild(section);
-    section.querySelector("[data-mx-save-trade]").onclick = async () => {
-      if (!prefsReady) {
-        await preferences();
-        if (!prefsReady) {
-          showToast("Saved trades unavailable. Please retry shortly.");
-          return;
-        }
-      }
-      const saved = prefs.saved_trades || [],
-        t = api.getTrade(),
-        picks = Object.keys(t.pick).map(Number);
-      if (!picks.length) {
-        showToast("Select players before saving a trade.");
-        return;
-      }
-      if (saved.length >= 8) {
-        showToast("Remove a saved trade before adding another.");
-        return;
-      }
-      const a = data().teams.find((x) => x.id === t.a),
-        b = data().teams.find((x) => x.id === t.b);
-      const label = (a?.name + " / " + b?.name).slice(0, 100);
-      await savePreferences({
-        saved_trades: [...saved, { a: t.a, b: t.b, picks, label }],
-      });
-    };
-    section.querySelectorAll("[data-mx-open-trade]").forEach(
-      (b) =>
-        (b.onclick = () => {
-          const t = saved[+b.dataset.mxOpenTrade];
-          api.restoreTrade(
-            new URLSearchParams({ a: t.a, b: t.b, picks: t.picks.join(",") }),
-          );
-          setTab("trade");
-        }),
-    );
-    section.querySelectorAll("[data-mx-remove-trade]").forEach(
-      (b) =>
-        (b.onclick = () =>
-          savePreferences({
-            saved_trades: saved.filter(
-              (_, i) => i !== +b.dataset.mxRemoveTrade,
-            ),
-          })),
-    );
-    const selected = [
-      ...(data().rosters[t.a] || []).filter((p) => !t.pick[p.playerId]),
-      ...(data().rosters[t.b] || []).filter((p) => t.pick[p.playerId]),
-    ];
-    const other = [
-      ...(data().rosters[t.b] || []).filter((p) => !t.pick[p.playerId]),
-      ...(data().rosters[t.a] || []).filter((p) => t.pick[p.playerId]),
-    ];
-    const limit = knownFeed()?.rosterLimit;
-    if (
-      limit &&
-      [selected, other].some(
-        (r) => r.filter((p) => p.slot !== "IR").length > limit,
-      )
-    )
-      v.insertAdjacentHTML(
-        "afterbegin",
-        '<p class="mx-warning">This package exceeds a team’s active roster capacity. Review required drops in ESPN.</p>',
-      );
-    if (
-      Object.keys(t.pick).length &&
-      [...selected, ...other].some((p) => !playerSeason(p.playerId).gp)
-    )
-      v.insertAdjacentHTML(
-        "afterbegin",
-        '<p class="mx-warning">Some players have no recorded weekly production. Historical lineup totals are partial and may understate their value.</p>',
-      );
-    return v;
-  };
   function tradePartners() {
     const id = me(),
       rows = api.getTradeBlock(),
@@ -843,7 +759,7 @@ export function installManagerExperience(api) {
       .filter((x) => x.players.length)
       .slice(0, 3);
     return partners.length
-      ? `<section class="card card-p"><div class="eyebrow">Matches your needs</div><h3>Start a conversation</h3>${partners.map(({ r, players }) => `<div class="mx-line"><span>${esc(data().teams.find((t) => t.id === +r.team_id)?.name || "Team")} · ${players.map((pid) => esc(allPlayers().find((p) => p.id === pid)?.name || "Player")).join(", ")}</span>${button("Compare a deal", `data-mx-partner="${r.team_id}" data-mx-picks="${players.join(",")}"`)}</div>`).join("")}</section>`
+      ? `<section class="card card-p"><div class="eyebrow">Matches your needs</div><h3>Start a conversation</h3><p class="metricnote">These teams are shopping players you need.</p>${partners.map(({ r, players }) => `<div class="mx-line"><span>${esc(data().teams.find((t) => t.id === +r.team_id)?.name || "Team")} · ${players.map((pid) => esc(allPlayers().find((p) => p.id === pid)?.name || "Player")).join(", ")}</span></div>`).join("")}</section>`
       : "";
   }
   function openResearchPlayer(pid) {
@@ -958,7 +874,6 @@ export function installManagerExperience(api) {
       if (data().teams.some((t) => t.id === id))
         setTimeout(() => api.goTeam(id), 0);
     }
-    if (page === "trade" && q.has("a")) api.restoreTrade(q);
     if (page === "matchup" && q.has("week"))
       api.restoreWeek(Number(q.get("week")));
     if (q.has("player")) {
@@ -1067,16 +982,7 @@ export function installManagerExperience(api) {
       "[data-mx-go],[data-mx-pick],[data-mx-refresh],[data-mx-add],[data-mx-compare],[data-mx-watch],[data-mx-clear],[data-mx-share],[data-mx-waivers],[data-mx-stream],[data-mx-export],[data-mx-export-players],[data-mx-favorite],[data-mx-reset],[data-mx-watchlist],[data-mx-partner]",
     );
     if (!b) return;
-    if (b.hasAttribute("data-mx-partner")) {
-      api.restoreTrade(
-        new URLSearchParams({
-          a: me(),
-          b: b.dataset.mxPartner,
-          picks: b.dataset.mxPicks,
-        }),
-      );
-      setTab("trade");
-    } else if (b.hasAttribute("data-mx-go")) setTab(b.dataset.mxGo);
+    if (b.hasAttribute("data-mx-go")) setTab(b.dataset.mxGo);
     else if (b.hasAttribute("data-mx-pick")) api.pickTeam();
     else if (b.hasAttribute("data-mx-refresh")) {
       b.disabled = true;
@@ -1319,7 +1225,7 @@ export function installManagerExperience(api) {
   setInterval(() => {
     if (document.hidden || document.getElementById("mdl")) return;
     if (
-      ["dash", "players", "myteam", "faab", "trade"].includes(api.getCurrent())
+      ["dash", "players", "myteam", "faab"].includes(api.getCurrent())
     )
       void ensureResearch();
     updateFreshness();
