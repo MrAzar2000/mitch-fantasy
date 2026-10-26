@@ -90,7 +90,8 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
     shame:[['records','Record book'],['history','History'],['defense','Manager D']],
     defense:[['analytics','Stats'],['shame','Hall of Shame'],['standings','Standings']],
     feedback:[['dash','Home'],['more','More']],
-    siteactivity:[['dash','Home'],['feedback','Feedback']]
+    siteactivity:[['dash','Home'],['feedbackinbox','P&S Inbox']],
+    feedbackinbox:[['more','More'],['siteactivity','Site Log']]
   };
   if(shortcuts[page]){
     const bar=document.createElement('nav');bar.className='manager-quick-actions';bar.setAttribute('aria-label','Quick actions');
