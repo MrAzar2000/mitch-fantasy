@@ -1006,6 +1006,7 @@ export function installManagerExperience(api) {
   }
   function enhanceView(root) {
     api.enhanceLayout?.(root);
+    api.enhanceTables?.(root);
     if(!root.querySelector(".mx-fresh"))root.insertAdjacentHTML("beforeend",fresh());
     // Turn static team targets into keyboard-operable controls without changing visual styling.
     root.querySelectorAll("[data-tid]:not(button):not(a)").forEach((n) => {

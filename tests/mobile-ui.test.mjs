@@ -28,12 +28,12 @@ test('compact matchup context preserves rank and average without the repeated ex
   assert(!output.includes('#1 =')); assert.equal(ctx.opponentContext('KC', 'QB', 2), '');
 });
 
-test('weekly power ranking history starts closed and uses list rows', () => {
+test('weekly power ranking history starts expanded and uses list rows', () => {
   const state = { started: true, weeks: [1, 2], S: { 1: { weekly: { 1: 100, 2: 110 } } } };
   const ctx = vm.createContext({ ST: state, document: { body: { classList: { contains: () => true } } }, window: { innerWidth: 390 }, computeStats: () => state, powerRanks: () => [{ team: { id: 1 }, rank: 2 }], fmt: (n, d) => n.toFixed(d) });
   vm.runInContext(part('function teamTrend(', '/* ---------- draft report card'), ctx);
   const output = ctx.teamTrend(1);
-  assert(output.includes('<details class="fold rank-history">'));
+  assert(output.includes('<details class="fold rank-history" open>'));
   assert(output.includes('<ol class="rank-history-list fold-b"><li>'));
   assert(output.indexOf('<span>Week 2</span>') < output.indexOf('<span>Week 1</span>'));
   assert(!output.includes('class="rankchips"'));
