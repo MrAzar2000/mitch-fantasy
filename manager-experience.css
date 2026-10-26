@@ -385,10 +385,6 @@ button.pclick:hover {
 .manager-ownership { font-size:13px;font-weight:600;color:var(--ink-2);margin-top:5px;white-space:normal; }
 .manager-package p { margin:12px 0 0; }
 .sort-control { background:none;border:0;color:inherit;font:inherit;cursor:pointer;min-height:44px;padding:8px 4px; }
-.manager-standings .manager-extra-col { display:none; }
-.manager-standings.manager-expanded .manager-extra-col { display:table-cell; }
-.manager-standings .mx-sticky tr > :first-child { position:static; }
-.manager-standings .mx-sticky tr > :nth-child(2) { position:sticky;left:0;z-index:2;background:var(--surface);min-width:150px;max-width:190px;white-space:normal; }
 .manager-page-options { margin:24px 0 10px;color:var(--ink-2); }
 .manager-page-options > summary { cursor:pointer;min-height:44px;padding:12px 0; }
 .manager-connection { position:fixed;bottom:calc(70px + env(safe-area-inset-bottom));left:16px;right:16px;z-index:100;background:var(--surface);border:1px solid var(--loss);border-radius:12px;padding:14px;color:var(--ink); }
@@ -417,8 +413,6 @@ body:has(.mx-fresh) .ticker { display:none; }
   body .mx-heading { flex-wrap:wrap;gap:12px; }
   body.phone .bnav button { font-size:11px; }
   body .manager-standings td,body .manager-standings th { padding-left:6px;padding-right:6px; }
-  body .manager-standings .mx-sticky tr > :nth-child(2) { min-width:115px;max-width:135px; }
-  body .manager-standings:not(.manager-expanded) table { min-width:0;width:100%; }
   body .trade-grid { grid-template-columns:1fr; }
   body .trade-grid .tp { min-height:48px; }
   body .shead { flex-wrap:wrap; }
@@ -520,4 +514,43 @@ body .myteam .roster-projection .num { font:700 17px/1.4 var(--font-display); }
 @media(max-width:700px) {
   body.phone .lx-p { padding:12px 6px;gap:5px; }
   body .lx-pts { font-size:16px; }
+}
+
+/* Data stays complete on every screen; only the compact identity stays pinned. */
+body .twrap { max-width:100%;min-width:0;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch; }
+body .manager-stat-table { width:100%;min-width:max-content;border-collapse:separate;border-spacing:0; }
+body .manager-stat-table.mx-sticky tr > :first-child,
+body .manager-standings .manager-stat-table.mx-sticky tr > :nth-child(2) {
+  position:static;min-width:0;max-width:none;white-space:nowrap;
+}
+body .manager-stat-table.mx-sticky tr > .manager-team-badge {
+  position:sticky;left:0;z-index:2;width:52px;min-width:52px;max-width:52px;
+  padding:10px 8px;text-align:center;background:var(--surface);box-shadow:1px 0 var(--line);
+}
+body .manager-stat-table.mx-sticky thead tr > .manager-team-badge { z-index:3;background:var(--surface-2);font-size:9px; }
+body .manager-stat-table .manager-team-badge .tb { margin:auto; }
+body .manager-stat-table .manager-team-name { min-width:150px;max-width:210px;text-align:left; }
+body .manager-stat-table .manager-team-name .teamline { gap:0; }
+body .manager-stat-table tr.me > .manager-team-badge { background:var(--accent-soft); }
+body .manager-stat-table td,body .manager-stat-table th { padding:12px; }
+body .manager-stat-table .sort-control { min-height:36px; }
+body .twrap:focus-visible { outline:2px solid var(--accent);outline-offset:3px; }
+.manager-fold { scroll-margin-top:90px; }
+
+/* Quiet outlines separate players without changing the matchup's visual rhythm. */
+body .lx-row:not(.lx-hd) { padding:6px;gap:4px;align-items:stretch; }
+body .lx-row:not(.lx-hd) > .lx-p,body.phone .lx-row:not(.lx-hd) > .lx-p {
+  border:1px solid var(--line);border-radius:9px;background:var(--surface-2);padding:10px;
+}
+body .lx-row:not(.lx-hd) > .lx-p.emp { background:transparent;border-style:dashed; }
+@media(max-width:700px) {
+  body .lx-row:not(.lx-hd) { grid-template-columns:minmax(0,1fr) 26px minmax(0,1fr);padding:5px;gap:3px; }
+  body .lx-row:not(.lx-hd) > .lx-p,body.phone .lx-row:not(.lx-hd) > .lx-p { padding:9px 7px;gap:4px; }
+  body .lx-slot { width:26px;font-size:9px; }
+  body .manager-stat-table td,body .manager-stat-table th { padding:11px 10px; }
+  body input,body select,body textarea { font-size:16px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  body { scroll-behavior:auto; }
+  body details.fold > summary::after { transition:none; }
 }

@@ -18,18 +18,18 @@ export function restoreView(page, root, scroll) {
   }
   if(scroll)window.scrollTo({top:state.y,behavior:'instant'});
 }
-function foldNodes(nodes,title,open=false) {
+function foldNodes(nodes,title,open=true) {
   const list=nodes.filter(Boolean);if(!list.length)return null;
   const fold=document.createElement('details');fold.className='fold manager-fold';fold.open=open;
   const summary=document.createElement('summary');summary.textContent=title;fold.append(summary);
   list[0].before(fold);list.forEach(n=>fold.append(n));return fold;
 }
-function sectionFolds(view, firstOpen=false) {
+function sectionFolds(view, firstOpen=true) {
   const headings=[...view.children].filter(n=>n.matches('.sub-h'));
   headings.forEach((heading,i)=>{
     const nodes=[];let n=heading.nextElementSibling;
     while(n&&!n.matches('.sub-h,.mx-page-tools')){nodes.push(n);n=n.nextElementSibling;}
-    const fold=foldNodes([heading,...nodes],heading.textContent.trim(),firstOpen&&i===0);
+    const fold=foldNodes([heading,...nodes],heading.textContent.trim(),firstOpen);
     if(fold)heading.hidden=true;
   });
 }
@@ -65,9 +65,10 @@ function weekPicker(root,selector) {
 export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPage}) {
   const view=root.querySelector('.view');if(!view||view.dataset.layoutReady)return;
   view.dataset.layoutReady='true';
+  view.querySelectorAll('details').forEach(fold=>{if(fold.matches('[data-lineup-mode]')||fold.querySelector('table,svg,.rank-history-list,[data-lineup-mode]'))fold.open=true;});
   const shortcuts={
     dash:[['parlay','Parlay'],['standings','Standings'],['scoreboard','Scoreboard'],['faab','Waivers'],['players','Players']],
-    myteam:[['players','Players'],['faab','Waivers'],['trade','Trade tools']],
+    myteam:[['standings','Standings'],['players','Players'],['faab','Waivers'],['trade','Trade tools']],
     matchup:[['scoreboard','Scoreboard'],['myteam','My lineup'],['h2h','Head-to-head']],
     analytics:[['standings','Standings'],['power','Power rankings'],['odds','Playoff odds'],['outlook','Outlook']],
     players:[['myteam','My team'],['faab','Waivers'],['trade','Trade tools']],
@@ -89,7 +90,6 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
     other:[['dash','Home'],['parlay','Parlay'],['shame','Hall of Shame']],
     shame:[['records','Record book'],['history','History'],['defense','Manager D']],
     defense:[['analytics','Stats'],['shame','Hall of Shame'],['standings','Standings']],
-    more:[['dash','Home'],['parlay','Parlay'],['players','Players']],
     feedback:[['dash','Home'],['more','More']],
     siteactivity:[['dash','Home'],['feedback','Feedback']]
   };
@@ -128,13 +128,8 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
   }
   if(page==='standings') {
     view.classList.add('manager-standings');
-    const table=view.querySelector('table');
-    if(table){
-      [...table.rows].forEach(r=>[...r.cells].forEach((c,i)=>{if([4,5,7,8,9,10,11].includes(i))c.classList.add('manager-extra-col');}));
-      const btn=document.createElement('button');btn.type='button';btn.className='btn ghost';btn.textContent='More statistics';btn.setAttribute('aria-expanded','false');
-      btn.onclick=()=>{const expanded=view.classList.toggle('manager-expanded');btn.textContent=expanded?'Essential statistics':'More statistics';btn.setAttribute('aria-expanded',String(expanded));};table.closest('.twrap').before(btn);
-    }
   }
+
   if(page==='trade') {
     const grid=view.querySelector('.trade-grid');
     grid?.querySelectorAll(':scope > .card').forEach((card,i)=>{
@@ -156,7 +151,7 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
       summary.innerHTML='<h3>Selected package</h3>'+[...grid.children].map(c=>`<p><b>${esc(c.querySelector('.sub-h')?.textContent||'')}</b><br>${[...c.querySelectorAll('.tp')].filter(r=>r.querySelector('input')?.checked).map(r=>esc(r.querySelector('.pn')?.textContent||'')).join(', ')||'No players selected'}</p>`).join('');grid.before(summary);
     }}
   }
-  if(['outlook','analytics','records','history','h2h','shame','defense'].includes(page))sectionFolds(view,page==='analytics');
+  if(['outlook','analytics','records','history','h2h','shame','defense'].includes(page))sectionFolds(view);
   if(page==='outlook'&&team>=0) {
     const label=document.createElement('label');label.className='manager-search';label.textContent='Outlook for';
     const select=document.createElement('select');select.innerHTML='<option value="mine">My team</option><option value="all">All league</option>';select.dataset.remember='outlook-scope';label.append(select);
@@ -169,7 +164,7 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
   if(page==='analytics') {
     const folds=[...view.querySelectorAll(':scope > .manager-fold')];
     if(folds.length){const label=document.createElement('label');label.className='manager-search';label.textContent='Explore a metric';const select=document.createElement('select');select.dataset.remember='analytics-section';
-    folds.forEach((f,i)=>select.add(new Option(f.querySelector('summary').textContent,String(i))));select.oninput=()=>folds.forEach((f,i)=>f.open=i===Number(select.value));label.append(select);view.querySelector('.shead')?.after(label);}
+    folds.forEach((f,i)=>select.add(new Option(f.querySelector('summary').textContent,String(i))));select.onchange=()=>{const fold=folds[Number(select.value)];fold.open=true;fold.scrollIntoView({behavior:'smooth',block:'start'});};label.append(select);view.querySelector('.shead')?.after(label);}
   }
   if(page==='corrections') {
     const rows=[...view.querySelectorAll('.corr-row')];
@@ -196,4 +191,33 @@ export function installDialogAccess() {
   });observer.observe(document.body,{childList:true,subtree:true});
   const connection=document.createElement('div');connection.className='manager-connection';connection.setAttribute('role','status');connection.hidden=navigator.onLine;connection.textContent='Connection lost. Displayed data may be out of date. Reconnect and refresh before making changes.';document.body.append(connection);
   window.addEventListener('offline',()=>connection.hidden=false);window.addEventListener('online',()=>connection.hidden=true);
+}
+
+// Split the identity from the label so horizontal scrolling pins only the badge.
+export function enhanceStatTables(root) {
+  root.querySelectorAll('.twrap table').forEach(table=>{
+    if(table.dataset.mobileReady)return;
+    table.dataset.mobileReady='true';
+    table.classList.add('manager-stat-table');
+    const rows=[...table.rows];
+    const bodyRows=rows.filter(row=>row.closest('tbody'));
+    const first=bodyRows.find(row=>row.querySelector('.teamline .tb'));
+    if(!first)return;
+    const index=[...first.cells].findIndex(cell=>cell.querySelector('.teamline .tb'));
+    // Matrix and grouped headers keep their column structure.
+    if(rows.some(row=>[...row.cells].some(cell=>cell.colSpan>1||cell.rowSpan>1)))return;
+    if(bodyRows.some(row=>!row.cells[index]?.querySelector('.teamline .tb')))return;
+    rows.forEach(row=>{
+      const cell=row.cells[index];if(!cell)return;
+      const pinned=document.createElement(cell.tagName.toLowerCase());
+      pinned.className='manager-team-badge';
+      const badge=cell.querySelector('.teamline .tb');
+      if(badge){
+        const label=cell.querySelector('.nm')?.textContent||badge.title;
+        badge.setAttribute('aria-label',label);pinned.append(badge);
+      }else{pinned.textContent='Team';pinned.scope='col';}
+      row.prepend(pinned);
+      cell.classList.add('manager-team-name');
+    });
+  });
 }
