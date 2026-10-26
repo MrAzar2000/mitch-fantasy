@@ -84,3 +84,20 @@ test('kickoff countdown includes days, hours, minutes and seconds and clamps exp
   assert.equal(output, '1<span class="u">d</span>02<span class="u">h</span>03<span class="u">m</span>04<span class="u">s</span>');
   assert.equal(ctx.cdParts(-1000), '00<span class="u">h</span>00<span class="u">m</span>00<span class="u">s</span>');
 });
+
+
+test('unplayed scores show dashes while live and finished zeroes remain scores', () => {
+  let status = 'pre';
+  const ctx = vm.createContext({ D: { meta: { currentScoringPeriod: 7 } }, gameStatus: () => status, fmt: (n, d) => n.toFixed(d) });
+  vm.runInContext(part('function playerScorePending(', '/* ---------- injuries, game day, lineup alerts ---------- */'), ctx);
+  const player = { pro: 'KC', pts: 0 };
+  assert.equal(ctx.playerScoreText(player, 7), '—');
+  assert.equal(ctx.playerScoreText(player, 8), '—');
+  assert.equal(ctx.playerScoreText(player, 6), '0.0');
+  status = 'live'; assert.equal(ctx.playerScoreText(player, 7), '0.0');
+  status = 'done'; assert.equal(ctx.playerScoreText(player, 7), '0.0');
+  status = 'bye'; assert.equal(ctx.playerScoreText(player, 7), '—');
+  status = 'pre'; assert.equal(ctx.playerScoreText({ ...player, pts: 4.2 }, 7), '4.2');
+  assert.equal(ctx.playerScoreText({ ...player, pts: -2 }, 7), '-2.0');
+  status = 'done'; assert.equal(ctx.playerScoreText({ ...player, pts: null }, 7), '—');
+});
