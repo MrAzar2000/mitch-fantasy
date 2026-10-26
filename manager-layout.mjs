@@ -68,26 +68,25 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
   view.querySelectorAll('details').forEach(fold=>{if(fold.matches('[data-lineup-mode]')||fold.querySelector('table,svg,.rank-history-list,[data-lineup-mode]'))fold.open=true;});
   const shortcuts={
     dash:[['parlay','Parlay'],['standings','Standings'],['scoreboard','Scoreboard'],['faab','Waivers'],['players','Players']],
-    myteam:[['standings','Standings'],['players','Players'],['faab','Waivers'],['trade','Trade tools']],
+    myteam:[['standings','Standings'],['players','Players'],['faab','Waivers'],['block','Trade block']],
     matchup:[['scoreboard','Scoreboard'],['myteam','My lineup'],['h2h','Head-to-head']],
     analytics:[['standings','Standings'],['power','Power rankings'],['odds','Playoff odds'],['outlook','Outlook']],
-    players:[['myteam','My team'],['faab','Waivers'],['trade','Trade tools']],
+    players:[['myteam','My team'],['faab','Waivers'],['block','Trade block']],
     faab:[['players','Players'],['myteam','My team']],
-    trade:[['block','Trade block'],['players','Players']],
     scoreboard:[['matchup','My matchup'],['standings','Standings']],
-    block:[['trade','Trade analyzer'],['myteam','My team']],
+    block:[['teams','All teams'],['myteam','My team']],
     history:[['records','Record book'],['h2h','Head-to-head']],
     standings:[['scoreboard','Scoreboard'],['power','Power rankings'],['odds','Playoff odds']],
     power:[['standings','Standings'],['odds','Playoff odds'],['analytics','Stats']],
     odds:[['standings','Standings'],['power','Power rankings'],['matchup','My matchup']],
-    teams:[['myteam','My team'],['players','Players'],['trade','Trade tools']],
+    teams:[['myteam','My team'],['players','Players'],['block','Trade block']],
     outlook:[['myteam','My team'],['faab','Waivers'],['analytics','Stats']],
     h2h:[['matchup','My matchup'],['history','History'],['records','Record book']],
     records:[['history','History'],['analytics','Stats'],['shame','Hall of Shame']],
     draft:[['myteam','My team'],['players','Players'],['history','History']],
-    corrections:[['matchup','My matchup'],['scoreboard','Scoreboard'],['analytics','Stats']],
-    parlay:[['dash','Home'],['matchup','My matchup'],['other','Games']],
-    other:[['dash','Home'],['parlay','Parlay'],['shame','Hall of Shame']],
+    parlay:[['dash','Home'],['matchup','My matchup'],['rules','Rules']],
+    useless:[['dash','Home'],['parlay','Parlay'],['shame','Hall of Shame']],
+    rules:[['standings','Standings'],['faab','Waivers'],['parlay','Parlay']],
     shame:[['records','Record book'],['history','History'],['defense','Manager D']],
     defense:[['analytics','Stats'],['shame','Hall of Shame'],['standings','Standings']],
     feedback:[['dash','Home'],['more','More']],
@@ -130,27 +129,6 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
     view.classList.add('manager-standings');
   }
 
-  if(page==='trade') {
-    const grid=view.querySelector('.trade-grid');
-    grid?.querySelectorAll(':scope > .card').forEach((card,i)=>{
-      const heading=card.querySelector('.sub-h');if(heading)heading.textContent=(i===0?'You give':'You receive')+' · '+(heading.textContent||'').replace(/ gives$/,'');
-      const label=document.createElement('label');label.className='manager-search';label.textContent='Find a player';
-      const input=document.createElement('input');input.type='search';input.className='txt';input.placeholder='Name or position';input.dataset.remember=`trade-search-${i}`;label.append(input);
-      card.querySelector('select')?.after(label);
-      input.oninput=()=>card.querySelectorAll('.tp').forEach(row=>row.hidden=!row.textContent.toLowerCase().includes(input.value.toLowerCase()));
-    });
-    const impact=[...view.children].find(n=>n.matches('.card')&&n.textContent.startsWith('Starting lineup change:'));
-    if(impact&&grid)grid.before(impact);
-    const table=view.querySelector(':scope > .twrap');
-    if(table)foldNodes([table.previousElementSibling,table],'Detailed trade comparison');
-    const impactHeading=[...view.children].find(n=>n.matches('.sub-h')&&n.textContent.startsWith('Starting Lineup Impact'));
-    if(impactHeading&&grid){const cards=impactHeading.nextElementSibling;grid.before(impactHeading);if(cards)grid.before(cards);}
-    // Searchable selectors remain available while the chosen package is summarized above them.
-    if(grid){const selected=[...grid.querySelectorAll('input[type=checkbox]:checked')];if(selected.length){
-      const summary=document.createElement('div');summary.className='card card-p manager-package';
-      summary.innerHTML='<h3>Selected package</h3>'+[...grid.children].map(c=>`<p><b>${esc(c.querySelector('.sub-h')?.textContent||'')}</b><br>${[...c.querySelectorAll('.tp')].filter(r=>r.querySelector('input')?.checked).map(r=>esc(r.querySelector('.pn')?.textContent||'')).join(', ')||'No players selected'}</p>`).join('');grid.before(summary);
-    }}
-  }
   if(['outlook','records','history','h2h','shame','defense'].includes(page))sectionFolds(view);
   if(page==='outlook'&&team>=0) {
     const label=document.createElement('label');label.className='manager-search';label.textContent='Outlook for';
@@ -160,13 +138,6 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
     view.querySelector('.shead')?.after(label,status);
     const rows=[...view.querySelectorAll('tbody tr')];
     select.oninput=()=>rows.forEach(row=>{const target=row.querySelector(`[data-tid="${Number(team)}"]`);row.classList.toggle('me',!!target);row.hidden=select.value==='mine'&&!target;});select.oninput();
-  }
-  if(page==='corrections') {
-    const rows=[...view.querySelectorAll('.corr-row')];
-    if(rows.length){const control=document.createElement('label');control.className='manager-search';control.textContent='Show corrections';
-      const select=document.createElement('select');select.innerHTML='<option value="mine">My team</option><option value="all">All league</option>';select.value=team>=0?'mine':'all';if(team<0)select.options[0].disabled=true;
-      const status=document.createElement('p');status.className='metricnote';status.setAttribute('role','status');
-      select.onchange=()=>{let count=0;rows.forEach(r=>{r.hidden=select.value==='mine'&&!r.querySelector(`[data-tid="${Number(team)}"]`);if(!r.hidden)count++;});status.textContent=count?`${count} corrections`:'No corrections for your team.';};control.append(select);view.querySelector('.shead')?.after(control,status);select.onchange();}
   }
   if(page==='feedback'){const input=view.querySelector('[name="page"]');if(input&&!input.value)input.value=feedbackPage;}
   view.querySelectorAll('[data-mid]:not(button):not(a)').forEach(n=>{n.tabIndex=0;n.setAttribute('role','button');n.setAttribute('aria-label','Open matchup details');n.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();n.click();}};});

@@ -48,7 +48,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 18px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-2);
   border-top: 1px solid var(--line);
   padding-top: 12px;
@@ -67,7 +67,7 @@
   padding: 18px 0 24px;
   border-top: 1px solid var(--line);
   color: var(--ink-2);
-  font-size: 11px;
+  font-size: 12px;
   overflow-wrap: anywhere;
 }
 .site-release > span:first-child { font-variant-numeric: tabular-nums; }
@@ -124,7 +124,7 @@
 }
 .mx-filters label,
 #mxAlertPrefs label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.025em;
   display: flex;
@@ -166,12 +166,12 @@
   vertical-align: middle;
 }
 .mx-player-table .metricnote {
-  font-size: 10px;
+  font-size: 11px;
   margin-top: 5px;
 }
 .mx-player-table .btn {
   min-height: 34px;
-  font-size: 11px;
+  font-size: 12px;
   padding: 5px 8px;
 }
 .mx-comparison {
@@ -192,7 +192,7 @@
   gap: 8px;
 }
 .mx-page-tools .btn {
-  font-size: 11px;
+  font-size: 12px;
   padding: 7px 10px;
   min-height: 34px;
 }
@@ -276,7 +276,7 @@ a:focus-visible,
     max-width: 155px;
   }
   .mx-line small {
-    font-size: 10px;
+    font-size: 11px;
   }
   .mx-player-table td:first-child {
     min-width: 150px;
@@ -411,7 +411,7 @@ body:has(.mx-fresh) .ticker { display:none; }
   body .mx-center h2 { font-size:25px; }
   body .mx-line { flex-wrap:wrap; }
   body .mx-heading { flex-wrap:wrap;gap:12px; }
-  body.phone .bnav button { font-size:11px; }
+  body.phone .bnav button { font-size:12px; }
   body .manager-standings td,body .manager-standings th { padding-left:6px;padding-right:6px; }
   body .trade-grid { grid-template-columns:1fr; }
   body .trade-grid .tp { min-height:48px; }
@@ -459,7 +459,7 @@ body .wpg-compact .wpg-svg { height:120px; }
   body .lx { background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden; }
   body .lx-row { margin:0;padding:0;border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;grid-template-columns:minmax(0,1fr) 30px minmax(0,1fr);gap:0;align-items:stretch;box-shadow:none; }
   body.phone .lx-p { padding:12px 10px;border-radius:0;background:none; }
-  body .lx-slot { width:30px;font-size:10px;padding:5px 0;border-radius:0;background:none;color:var(--ink-3); }
+  body .lx-slot { width:34px;font-size:11px;padding:5px 0;border-radius:0;background:none;color:var(--ink-3); }
   body .lx-nm { font-size:14px;line-height:1.4; }
   body .lx-pts { padding-top:2px;border:0;width:100%;font-size:18px; }
   body .lx-p.r .lx-pts { text-align:right; }
@@ -504,9 +504,9 @@ body .lx-row.lx-hd .lx-p { display:block; }
 
 /* Roster rows share the matchup list's flat, compact player treatment. */
 body .myteam .rrow { align-items:start;padding:12px 0; }
-body .myteam .roster-slot { background:none;color:var(--ink-3);border-radius:0;font-size:10px; }
+body .myteam .roster-slot { background:none;color:var(--ink-3);border-radius:0;font-size:11px; }
 body .myteam .roster-name { min-height:0;font-size:14px;line-height:1.4;font-weight:700;padding:0;text-align:left; }
-body .myteam .roster-meta { margin-top:3px;font-size:11.5px;gap:3px 6px; }
+body .myteam .roster-meta { margin-top:3px;font-size:12.5px;gap:3px 6px; }
 body .myteam .roster-meta .posbadge { background:none;padding:0;border-radius:0; }
 body .myteam .roster-production { margin-top:4px;font-size:12px;font-weight:500;border:0;padding:0; }
 body .myteam .roster-projection { align-self:start; }
@@ -544,9 +544,9 @@ body .lx-row:not(.lx-hd) > .lx-p,body.phone .lx-row:not(.lx-hd) > .lx-p {
 }
 body .lx-row:not(.lx-hd) > .lx-p.emp { background:transparent;border-style:dashed; }
 @media(max-width:700px) {
-  body .lx-row:not(.lx-hd) { grid-template-columns:minmax(0,1fr) 26px minmax(0,1fr);padding:5px;gap:3px; }
+  body .lx-row:not(.lx-hd) { grid-template-columns:minmax(0,1fr) 30px minmax(0,1fr);padding:5px;gap:3px; }
   body .lx-row:not(.lx-hd) > .lx-p,body.phone .lx-row:not(.lx-hd) > .lx-p { padding:9px 7px;gap:4px; }
-  body .lx-slot { width:26px;font-size:9px; }
+  body .lx-slot { width:30px;font-size:10px; }
   body .manager-stat-table td,body .manager-stat-table th { padding:11px 10px; }
   body input,body select,body textarea { font-size:16px; }
 }
@@ -587,9 +587,25 @@ body .btn:active,body .tbtn:active { background:var(--surface-3); }
   body.phone .lx-nm { font-size:12px;line-height:1.4; }
   body.phone .lx-row:not(.lx-hd) > .lx-p { padding:9px 5px; }
   body.phone .lx-pts { font-size:14px; }
-  body.phone .lx-proj { font-size:11px; }
+  body.phone .lx-proj { font-size:12px; }
 }
 @media(prefers-reduced-motion:reduce) {
   body .view { animation:none; }
   body .btn,body .tbtn,body .st-i { transition:none; }
 }
+
+/* connection notice: shown while the app runs from the saved league copy */
+.conn-bar { display:flex;align-items:center;gap:10px;margin:0 0 14px;padding:10px 14px;border-radius:var(--radius-sm);border:1px solid color-mix(in srgb,var(--tie) 40%,var(--line));background:color-mix(in srgb,var(--tie) 10%,var(--surface));color:var(--ink-2);font-size:13.5px;line-height:1.4; }
+.conn-bar b { color:var(--ink); }
+.conn-bar .glyph { width:18px;height:18px;flex:0 0 auto;color:var(--tie); }
+
+/* League Rules */
+.rules-dates { margin-bottom:16px; }
+.rules-dates .k-val { font-size:22px; }
+.rules-soon { border-color:color-mix(in srgb,var(--loss) 45%,var(--line))!important; }
+.rules-soon .k-sub { color:var(--loss); font-weight:700; }
+.rules-card h3 { margin:0 0 6px;font-size:16px; }
+.rules-row { display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px;color:var(--ink-2); }
+.rules-row:last-child { border-bottom:0; }
+.rules-row b { color:var(--ink);font-weight:650;text-align:right;font-variant-numeric:tabular-nums; }
+.rules-dst { display:inline-block;margin-left:6px;font-size:12px;font-weight:600;color:var(--ink-3); }

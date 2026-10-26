@@ -6,3 +6,8 @@
   for = "/site-version.json"
   [headers.values]
     Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"

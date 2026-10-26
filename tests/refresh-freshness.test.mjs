@@ -4,19 +4,24 @@ import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const refreshSource = html.slice(html.indexOf('async function refreshData(){'), html.indexOf('function startLiveRefresh(){'));
+const refreshSource = html.slice(html.indexOf('async function refreshData(preloaded){'), html.indexOf('function startLiveRefresh(){'));
 function harness(responses) {
   let rendered = 0;
+  const saved = [];
   const context = vm.createContext({
-    document: { hidden: false },
+    document: { hidden: false, getElementById: () => null },
+    navigator: { onLine: true },
+    addEventListener() {},
     loadHeartbeat() {},
+    saveCachedLeague(d) { saved.push(d); },
     console: { error() {} },
     EXPERIENCE: { updateFreshness() { rendered++; } },
     sb: { from: () => ({ select: () => ({ eq: () => ({ single: async () => responses.shift() }) }) }) },
   });
   vm.runInContext(`let __refreshing=false, leagueRefreshError=false; const D={meta:{lastUpdated:'original'}}; ${refreshSource}`, context);
   return {
-    run: () => vm.runInContext('refreshData()', context),
+    run: (preloaded) => { context.__pre = preloaded; return vm.runInContext('refreshData(__pre)', context); },
+    saved: () => saved,
     state: () => vm.runInContext('({error:leagueRefreshError,busy:__refreshing,stamp:D.meta.lastUpdated})', context),
     renders: () => rendered,
   };
@@ -36,4 +41,12 @@ test('missing update metadata reports failure; a successful unchanged check clea
   await h.run();
   assert.equal(h.state().error, false);
   assert.equal(h.renders(), 2);
+});
+test('data loaded at startup is applied without another download and saved for the next open', async () => {
+  const h = harness([]);
+  const fresh = { meta: { lastUpdated: 'original' } };
+  await h.run(fresh);
+  assert.equal(h.state().error, false);
+  assert.equal(h.saved().length, 0); // unchanged data is not rewritten
+  assert.equal(h.renders(), 1);
 });
