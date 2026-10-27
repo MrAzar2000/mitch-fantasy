@@ -392,7 +392,6 @@ button.pclick:hover {
 .manager-menu-link:focus-visible,.sort-control:focus-visible,[role="button"]:focus-visible { outline:2px solid var(--accent);outline-offset:3px; }
 body .manager-fold .sub-h[hidden] { display:none; }
 
-body:has(.mx-fresh) .ticker { display:none; }
 @media(max-width:700px) {
   .manager-menu { grid-template-columns:1fr; }
   body.phone .page > main { padding:0;min-width:0; }
@@ -609,3 +608,41 @@ body .btn:active,body .tbtn:active { background:var(--surface-3); }
 .rules-row:last-child { border-bottom:0; }
 .rules-row b { color:var(--ink);font-weight:650;text-align:right;font-variant-numeric:tabular-nums; }
 .rules-dst { display:inline-block;margin-left:6px;font-size:12px;font-weight:600;color:var(--ink-3); }
+
+/* iPhone: use the full screen width. Content gutters are slimmer, and sideways
+   scrolling strips run to the screen edge instead of clipping inside the gutter. */
+@media(max-width:700px) {
+  body.phone { --gut:10px; }
+  body.phone .page { padding-left:max(var(--gut),env(safe-area-inset-left,0px));padding-right:max(var(--gut),env(safe-area-inset-right,0px)); }
+  body.phone .ab-in { padding-left:max(var(--gut),env(safe-area-inset-left,0px));padding-right:max(var(--gut),env(safe-area-inset-right,0px)); }
+  body.phone .stabs { padding-left:max(var(--gut),env(safe-area-inset-left,0px));padding-right:max(var(--gut),env(safe-area-inset-right,0px)); }
+  body.phone .ab-id .sub { font-size:11px; }
+  body.phone .ab-id .lgid { display:none; }
+  body.phone .hero { padding:14px 12px; }
+  body.phone .card-p { padding:12px; }
+  body.phone #app .kpi { padding:12px; }
+  body.phone .hm-stats span { letter-spacing:.03em;font-size:11px; }
+  body.phone .manager-quick-actions,
+  body.phone .view > .seg,
+  body.phone .view > .twrap { margin-left:calc(-1 * var(--gut));margin-right:calc(-1 * var(--gut));max-width:none;width:auto;padding-left:var(--gut);padding-right:var(--gut);scroll-padding-inline:var(--gut); }
+  body.phone .view > .twrap { padding:0;border-radius:0;border-left:0;border-right:0; }
+  body.phone .card-p > .twrap { margin-left:-12px;margin-right:-12px;max-width:none;border-radius:0;border-left:0;border-right:0; }
+}
+
+/* Color-coded numbers: green is good, red is bad, at a glance. */
+body .num-pos,body #app .kpi .k-val.num-pos,body .hm-stats b.num-pos { color:var(--win); }
+body .num-neg,body #app .kpi .k-val.num-neg,body .hm-stats b.num-neg { color:var(--loss); }
+body .m2-t.wn .sc { color:var(--win); }
+body .m2-t.ls .sc { color:var(--loss); }
+
+/* Home: this week's matchups, then power rankings */
+.home-matchups { margin:20px 0; }
+.home-matchups .mx-heading { margin-bottom:12px; }
+.home-matchups .g-sb { gap:10px; }
+
+/* Home parlay once every pick is in */
+.parlay-done { display:flex;align-items:center;justify-content:space-between;gap:10px 14px;flex-wrap:wrap;padding:12px 14px;border:1px solid var(--line);border-left:3px solid var(--win);border-radius:var(--radius);background:var(--surface); }
+.parlay-done .pd-txt { display:flex;flex-direction:column;gap:2px;min-width:0; }
+.parlay-done .pd-wk { font-size:12px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--accent); }
+.parlay-done .pd-st { font-size:13.5px;font-weight:600; }
+.parlay-done .btn { flex:0 0 auto; }
