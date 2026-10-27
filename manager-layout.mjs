@@ -129,7 +129,14 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
       const lineup=detail.querySelector(':scope > .mx-lineup');
       collapse(lineup,lineup?.querySelector('h3')?.textContent.trim()||'Lineup Lab');
       const roster=[...detail.children].find(n=>n.querySelector('.rrow'));
-      collapse(roster,roster?.querySelector('.sub-h')?.textContent.replace(/\s+/g,' ').trim()||'Roster');
+      collapse(roster,'Roster');
+      // Roster is the first dropdown on the page; it stays inside #teamDetail for its roster styles.
+      const rosterFold=roster?.closest('details');
+      if(rosterFold){
+        detail.querySelector(':scope > details')?.before(rosterFold);
+        const trendFold=trend?.closest('details');
+        if(trendFold)rosterFold.after(trendFold);
+      }
     }
     view.querySelectorAll(':scope > details, #teamDetail > details, #teamDetail > div > .manager-fold').forEach(d=>{d.open=false;});
   }
