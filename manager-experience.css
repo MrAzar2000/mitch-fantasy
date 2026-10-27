@@ -901,3 +901,23 @@ body .mebtn { position:relative;overflow:visible; }
   .inbox-message { padding:14px; }
   .my-team-actions { width:100%;justify-content:flex-end; }
 }
+
+/* Give the selected team a readable identity in the app bar. */
+body .mebtn { max-width:300px; }
+.more-admin { display:flex;align-items:center;gap:6px;margin-top:18px;padding:8px 0;border:0;background:transparent;color:var(--ink-3);font:inherit;font-size:12px;cursor:pointer; }
+.more-admin svg { width:14px;height:14px; }
+.more-admin:hover { color:var(--ink); }
+.notification-audience { min-width:0;margin:0 0 16px;padding:10px 12px;border:1px solid var(--line);border-radius:12px; }
+.notification-recipients { max-height:220px;overflow-y:auto;border-top:1px solid var(--line);margin-top:6px; }
+.notification-recipient { display:flex;align-items:center;gap:10px;min-height:44px;padding:6px 0;cursor:pointer; }
+.notification-recipient input { width:18px;height:18px;flex:none;accent-color:var(--accent); }
+.notification-recipient small { display:block;color:var(--ink-3);font-size:12px; }
+@media(max-width:700px) {
+  body.phone .ab-brand { flex:0 0 auto; }
+  body.phone .ab-id { display:none; }
+  body.phone .ab-act { flex:1;min-width:0;justify-content:flex-end;gap:10px; }
+  body.phone .mebtn,body.phone .mebtn.empty { width:auto;max-width:none;min-width:0;flex:1;height:44px;justify-content:flex-start;padding:4px 10px 4px 4px; }
+  body.phone .mebtn .nm { display:block;white-space:normal;overflow-wrap:anywhere;line-height:1.2;font-size:12px;text-align:left; }
+  body.phone .mebtn .tb { flex-shrink:0; }
+  body.phone .ab-act > .tbtn { flex-shrink:0; }
+}

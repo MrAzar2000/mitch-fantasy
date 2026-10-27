@@ -1329,9 +1329,7 @@ body.phone .lx-p{padding:11px 8px}.full-context{font-size:13px}.full-context .ga
       <nav class="ptabs" id="ptabs" aria-label="Sections"></nav>
       <div class="ab-act">
         <button class="mebtn" id="meBtn" aria-label="Choose your team"></button>
-        <button class="tbtn" id="adminBtn" title="Admin" aria-label="Admin" style="display:none"></button>
         <button class="tbtn" id="notifyBtn" title="Notifications" aria-label="Notifications"></button>
-        <button class="tbtn" id="themeBtn" title="Toggle light/dark" aria-label="Toggle theme">◐</button>
       </div>
     </div>
     <nav class="stabs" id="nav" aria-label="Pages"></nav>
@@ -1576,6 +1574,8 @@ function setTab(id,fresh=false){
   // re-rendering the SAME view (sort, dropdown, week switch) keeps your scroll
   // position; only navigating to a DIFFERENT view jumps back to the top.
   const sameView=(id===cur);
+  // Async data and inbox refreshes must never dismiss an open composer or menu.
+  if(sameView && document.getElementById("mdl"))return;
   const keepY=sameView&&!fresh?(window.scrollY||document.documentElement.scrollTop||0):0;
   if(document.getElementById("mdl"))closeMatchup();
   rememberView(cur,document.getElementById("app"));
@@ -1706,8 +1706,8 @@ function birthdayBanner(){const n=new Date();if(!(n.getMonth()===9&&n.getDate()=
 const VIEWS={};
 VIEWS.more=function(){
  const groups=[['League',['standings','scoreboard','power','odds','teams']],['Roster & trades',['inbox','block','outlook']],['Work in Progress',['players','faab']],['Analysis & history',['analytics','h2h','history','records','draft']],['League fun',['parlay','shame','defense']],['Help',['rules','feedback']],...(ADMIN?[['Admin',['feedbackinbox','siteactivity']]]:[])];
- const v=el(shead('Your league, organized','More')+`<div class="manager-menu">${groups.map(([title,ids])=>`<section class="card card-p"><h3>${title}</h3>${ids.map(id=>`<button class="manager-menu-link" data-goto="${id}">${esc(LABELS[id])}<span aria-hidden="true">›</span></button>`).join('')}</section>`).join('')}<section class="card card-p"><h3>Settings & setup</h3><button class="manager-menu-link" data-settings="notifyBtn">Notification preferences</button><button class="manager-menu-link" data-settings="themeBtn">Switch light / dark theme</button><a class="manager-menu-link" href="/tutorial.html">Install & notification guide</a></section></div>`);
- v.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>setTab(b.dataset.goto));v.querySelectorAll('[data-settings]').forEach(b=>b.onclick=()=>document.getElementById(b.dataset.settings).click());return v;
+ const v=el(shead('Your league, organized','More')+`<div class="manager-menu">${groups.map(([title,ids])=>`<section class="card card-p"><h3>${title}</h3>${ids.map(id=>`<button class="manager-menu-link" data-goto="${id}">${esc(LABELS[id])}<span aria-hidden="true">›</span></button>`).join('')}</section>`).join('')}<section class="card card-p"><h3>Settings & setup</h3><button class="manager-menu-link" data-settings="notifyBtn">Notification preferences</button><button class="manager-menu-link" data-theme-toggle>Switch to ${document.documentElement.getAttribute("data-theme")==="light"?"dark":"light"} mode</button><a class="manager-menu-link" href="/tutorial.html">Install & notification guide</a><button class="more-admin" data-admin type="button">${icon("shield")} Admin controls${ADMIN?" · On":""}</button></section></div>`);
+ v.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>setTab(b.dataset.goto));v.querySelectorAll('[data-settings]').forEach(b=>b.onclick=()=>document.getElementById(b.dataset.settings).click());v.querySelector('[data-theme-toggle]').onclick=()=>{toggleTheme();setTab('more');};v.querySelector('[data-admin]').onclick=adminLogin;return v;
 };
 
 VIEWS.dash=function(){
@@ -4004,10 +4004,9 @@ const ADMIN_HASH="4cc275ec5dd70703105f67231bb1ad73d2ea0f0e02930316a7298035ccabbe
 let ADMIN=false;
 async function sha256hex(s){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("");}
 function adminSet(on){ADMIN=on;try{if(on)localStorage.setItem("mfl-admin",ADMIN_HASH);else localStorage.removeItem("mfl-admin");}catch(e){}refreshAdminUI();}
-function refreshAdminUI(){const b=document.getElementById("adminBtn");if(b)b.style.display=ADMIN?"":"none";document.body.classList.toggle("is-admin",ADMIN);try{setTab(cur);}catch(e){}}
+function refreshAdminUI(){document.body.classList.toggle("is-admin",ADMIN);try{setTab(cur);}catch(e){}}
 function initAdmin(){
   try{if(localStorage.getItem("mfl-admin")===ADMIN_HASH)ADMIN=true;}catch(e){}
-  const b=document.getElementById("adminBtn");if(b){b.innerHTML=icon("shield");b.onclick=adminLogin;b.style.display=ADMIN?"":"none";}
   document.body.classList.toggle("is-admin",ADMIN);
   renderNav();
   const chk=()=>{if(location.hash==="#admin"){adminLogin();try{history.replaceState(null,"",location.pathname+location.search);}catch(e){}}};
@@ -4025,7 +4024,7 @@ function adminLogin(){
   document.body.appendChild(wrap);document.body.classList.add("mdl-open");document.addEventListener("keydown",mdlKey);
   const inBtn=wrap.querySelector("#aIn");
   if(inBtn){const pw=wrap.querySelector("#aPw"),msg=wrap.querySelector("#aMsg");
-    const go=async()=>{const h=await sha256hex(pw.value||"");if(h===ADMIN_HASH){adminSet(true);closeMatchup();showToast("Admin mode on");}else{msg.textContent="Wrong password.";pw.select();}};
+    const go=async()=>{const h=await sha256hex(pw.value||"");if(h===ADMIN_HASH){closeMatchup();adminSet(true);showToast("Admin mode on");}else{msg.textContent="Wrong password.";pw.select();}};
     inBtn.onclick=go;pw.onkeydown=e=>{if(e.key==="Enter")go();};setTimeout(()=>pw.focus(),50);}
   const mng=wrap.querySelector("#aMng");if(mng)mng.onclick=()=>{closeMatchup();adminAnnounce();};
   const home=wrap.querySelector("#aHome");if(home)home.onclick=()=>{closeMatchup();adminHome();};
@@ -4034,7 +4033,7 @@ function adminLogin(){
   const pmng=wrap.querySelector("#aParlayMng");if(pmng)pmng.onclick=()=>{closeMatchup();adminParlayManage();};
   const grade=wrap.querySelector("#aGrade");if(grade)grade.onclick=()=>{closeMatchup();adminGradeParlay();};
   const atb=wrap.querySelector("#aTB");if(atb)atb.onclick=()=>{closeMatchup();adminTradeBlock();};
-  const out=wrap.querySelector("#aOut");if(out)out.onclick=()=>{adminSet(false);closeMatchup();showToast("Admin mode off");};
+  const out=wrap.querySelector("#aOut");if(out)out.onclick=()=>{closeMatchup();adminSet(false);showToast("Admin mode off");};
 }
 function notificationTeamStatus(rows){
   const enabled=rows.filter(r=>r.subscribed===1&&r.permission==="granted").length;
@@ -4139,14 +4138,13 @@ function adminPush(){
   if(!ADMIN)return adminLogin();
   closeMatchup();
   const wrap=document.createElement("div");wrap.className="mdl";wrap.id="mdl";wrap.setAttribute("role","dialog");wrap.setAttribute("aria-modal","true");
-  const teamOpts=D.teams.map(t=>`<option value="${t.id}">${esc(t.name)} (${esc(t.owner||"")})</option>`).join("");
+  const teamOpts=D.teams.map(t=>`<label class="notification-recipient"><input type="checkbox" name="pnTeam" value="${t.id}"><span>${esc(t.name)}<small>${esc(t.owner||"")}</small></span></label>`).join("");
   wrap.innerHTML=`<div class="mdl-box"><div class="mdl-top"><div><div class="eyebrow" style="font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--t-blue)">Admin</div><div style="font-size:12.5px;color:var(--ink-3)">Send push notification</div></div><button class="x" aria-label="Close" type="button">&#x2715;</button></div>
     <div style="padding:2px">
-      <label class="fieldlbl" style="display:block;margin-bottom:6px">Send to</label>
-      <select class="txt" id="pnTo" style="width:100%;margin-bottom:12px;padding:9px 11px"><option value="">Everyone</option>${teamOpts}</select>
-      <label class="fieldlbl" style="display:block;margin-bottom:6px">Title</label>
+      <fieldset class="notification-audience"><legend class="fieldlbl">Send to</legend><label class="notification-recipient"><input type="checkbox" id="pnEveryone"><span>Entire league</span></label><div class="notification-recipients">${teamOpts}</div><p class="metricnote" id="pnAudience" aria-live="polite">Choose one or more teams.</p></fieldset>
+      <label class="fieldlbl" for="pnTitle" style="display:block;margin-bottom:6px">Title</label>
       <input class="txt" id="pnTitle" maxlength="100" placeholder="e.g. Parlay reminder" style="width:100%;margin-bottom:12px">
-      <label class="fieldlbl" style="display:block;margin-bottom:6px">Message</label>
+      <label class="fieldlbl" for="pnBody" style="display:block;margin-bottom:6px">Message</label>
       <textarea class="txt" id="pnBody" rows="3" maxlength="300" placeholder="e.g. Get your Week 8 parlay pick in before Thursday!" style="width:100%;margin-bottom:12px;resize:vertical"></textarea>
       <button class="btn" id="pnSend" type="button">Send notification</button>
       <div id="pnMsg" style="font-size:12.5px;color:var(--ink-3);margin-top:10px;min-height:16px"></div>
@@ -4154,22 +4152,27 @@ function adminPush(){
   wrap.addEventListener("click",e=>{if(e.target===wrap)closeMatchup();});
   wrap.querySelector(".x").onclick=closeMatchup;
   document.body.appendChild(wrap);document.body.classList.add("mdl-open");document.addEventListener("keydown",mdlKey);
-  const msg=wrap.querySelector("#pnMsg");
-  wrap.querySelector("#pnSend").onclick=async()=>{
+  const msg=wrap.querySelector("#pnMsg"),send=wrap.querySelector("#pnSend"),everyone=wrap.querySelector("#pnEveryone");
+  const recipients=[...wrap.querySelectorAll('[name="pnTeam"]')];
+  const syncAudience=()=>{recipients.forEach(n=>{n.disabled=everyone.checked;});wrap.querySelector("#pnAudience").textContent=everyone.checked?"Entire league selected.":`${recipients.filter(n=>n.checked).length} teams selected.`;};
+  everyone.onchange=syncAudience;
+  recipients.forEach(n=>n.onchange=syncAudience);
+  send.onclick=async()=>{
     const title=(wrap.querySelector("#pnTitle").value||"").trim();
     const body=(wrap.querySelector("#pnBody").value||"").trim();
     if(!title){msg.textContent="Add a title.";return;}
     if(!body){msg.textContent="Add a message.";return;}
-    msg.textContent="Sending...";
-    const to=wrap.querySelector("#pnTo").value;
+    const teamIds=everyone.checked?null:recipients.filter(n=>n.checked).map(n=>+n.value);
+    if(teamIds&&!teamIds.length){msg.textContent="Choose at least one team, or select Entire league.";return;}
+    if(send.disabled)return;
+    send.disabled=true;msg.textContent="Queuing...";
     try{
-      const payload={title,body};
-      if(to)payload.teamIds=[+to];
-      const {data,error}=await sb.from("push_queue").insert({title,body,team_ids:to?[+to]:null});
+      const {error}=await sb.from("push_queue").insert({title,body,team_ids:teamIds});
       if(error)throw error;
-      msg.innerHTML="<b style='color:var(--win)'>Sent!</b> Notification is on the way.";
+      msg.innerHTML="<b style='color:var(--win)'>Queued!</b> Your notification is on the way.";INBOX?.refresh(true);
       wrap.querySelector("#pnTitle").value="";wrap.querySelector("#pnBody").value="";
     }catch(e){msg.innerHTML="<b style='color:var(--loss)'>Failed:</b> "+esc(e.message||String(e));}
+    finally{send.disabled=false;}
   };
 }
 function adminGradeParlay(){adminParlayManage();}
@@ -4281,6 +4284,7 @@ function adminTradeBlock(){
   render();
 }
 /* ---------- PWA polish: theme-color + pull-to-refresh ---------- */
+function toggleTheme(){const root=document.documentElement,nxt=root.getAttribute("data-theme")==="light"?"dark":"light";root.setAttribute("data-theme",nxt);try{localStorage.setItem("mfl-theme",nxt);}catch(e){}setThemeColor();}
 function setThemeColor(){try{const c=getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();const m=document.querySelector('meta[name="theme-color"]');if(m&&c)m.setAttribute("content",c);}catch(e){}}
 function initSwipeNavigation(){
   let gesture=null,suppressUntil=0;
@@ -4371,19 +4375,15 @@ function boot(){
     `<span class="chip gold">${m.size} teams</span><span class="chip">${m.ppr} PPR</span><span class="chip">${m.regularSeasonWeeks}-wk season</span><span class="chip">${m.playoffTeamCount} playoff</span>`;
   setFresh();
   // theme — dark by default, remembered per device
-  const tb=document.getElementById("themeBtn");
   const root=document.documentElement;
   let saved=null;try{saved=localStorage.getItem("mfl-theme");}catch(e){}
   root.setAttribute("data-theme", saved==="light"?"light":"dark");
+  setThemeColor();
   if(isHalloween()){root.setAttribute("data-season","halloween");if(!document.querySelector(".cobweb"))["l","r"].forEach(side=>{const c=document.createElement("div");c.className="cobweb "+side;c.innerHTML=COBWEB_SVG;document.body.appendChild(c);});}
-  function syncThemeBtn(){const isLight=root.getAttribute("data-theme")==="light";tb.innerHTML=icon(isLight?"moon":"sun");tb.title=isLight?"Switch to dark mode":"Switch to light mode";setThemeColor();}
-  syncThemeBtn();
-  tb.onclick=()=>{const nxt=root.getAttribute("data-theme")==="light"?"dark":"light";root.setAttribute("data-theme",nxt);try{localStorage.setItem("mfl-theme",nxt);}catch(e){}syncThemeBtn();};
   // mobile drawer
   const hamb=document.getElementById("hamb"), ov=document.getElementById("sbOverlay");
   if(hamb){hamb.innerHTML=icon("menu");hamb.onclick=()=>document.body.classList.toggle("navopen");}
   const topN=document.getElementById("topNotify");if(topN){topN.innerHTML=icon("bell");topN.onclick=notifyModal;}
-  const topT=document.getElementById("topTheme");if(topT){topT.innerHTML=icon(root.getAttribute("data-theme")==="light"?"moon":"sun");topT.onclick=()=>{tb.click();topT.innerHTML=icon(root.getAttribute("data-theme")==="light"?"moon":"sun");};}
   if(ov) ov.onclick=()=>document.body.classList.remove("navopen");
   document.addEventListener("click",async e=>{const pc=e.target.closest&&e.target.closest(".pclick[data-pid]");if(pc){e.preventDefault();e.stopPropagation();openPlayer(+pc.getAttribute("data-pid"));return;}
     if(!ADMIN)return;
