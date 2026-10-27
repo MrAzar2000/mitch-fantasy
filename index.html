@@ -876,6 +876,7 @@ body .page>main{padding:0;min-height:60vh;min-width:0}
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
 .tb.lg{width:44px;height:44px;font-size:13px}
 .tb.xl{width:76px;height:76px;font-size:22px}
+.tb .team-icon{width:100%;height:100%;min-width:0;min-height:0;object-fit:cover;border-radius:inherit;display:block}
 .teamline .nm{font-weight:700}
 .teamline .ow{color:var(--ink-3)}
 
@@ -1347,8 +1348,12 @@ body.phone .lx-p{padding:11px 8px}.full-context{font-size:13px}.full-context .ga
 <script type="module">
 import { optimalLineup, estimatedCeiling, eliminationNumber, ESPN_SLOTS } from "./lineup-tools.mjs";
 import { enhanceManagerLayout, enhanceStatTables, teamLayout, rememberView, restoreView, forgetView, installDialogAccess } from "./manager-layout.mjs";
+import { installTeamInbox } from "./team-inbox.mjs";
+import { extraPersonalMetrics } from "./personal-metrics.mjs";
+import { playerPortrait, shortPlayerName, playerStatLine } from "./player-presentation.mjs";
 import { installManagerExperience } from "./manager-experience.mjs";
 let EXPERIENCE=null;
+let INBOX=null;
 let navigationFromHistory=false;
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 const sb=createClient("https://tcaqsuqoiinnmvmmojth.supabase.co","sb_publishable_dY9khbDJVWUnh6XfnBEf1w_Thn3r9t_",{global:{fetch:(...args)=>window.fetch(...args)}});
@@ -1442,7 +1447,10 @@ const ICON_P={
   compass:'<circle cx="12" cy="12" r="9"/><path d="M16.2 7.8 14.1 14.1 7.8 16.2 9.9 9.9z"/>'
 };
 function icon(n){return '<svg class="glyph" viewBox="0 0 24 24" aria-hidden="true">'+(ICON_P[n]||'')+'</svg>';}
-function badge(t,cls=""){return `<span class="tb ${cls}" data-tid="${t.id}" title="${esc(t.name)}" style="--tc:${t._color}">${esc(initials(t))}</span>`;}
+function badge(t,cls=""){
+  const customIcon=String(t.name||"").toLowerCase().replace(/[^a-z0-9]/g,"")==="halfchubb";
+  return `<span class="tb ${cls}" data-tid="${t.id}" title="${esc(t.name)}" style="--tc:${t._color}">${customIcon?'<img class="team-icon" src="/assets/teams/half-chubb.jpg" alt="" width="512" height="512">':esc(initials(t))}</span>`;
+}
 function teamLine(t,cls=""){return `<div class="teamline">${badge(t,cls)}<div style="min-width:0"><div class="nm" data-tid="${t.id}">${esc(t.name)}</div><div class="ow">${esc(t.owner||"")}</div></div></div>`;}
 function fmt(n,d=1){return (n==null||isNaN(n))?"—":Number(n).toFixed(d);}
 
@@ -1535,12 +1543,12 @@ function powerRanks(){
 
 /* ---------- routing ---------- */
 const NAV=[
-  ["League","league","home",[["dash","Home"],["standings","Standings"],["power","Power Rankings"],["odds","Playoff Odds"],["history","History"],["parlay","Parlay"],["rules","Rules"],["useless","Extras"],["feedback","Problems & Suggestions"],["feedbackinbox","P&S Inbox"],["siteactivity","Site Log"]]],
+  ["League","league","home",[["dash","Home"],["standings","Standings"],["power","Power Rankings"],["odds","Playoff Odds"],["history","History"],["parlay","Parlay"],["rules","Rules"],["feedback","Problems & Suggestions"],["feedbackinbox","P&S Inbox"],["siteactivity","Site Log"]]],
   ["Matchup","matchup","swords",[["matchup","My Matchup"],["scoreboard","Scoreboard"],["h2h","Head-to-Head"]]],
-  ["Team","team","users",[["myteam","My Team"],["players","Players"],["teams","All Teams"],["block","Trade Block"],["faab","Waivers"],["draft","Draft"]]],
-  ["Stats","stats","line",[["analytics","Analytics"],["outlook","Outlook"],["records","Record Book"],["defense","Manager D"],["shame","Hall of Shame"]]],
+  ["Team","team","users",[["myteam","My Team"],["inbox","Inbox"],["teams","All Teams"],["block","Trade Block"],["draft","Draft"]]],
+  ["Stats","stats","line",[["analytics","Analytics"],["outlook","Outlook"],["records","Record Book"],["defense","Manager Defense"],["shame","Hall of Shame"]]],
 ];
-const LABELS={more:"More"}; NAV.forEach(g=>g[3].forEach(it=>LABELS[it[0]]=it[1]));
+const LABELS={more:"More",players:"Players",faab:"Waivers"}; NAV.forEach(g=>g[3].forEach(it=>LABELS[it[0]]=it[1]));
 function groupOf(id){return NAV.find(g=>g[3].some(it=>it[0]===id))||NAV[0];}
 const LASTIN={}; // last page visited in each section, so tapping a section returns there
 let cur="dash";
@@ -1555,7 +1563,7 @@ const TITLE_HELP={"All-Play Record":"Your record if you played all 11 other team
   "Schedule Swap":"Your record if you'd played each other team's schedule.","Best Pickups":"Waiver and free-agent adds ranked by points scored as a starter.","Single-Game Records":"Best and worst single-week performances this season.",
   "Top 5":"Top five weekly scores this season.","Streaks":"Longest winning and losing runs this season.","Week by Week":"Every team's score each week; green = won, red = lost.","Defensive Ratings":"Points allowed plus how far below their average your opponents scored.",
   "Title Droughts":"Seasons since each manager's last championship.","All-Time Leaderboard":"Career record and points since 2016.","All-Time Rivalries":"Head-to-head records between two managers across every season.",
-  "Weekly scores":"Your score each week against the league average (dashed line).","Roster":"Current ESPN roster. Highlighted rows have an NFL game today.","Draft Picks":"Everyone this team drafted, in pick order.",
+  "Weekly scores":"Your score each week against the league average (dashed line).","Roster":"Current ESPN roster, game context, points and projections.","Draft Picks":"Everyone this team drafted, in pick order.",
   "Budget Used":"FAAB spent out of the season budget.","Pickups by Team":"Players each team added from waivers or free agency.","Positions drafted by round":"How many of each position went in each draft round.","More Metrics":"Extra season stats per team.",
   "Playoff Picture":"Seeds if the season ended today, and the bracket that would follow.","Trade":"Season points for the players on each side of the trade."};
 function addTitleHelp(root){root.querySelectorAll(".sub-h").forEach(h=>{if(h.title)return;const t=(h.firstChild&&h.firstChild.nodeType===3?h.firstChild.textContent:h.textContent).trim();const k=Object.keys(TITLE_HELP).find(x=>t.startsWith(x));if(!k)return;h.title=TITLE_HELP[k];});}
@@ -1593,7 +1601,7 @@ function setTab(id,fresh=false){
   try{ const existing=(location.hash||'').slice(1).split('?')[0];if(existing!==id){const url=id==='dash'?location.pathname:'#'+id;history[navigationFromHistory||sameView?'replaceState':'pushState'](null,'',url);} }catch(e){}
   if(id==='players')EXPERIENCE?.updateUrl();
   if(id==='matchup'&&mxWeek!=null)history.replaceState(null,'','#matchup?week='+mxWeek);
-  if(!sameView){el.tabIndex=-1;el.focus({preventScroll:true});}
+  if(!sameView){el.tabIndex=-1;if(document.body.classList.contains("keyboard-nav"))el.focus({preventScroll:true});}
 }
 // Home button and MFL mark: always the top of Home, with its sections in their default state
 function goHome(){setTab("dash",true);window.scrollTo({top:0,behavior:"instant"});}
@@ -1612,11 +1620,11 @@ function renderNav(){
 
 /* ---------- "my team": each manager picks their team once per device ---------- */
 function meTeam(){return MEID>=0?teamById[MEID]||null:null;}
-function setMe(id){MEID=id;try{if(id>=0)localStorage.setItem("mfl-me",String(id));else localStorage.removeItem("mfl-me");}catch(e){}trackNotification("team");closeMatchup();setTab(cur);}
+function setMe(id){MEID=id;try{if(id>=0)localStorage.setItem("mfl-me",String(id));else localStorage.removeItem("mfl-me");}catch(e){}trackNotification("team");closeMatchup();INBOX?.refresh(true);setTab(cur);}
 function renderMeBtn(){const b=document.getElementById("meBtn");if(!b)return;const t=meTeam();
   b.classList.toggle("empty",!t);
-  b.innerHTML=t?`${badge(t)}<span class="nm">${esc(t.name)}</span>`:`${icon("users")}<span class="nm">Pick your team</span>`;
-  b.onclick=pickTeamModal;}
+  b.innerHTML=t?`${badge(t)}<span class="nm">${esc(t.name)}</span><span data-inbox-count class="inbox-badge" hidden></span>`:`${icon("users")}<span class="nm">Pick your team</span>`;
+  b.onclick=t?()=>setTab("inbox"):pickTeamModal;INBOX?.paintBadges();}
 function teamPickerGrid(){return `<div class="pickgrid">${D.teams.map(t=>`<button class="pickt ${t.id===MEID?"on":""}" data-pick="${t.id}">${badge(t,"lg")}<span><b>${esc(t.name)}</b><small>${esc(t.owner||"")}</small></span></button>`).join("")}</div>`;}
 function wirePicker(root){root.querySelectorAll("[data-pick]").forEach(b=>b.onclick=e=>{e.stopPropagation();setMe(+b.dataset.pick);});}
 function pickTeamModal(){closeMatchup();
@@ -1697,7 +1705,7 @@ function birthdayBanner(){const n=new Date();if(!(n.getMonth()===9&&n.getDate()=
 /* ================= VIEWS ================= */
 const VIEWS={};
 VIEWS.more=function(){
- const groups=[['League',['standings','scoreboard','power','odds','teams']],['Roster & trades',['players','faab','block','outlook']],['Analysis & history',['analytics','h2h','history','records','draft']],['League fun',['parlay','shame','defense','useless']],['Help',['rules','feedback']],...(ADMIN?[['Admin',['feedbackinbox','siteactivity']]]:[])];
+ const groups=[['League',['standings','scoreboard','power','odds','teams']],['Roster & trades',['inbox','block','outlook']],['Work in Progress',['players','faab']],['Analysis & history',['analytics','h2h','history','records','draft']],['League fun',['parlay','shame','defense']],['Help',['rules','feedback']],...(ADMIN?[['Admin',['feedbackinbox','siteactivity']]]:[])];
  const v=el(shead('Your league, organized','More')+`<div class="manager-menu">${groups.map(([title,ids])=>`<section class="card card-p"><h3>${title}</h3>${ids.map(id=>`<button class="manager-menu-link" data-goto="${id}">${esc(LABELS[id])}<span aria-hidden="true">›</span></button>`).join('')}</section>`).join('')}<section class="card card-p"><h3>Settings & setup</h3><button class="manager-menu-link" data-settings="notifyBtn">Notification preferences</button><button class="manager-menu-link" data-settings="themeBtn">Switch light / dark theme</button><a class="manager-menu-link" href="/tutorial.html">Install & notification guide</a></section></div>`);
  v.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>setTab(b.dataset.goto));v.querySelectorAll('[data-settings]').forEach(b=>b.onclick=()=>document.getElementById(b.dataset.settings).click());return v;
 };
@@ -1715,7 +1723,6 @@ VIEWS.dash=function(){
   const ranks=Object.fromEntries(standOrder().map((t,i)=>[t.id,i+1]));
   const games=wk1.slice().sort((a,b)=>Number(b.homeTeamId===MEID||b.awayTeamId===MEID)-Number(a.homeTeamId===MEID||a.awayTeamId===MEID));
   html+=`<section class="home-matchups"><div class="mx-heading"><h3>Week ${focusWk} matchups</h3></div>${games.length?`<div class="grid g-sb">${games.map(x=>scoreCard(x,ranks)).join("")}</div>`:'<p class="metricnote">Matchups appear when the schedule is available.</p>'}</section>`;
-  html+=`<section class="card card-p home-league-overview"><div class="mx-heading"><h3>${ST.started?'Power rankings':'Projected finish'}</h3><button class="btn ghost" data-goto="power">View rankings</button></div><p class="metricnote">${ST.started?'League power score · finalized weeks':'ESPN draft-day projection'}</p>${pr.map(r=>`<div class="home-ranking"><span class="rankcol">${r.rank}</span>${teamLine(r.team)}<span class="num">${r.score!=null?fmt(r.score,1):'—'}</span></div>`).join('')}<button class="btn ghost home-standings-link" data-goto="standings">Official standings</button></section>`;
   html+=gamesToWatch(focusWk,pr)+dayRecap()+recapCard()+awardsCard();
   html+=`<details class="fold home-fold"><summary>League notices</summary><div class="fold-b">${subNotice()}</div></details>`;
   const v=el(html);
@@ -1837,10 +1844,25 @@ function matchupHero(x,meFirst){
   return `<div class="hero hx" data-mid="${x.id}"><div class="hx-top"><span>Week ${x.week}</span>${status}</div>
     <div class="hx-grid">${heroSide(a,st.show?as:null,pa,aw,false)}<div class="hx-vs">VS</div>${heroSide(h,st.show?hs:null,ph,hw,true)}</div>
     ${wa!=null?`<div class="hx-wp"><span style="width:${Math.round(wa*100)}%"></span></div><div class="hx-wpl"><b>${Math.round(wa*100)}%</b><span>win probability</span><b>${100-Math.round(wa*100)}%</b></div>`:""}</div>`;}
-function luSide(r,won,right,W,blank){if(!r)return `<div class="lx-p ${right?"r":""} emp"><div class="lx-nm">${blank?"":"Empty"}</div></div>`;
-  const inj=pFlags(r.pid,r.pro,W),bt=byeTxt(r.pro,W);
-  const pending=playerScorePending(r,W);
-  return `<div class="lx-p ${right?"r":""}"><div class="lx-txt"><div class="lx-nm"><span class="pclick" data-pid="${r.pid}">${esc(r.name)}</span>${inj}</div><div class="lx-sub"><span class="tag-${String(r.pos).toLowerCase()}">${esc(r.pos)}</span> · ${esc(r.pro||"FA")}${bt&&bt!=="on bye"?" · "+bt:""}</div><span class="lx-proj">Proj ${r.proj!=null?fmt(r.proj,1):"—"}</span>${playerGameContext(r,W)}</div><div class="lx-pts ${pending?"pending":won?"won":""}"${pending?' title="Not played yet" aria-label="No points recorded yet"':""}>${playerScoreText(r,W)}</div></div>`;}
+function playerGameLine(r,W){
+  if(byeWk(r.pro)===W)return '<span class="compact-game on-bye">BYE</span>';
+  if(W!==D.meta.currentScoringPeriod)return '';
+  const g=D.meta.nflGames?.[r.pro],k=D.meta.proGames?.[r.pro],wx=wxFor(r.pro,W);
+  const when=k?new Date(k).toLocaleString(undefined,{weekday:'short',hour:'numeric',minute:'2-digit'}):'';
+  const status=gameStatus(r.pro,W),time=when;
+  return `<span class="compact-game ${status==='live'?'is-live':''}"><span>${esc(time)}</span>${g?.opp?`<span>${g.home?'vs':'@'}</span><span data-nfl-context data-compact="true" data-pro="${esc(r.pro)}" data-pos="${esc(r.pos)}" data-week="${W}">${opponentContext(r.pro,r.pos,W,true)}</span>`:''}${wx?`<span class="compact-weather" title="${esc(wx.txt+' · '+(wx.title||''))}">${g?.indoor?'Indoor':'<svg viewBox="0 0 24 18" width="14" height="12" aria-hidden="true"><path d="M6 15a4 4 0 0 1-1-8 6 6 0 0 1 11-2 5 5 0 1 1 2 10Z" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>'}</span>`:''}</span>`;
+}
+function rosterOwnership(pid){
+  const p=NFL_INSIGHTS?.players?.[pid]||EXPERIENCE?.researchPlayer(pid);
+  const pct=v=>Number.isFinite(v)?fmt(v,0)+'%':'—';
+  return `<b>${pct(p?.owned)}</b> Rostered <span class="ownership-separator">|</span> <b>${pct(p?.started)}</b> Start`;
+}
+function luSide(r,won,right,W,blank){
+  if(!r)return `<div class="lx-p ${right?'r':''} emp"><div class="lx-nm">${blank?'':'Empty'}</div></div>`;
+  const pending=playerScorePending(r,W),feed=EXPERIENCE?.researchPlayer(r.pid),stats=W===D.meta.currentScoringPeriod?feed?.currentStats:feed?.log?.find(row=>row.week===W)?.stats;
+  const statline=playerStatLine(r.pos,stats),bye=byeWk(r.pro);
+  return `<div class="lx-p ${right?'r':''}"><div class="lx-txt"><div class="lx-nm"><button type="button" class="pclick" data-pid="${r.pid}" aria-label="Analyze ${esc(r.name)}" title="${esc(r.name)}">${esc(shortPlayerName(r.name))}</button></div><div class="lx-sub"><span class="tag-${String(r.pos).toLowerCase()}">${esc(r.pos)}</span> · ${esc(r.pro||'FA')}${bye?' ('+bye+')':''}${pFlags(r.pid,r.pro,W)}</div></div><div class="lx-pts ${pending?'pending':won?'won':''}"><span aria-label="${pending?'No points recorded yet':'Fantasy points'}">${playerScoreText(r,W)}</span><span class="lx-proj" aria-label="Projected points">${r.proj!=null?fmt(r.proj,1):'—'}</span></div><div class="lx-game">${playerGameLine(r,W)}</div>${statline?`<div class="lx-statline">${esc(statline)}</div>`:''}</div>`;
+}
 VIEWS.matchup=function(){
   if(!meTeam()){const v=el(pickPrompt("your matchup"));wirePicker(v);return v;}
   const games=D.schedule.filter(x=>x.homeTeamId===MEID||x.awayTeamId===MEID).sort((a,b)=>a.week-b.week);
@@ -1855,7 +1877,7 @@ VIEWS.matchup=function(){
     html+=matchupConditions([...(M||[]),...(O||[])],x.week);
     html+=`<div class="sub-h">Starters</div><div class="lx">`;
     STARTER_ORDER.forEach((sl,i)=>{const p=lm[i],q=lo[i],pp=p?p.pts||0:-1,qq=q?q.pts||0:-1;
-      html+=`<div class="lx-row">${luSide(p,pp>qq&&pp>0,false,x.week)}<div class="lx-slot">${SLOTNAME[sl]}</div>${luSide(q,qq>pp&&qq>0,true,x.week)}</div>`;});
+      html+=`<div class="lx-row">${luSide(p,pp>qq&&pp>0,false,x.week)}<div class="lx-slot slot-${String(SLOTNAME[sl]).toLowerCase().replace(/[^a-z]/g,'')}">${SLOTNAME[sl]}</div>${luSide(q,qq>pp&&qq>0,true,x.week)}</div>`;});
     html+=`</div>`;
     const bn=(rows,sl)=>(rows||[]).filter(r=>r.slot===sl).sort((u,w)=>(w.proj??w.pts??0)-(u.proj??u.pts??0)),bm=bn(M,20),bo=bn(O,20),im=bn(M,21),io=bn(O,21);
     html+=`<div class="sub-h">Bench</div><div class="lx lx-bench"><div class="lx-row lx-hd"><div class="lx-p">${esc(me.name)}</div><div></div><div class="lx-p r">${esc(op.name)}</div></div>`;
@@ -1881,11 +1903,16 @@ VIEWS.myteam=function(){
   const s=ST.S[t.id],order=standOrder(),rk=order.findIndex(o=>o.id===t.id)+1,pr=powerRanks(),prk=(pr.find(r=>r.team.id===t.id)||{}).rank;
   let html=`<div class="hero hm"><div class="hm-l">${badge(t,"xl")}<div style="min-width:0"><div class="eyebrow">My team</div><h2>${esc(t.name)}</h2><div class="hx-ow">${esc(t.owner||"")}</div></div></div>
     <div class="hm-stats"><div><b class="${ST.started?toneCls(s.w-s.l):""}">${recStr(s)}</b><span>Record</span></div><div><b class="${ST.started?toneCls(cutTone(rk)):""}">${ordinal(rk)}</b><span>Standings</span></div><div><b class="${ST.started&&prk?toneCls(cutTone(prk)):""}">${prk?"#"+prk:"—"}</b><span>Power</span></div><div><b class="${ST.started?toneCls(s.ppg-leaguePPG()):""}">${ST.started?fmt(s.ppg,1):"—"}</b><span>PPG</span></div></div>
-    <button class="btn ghost hm-sw" id="meSwitch">Switch team</button></div>`;
+    <div class="my-team-actions"><button class="btn ghost" id="myTeamInbox">Inbox <span data-inbox-count class="inbox-badge" hidden></span></button><button class="btn ghost hm-sw" id="meSwitch">Switch team</button></div></div>`;
   html+=`<div class="grid g-kpi" style="margin-top:16px">${kpi("Points for",ST.started?fmt(s.pf,1):"—",ST.started?`${fmt(s.pa,1)} against`:"",ST.started?s.pf-s.pa:0)}${kpi("All-play",ST.started?`${s.aw}-${s.al}`:"—","vs every team, every week",ST.started?s.aw-s.al:0)}${kpi("Luck",ST.started?(s.luck>0?"+":"")+fmt(s.luck,1):"—","wins above expected",ST.started?+fmt(s.luck,1):0)}${kpi("Streak",ST.started?streakBare(s.streak):"—","current run",ST.started?streakNum(s):0)}</div>`;
+  const personal=[['Record',recStr(s)],['Current streak',s.streak],['Standings',rk],['Power rank',prk||'—'],...Object.entries(s).filter(([key,v])=>typeof v==='number'&&Number.isFinite(v)&&!['id'].includes(key)&&!key.startsWith('_')).map(([key,v])=>[({w:'Wins',l:'Losses',tie:'Ties',gp:'Games played',pct:'Win percentage',pf:'Points for',pa:'Points against',ppg:'Points per game',papg:'Points allowed per game',aw:'All-play wins',al:'All-play losses',apPct:'All-play win percentage',luck:'Wins above expected',sd:'Scoring standard deviation',high:'Highest score',low:'Lowest score',hi:'Highest score',lo:'Lowest score',avg:'Average score',std:'Scoring standard deviation',cv:'Scoring variability (%)',at:'All-play ties',expW:'Expected wins',aboveMed:'Weeks above league median',close_w:'Close wins',close_l:'Close losses',blowW:'Blowout wins',blowL:'Blowout losses',avgMargin:'Average margin',sos:'Schedule strength (opponent PPG)'})[key]||key, /pct/i.test(key)?fmt(v*100,1)+'%':fmt(v,2)])];
+  personal.push(...extraPersonalMetrics({data:D,stats:ST,teamId:t.id,lineupSplit}));
+  html+=`<details class="personal-metrics"><summary>All my stats & metrics</summary><dl>${personal.map(([label,value])=>`<div><dt>${esc(label)}</dt><dd>${esc(String(value))}</dd></div>`).join('')}</dl></details>`;
   html+=`<div id="teamDetail" class="myteam"></div>`;
   const v=el(html);
   v.querySelector("#meSwitch").onclick=pickTeamModal;
+  v.querySelector("#myTeamInbox").onclick=()=>setTab("inbox");
+  queueMicrotask(()=>INBOX?.paintBadges());
   showTeam(t.id,v,true);
   return v;
 };
@@ -1946,16 +1973,6 @@ function streakPill(str){if(!str||str==="—")return"—";const t=str[0];return 
 VIEWS.power=function(){
   const pr=powerRanks();
   let html=shead("Composite Rating","Power Rankings",ST.started?"":"Preseason projection");
-  if(!ST.started){
-    html+=`<div class="helpbox" style="margin-bottom:16px"><span class="hi">${icon("zap")}</span><div>Before games are played, this shows ESPN's <b>draft-day projected finish</b>. Once the season starts, it switches to a live composite rating — explained below.</div></div>`;
-  } else {
-    html+=`<details class="explain"><summary>How power rankings work</summary><div class="fold-b"><b>How the rating works:</b> a 0&ndash;100 composite that blends four factors, so no team can ride a soft schedule or one big week to the top:<br>
-      &bull; <b>40% &mdash; Win record:</b> actual winning percentage (W&#8209;L).<br>
-      &bull; <b>30% &mdash; Scoring:</b> points per game, scaled against the league's top scorer.<br>
-      &bull; <b>18% &mdash; All&#8209;play strength:</b> your record if you played every other team every week &mdash; rewards teams the schedule has treated unfairly.<br>
-      &bull; <b>12% &mdash; Recent form:</b> average points over the last 3 weeks (who's hot right now).</div></details>`;
-    html+=powerExplainer(pr);
-  }
   const maxScore=Math.max(...pr.map(r=>r.score||0),1);
   html+=`<div class="grid" style="gap:9px">`;
   pr.forEach(r=>{
@@ -1974,6 +1991,16 @@ VIEWS.power=function(){
     </div>`;
   });
   html+=`</div>`;
+  if(!ST.started){
+    html+=`<div class="helpbox" style="margin-bottom:16px"><span class="hi">${icon("zap")}</span><div>Before games are played, this shows ESPN's <b>draft-day projected finish</b>. Once the season starts, it switches to a live composite rating — explained below.</div></div>`;
+  } else {
+    html+=`<details class="explain"><summary>How power rankings work</summary><div class="fold-b"><b>How the rating works:</b> a 0&ndash;100 composite that blends four factors, so no team can ride a soft schedule or one big week to the top:<br>
+      &bull; <b>40% &mdash; Win record:</b> actual winning percentage (W&#8209;L).<br>
+      &bull; <b>30% &mdash; Scoring:</b> points per game, scaled against the league's top scorer.<br>
+      &bull; <b>18% &mdash; All&#8209;play strength:</b> your record if you played every other team every week &mdash; rewards teams the schedule has treated unfairly.<br>
+      &bull; <b>12% &mdash; Recent form:</b> average points over the last 3 weeks (who's hot right now).</div></details>`;
+    html+=powerExplainer(pr);
+  }
   return el(html);
 };
 
@@ -2058,18 +2085,20 @@ async function loadNflInsights(){
   const ids=[...new Set(Object.values(D.rosters||{}).flat().map(p=>p.playerId))].slice(0,200);
   try{const r=await fetch(insightUrl(ids));if(!r.ok)throw new Error();NFL_INSIGHTS=await r.json();}
   catch{NFL_INSIGHTS={error:true};}
-  document.querySelectorAll('[data-nfl-context]').forEach(n=>{n.innerHTML=opponentContext(n.dataset.pro,n.dataset.pos,+n.dataset.week);});
+  document.querySelectorAll('[data-player-ownership]').forEach(n=>{n.innerHTML=rosterOwnership(+n.dataset.playerOwnership);});
+  document.querySelectorAll('[data-nfl-context]').forEach(n=>{n.innerHTML=opponentContext(n.dataset.pro,n.dataset.pos,+n.dataset.week,n.dataset.compact==='true');});
 }
-function opponentContext(pro,pos,W){
+function opponentContext(pro,pos,W,compact=false){
   if(W!==D.meta.currentScoringPeriod)return '';
   const g=(D.meta.nflGames||{})[pro];if(!g||!g.opp)return '';
   const normalized=pos==='D/ST'?'DST':pos;
-  if(!NFL_INSIGHTS)return '<span class="context-muted">Loading opponent data…</span>';
+  if(!NFL_INSIGHTS)return compact?esc(g.opp):'<span class="context-muted">Loading opponent data…</span>';
   const alias={WSH:'WAS',WAS:'WSH',JAC:'JAX',JAX:'JAC',LA:'LAR',LAR:'LA'};
   const opp=alias[g.opp]||g.opp;
   const d=NFL_INSIGHTS.defense?.[opp]?.[normalized]||NFL_INSIGHTS.defense?.[g.opp]?.[normalized];
-  if(!d||d.avg==null||(!NFL_INSIGHTS.exact&&['K','DST'].includes(normalized)))return '<span class="context-muted">Opponent fantasy data unavailable</span>';
+  if(!d||d.avg==null||(!NFL_INSIGHTS.exact&&['K','DST'].includes(normalized)))return compact?esc(g.opp):'<span class="context-muted">Opponent fantasy data unavailable</span>';
   const color=d.rank<=10?'var(--loss)':d.rank>=23?'var(--win)':'var(--t-amber)';
+  if(compact)return `<span style="color:${color}">${esc(g.opp)} (${d.rank})</span>`;
   return `<span class="opponent-line" style="color:${color}" title="${esc(pos)} · ${d.games} games · ${NFL_INSIGHTS.exact?'league scoring':'basic PPR scoring'}">${esc(g.opp)} #${d.rank} <span class="context-muted">· ${fmt(d.avg,1)} FPA${NFL_INSIGHTS.exact?'':'*'}</span></span>`;
 }
 function playerGameContext(r,W,full=false){
@@ -2143,10 +2172,11 @@ function openPlayer(pid){
     <section class="player-section"><div class="power-profile"><span>League Trade Value</span><b id="playerTradeValue">${tradeValueText(pid)}</b></div>${powerGuide()}<h3>This week's matchup</h3>${playerGameContext({pro,pos},D.meta.currentScoringPeriod,true)}</section>
     <section class="player-section"><h3>Production vs projection</h3>${productionChart(m.rows)}<div class="player-metrics">${metric('Best week',m.best!=null?fmt(m.best,1):'—')}${metric('Lowest week',m.worst!=null?fmt(m.worst,1):'—')}${metric('Weekly spread',m.sd!=null?fmt(m.sd,1):'—','Standard deviation')}${metric('Beat projection',m.projected?m.beats+'/'+m.projected:'—',m.delta==null?'No projections':signed(m.delta)+' pts / week vs projection')}</div></section>
     <section class="player-section"><h3>Game log</h3><div class="twrap"><table><thead><tr><th>Week</th><th>Role</th><th>Points</th><th>Proj</th><th>+/−</th></tr></thead><tbody>${m.rows.slice().reverse().map(r=>`<tr><td>W${r.week}</td><td>${r.slot===20?'Bench':r.slot===21?'IR':'Started'}</td><td class="num">${fmt(r.pts,1)}</td><td class="num">${r.proj!=null?fmt(r.proj,1):'—'}</td><td class="num" style="color:${r.proj==null?'var(--ink-3)':r.pts>=r.proj?'var(--win)':'var(--loss)'}">${r.proj==null?'—':signed(r.pts-r.proj)}</td></tr>`).join('')||'<tr><td colspan="5">No finalized weekly data yet.</td></tr>'}</tbody></table></div><p class="metricnote">League scoring. Recorded roster weeks only; missing projections remain blank.</p></section>
-    <section class="player-section"><h3>Latest news</h3><div id="playerNews" role="status">Loading ESPN updates…</div></section>
+    <section class="player-section" id="positionStats"><h3>Position stats</h3><p role="status">Loading weekly stats…</p></section><section class="player-section"><h3>Latest news</h3><div id="playerNews" role="status">Loading ESPN updates…</div></section>
     <details class="fold player-section"><summary>Draft & acquisition</summary><div class="fold-b">${(()=>{const p=(D.draft||[]).find(p=>p.playerId===pid);return p?`Round ${p.round} · overall #${p.overall} · ${esc(teamById[p.teamId]?.name||'')}`:'No draft record.';})()}${(D.faab?.teams||[]).flatMap(t=>t.pickups.filter(p=>p.playerId===pid).map(p=>`<p>Added by ${esc(teamById[t.teamId]?.name||'')} ${p.date?esc(new Date(p.date).toLocaleDateString()):''}</p>`)).join('')}</div></details></div>`;
   wrap.querySelector('.x').onclick=closeMatchup;wrap.addEventListener('click',e=>{if(e.target===wrap)closeMatchup();});
   document.body.appendChild(wrap);document.body.classList.add('mdl-open');document.addEventListener('keydown',mdlKey);
+  EXPERIENCE?.playerCharts(pid).then(html=>{if(wrap.isConnected)wrap.querySelector('#positionStats').innerHTML=html;}).catch(()=>{if(wrap.isConnected)wrap.querySelector('#positionStats').textContent='Position stats are temporarily unavailable.';});
   fetch(insightUrl([pid])).then(r=>{if(!r.ok)throw new Error();return r.json();}).then(data=>{
     if(!wrap.isConnected)return;
     if(data.players){NFL_INSIGHTS={...(NFL_INSIGHTS||{}),players:{...(NFL_INSIGHTS?.players||{}),...data.players}};wrap.querySelector('#playerTradeValue').textContent=tradeValueText(pid);}
@@ -2410,14 +2440,10 @@ function showTeam(id,v,quiet){
 }
 function tstat(v,l){return `<div><div style="font-family:var(--font-display);font-weight:900;font-size:19px">${esc(v)}</div><div style="font-size:11.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em">${l}</div></div>`;}
 function streakBare(str){return (!str||str==="—")?"—":str;}
-function rosterRow(p,mark){const W=D.meta.currentScoringPeriod,ps=playerSeason(p.playerId);return `<div class="rrow ${playsToday(p.proTeam,W)?"gd":""}">
-  <span class="posbadge roster-slot">${esc(p.slot)}</span>
-  <div class="roster-player"><button type="button" class="pclick roster-name" data-pid="${p.playerId}" aria-label="Analyze ${esc(p.name)}">${esc(p.name)} <span aria-hidden="true">›</span></button>
-    <div class="roster-meta"><span class="posbadge tag-${(p.pos||"").toLowerCase()}">${esc(p.pos)}</span><span>${esc(p.proTeam||"FA")}</span>${injTag(p.injury)}${byeTag(p.proTeam)}${todayTag(p.proTeam,W)}${mark||""}</div>
-    <div class="roster-production"><span>${ps.gp?fmt(ps.avg,1):'—'} <small>PPG</small></span><span style="color:${ps.l3>=ps.avg?'var(--win)':'var(--loss)'}">${ps.gp?fmt(ps.l3,1):'—'} <small>last 3</small></span></div>
-    ${byeTxt(p.proTeam)&&byeTxt(p.proTeam)!=="on bye"?`<div class="roster-game">${esc(byeTxt(p.proTeam))}</div>`:""}
-  </div>
-  <div class="roster-projection"><span class="num">${ps.proj!=null?fmt(ps.proj,1):"—"}</span><span class="roster-caption">PROJ</span></div></div>`;}
+function rosterRow(p,mark){
+  const W=D.meta.currentScoringPeriod,ps=playerSeason(p.playerId),live=Object.values(D.weekly?.[String(W)]||{}).flat().find(r=>r[0]===p.playerId),actual=playerScoreText({pts:live?.[2]??null,pro:p.proTeam},W),bye=byeWk(p.proTeam),isBye=bye===W;
+  return `<div class="rrow ${isBye?'roster-bye':''}"><span class="posbadge roster-slot slot-${String(p.slot).toLowerCase()}">${esc(p.slot==='BE'?'BN':p.slot==='DST'?'DEF':p.slot)}</span><div class="roster-player">${playerPortrait(p.playerId,p.name,p.pos,p.proTeam,esc)}<div class="roster-heading"><button type="button" class="pclick roster-name" data-pid="${p.playerId}" aria-label="Analyze ${esc(p.name)}">${esc(p.name)}</button><span class="roster-identity"><span class="tag-${String(p.pos).toLowerCase()}">${esc(p.pos)}</span> - ${esc(p.proTeam||'FA')}${bye?' ('+bye+')':''}</span></div><div class="roster-ownership" data-player-ownership="${p.playerId}">${rosterOwnership(p.playerId)}</div><div class="roster-game">${playerGameLine({pro:p.proTeam,pos:p.pos},W)}${injTag(p.injury)}${mark||''}</div><span class="sr-only">${ps.gp?fmt(ps.avg,1):'—'} PPG; ${ps.gp?fmt(ps.l3,1):'—'} last 3</span></div><div class="roster-projection"><span class="num roster-actual">${isBye?'BYE':actual}</span><span class="roster-proj-line" aria-label="PROJ">${ps.proj!=null?fmt(ps.proj,1):'—'}</span></div></div>`;
+}
 
 /* ---- DRAFT ---- */
 let draftMode="team";
@@ -2562,7 +2588,7 @@ VIEWS.outlook=function(){
   D.teams.forEach(t=>(D.rosters[t.id]||[]).forEach(p=>{const ps=playerSeason(p.playerId);if(ps.gp>=3&&ps.avg>=5)pool.push({pid:p.playerId,pos:p.pos,pro:p.proTeam,t,avg:ps.avg,l3:ps.l3,d:ps.l3-ps.avg});}));
   const prow=o=>`<div style="display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid var(--line)"><span class="posbadge tag-${(o.pos||"").toLowerCase()}">${esc(o.pos)}</span><div style="min-width:0;flex:1"><div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(pname(o.pid))}${pFlags(o.pid,o.pro)} <span style="color:var(--ink-3);font-weight:400">${esc(o.pro)}</span></div><div style="font-size:12px;color:var(--ink-3)">${esc(o.t.name)}</div></div><div style="text-align:right"><div class="num" style="font-weight:700;color:${o.d>=0?"var(--win)":"var(--loss)"}">${o.d>=0?"+":""}${fmt(o.d,1)}</div><div style="font-size:11px;color:var(--ink-3)">${fmt(o.avg,1)}→${fmt(o.l3,1)}</div></div></div>`;
   const hot=pool.slice().sort((a,b)=>b.d-a.d).slice(0,8),cold=pool.slice().sort((a,b)=>a.d-b.d).slice(0,8);
-  html+=`<div class="sub-h">Hot &amp; Cold <span style="font-weight:400;font-size:12px;color:var(--ink-3);text-transform:none;letter-spacing:0">last 3 weeks vs season average</span></div>`;
+  html+=`<div class="sub-h">Hot &amp; Cold <span style="font-weight:400;font-size:12px;color:var(--ink-3);text-transform:none;letter-spacing:0">last 3 non-bye recorded weeks vs season average</span></div>`;
   html+=`<div class="grid g-2"><div class="card card-p"><div class="k-label" style="color:var(--win);margin-bottom:4px">Heating up</div>${hot.map(prow).join("")||'<div style="color:var(--ink-3);font-size:12px">Not enough games yet.</div>'}</div><div class="card card-p"><div class="k-label" style="color:var(--loss);margin-bottom:4px">Cooling off</div>${cold.map(prow).join("")||'<div style="color:var(--ink-3);font-size:12px">Not enough games yet.</div>'}</div></div>`;
   html+=`<div class="metricnote">Rostered players averaging 5+ points over 3+ games. <b>Buy-low / sell-high</b> signals — a cold star may be gettable; a surging bench player is worth a claim.</div>`;
 
@@ -3386,9 +3412,17 @@ function shareCard(x){
   const W=aw?a:h,L=aw?h:a,m=Math.abs(s.as-s.hs),verb=!final?"leads":m>=40?"destroyed":m>=20?"handled":m>=5?"beat":"edged";
   g.textAlign="center";g.fillStyle="#ffd23f";const line=`${W.name} ${verb} ${L.name}`;fit(line,940,50,"800");g.fillText(line,540,880);
   g.fillStyle="#5b6375";g.font='600 28px "Archivo", system-ui, sans-serif';g.fillText("mitch-fantasy.netlify.app",540,1010);
-  c.toBlob(b=>{if(!b)return;const name=`week${x.week}-${(W.abbrev||"mfl").toLowerCase()}.png`,f=new File([b],name,{type:"image/png"});
-    if(navigator.canShare&&navigator.canShare({files:[f]}))navigator.share({files:[f]}).catch(()=>{});
-    else{const u=URL.createObjectURL(b),l=document.createElement("a");l.href=u;l.download=name;document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);}},"image/png");
+  const modal=document.createElement('div');modal.className='mdl';modal.id='mdl';modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.setAttribute('aria-label','Share matchup card');
+  modal.innerHTML=`<div class="mdl-box card-p"><div class="mdl-top"><h2>Share card</h2><button type="button" class="x" aria-label="Close">×</button></div><img alt="Matchup share card" style="width:100%;max-width:400px;display:block;margin:auto" src="${c.toDataURL('image/jpeg',.92)}"><div class="mx-actions"><button class="btn" data-download>Download JPEG</button><button class="btn ghost" data-copy>Copy to clipboard</button></div><p role="status" data-status></p></div>`;
+  closeMatchup();document.body.append(modal);document.body.classList.add('mdl-open');modal.querySelector('.x').onclick=closeMatchup;modal.onclick=e=>{if(e.target===modal)closeMatchup();};document.addEventListener('keydown',mdlKey);
+  const name=`week${x.week}-${(W.abbrev||'mfl').toLowerCase()}.jpg`;
+  modal.querySelector('[data-download]').onclick=()=>{const l=document.createElement('a');l.href=c.toDataURL('image/jpeg',.92);l.download=name;l.click();};
+  modal.querySelector('[data-copy]').onclick=async()=>{const status=modal.querySelector('[data-status]');try{if(!navigator.clipboard?.write||!window.ClipboardItem)throw Error('unavailable');
+    // Browsers currently accept PNG clipboard images; the saved/share card is JPEG.
+    const mime=ClipboardItem.supports?.('image/jpeg')?'image/jpeg':'image/png';
+    const blob=new Promise(resolve=>c.toBlob(resolve,mime,.92));await navigator.clipboard.write([new ClipboardItem({[mime]:blob})]);status.textContent='Image copied.';
+  }catch{status.textContent='Image copying is unavailable in this browser. Use Download JPEG.';}};
+
 }
 
 /* ---------- playoff picture (a second view on Power Rankings) ---------- */
@@ -3400,7 +3434,7 @@ function playoffPicture(){
   let od=null;try{od=playoffOdds();}catch(e){}
   const O={};if(od)od.rows.forEach(r=>O[r.id]=r);
   const cut=rows[P-1],gb=s=>{const d=((cut.w-cut.l)-(s.w-s.l))/2;return d<=0?"0":String(d);};
-  let h=`<div class="sub-h">Playoff Picture</div><div class="twrap"><table><thead><tr><th class="no-sort">Seed</th><th class="no-sort">Team</th><th class="no-sort">Record</th><th class="no-sort">PF</th><th class="no-sort">Games back</th><th class="no-sort">Elimination #</th><th class="no-sort">Playoff odds</th></tr></thead><tbody>`;
+  let h=`<div class="sub-h">Playoff Picture</div><div class="twrap playoff-table"><table><thead><tr><th class="no-sort">Seed</th><th class="no-sort">Team</th><th class="no-sort">Record</th><th class="no-sort">PF</th><th class="no-sort" aria-label="Games back">GB</th><th class="no-sort" aria-label="Elimination number">Elim</th><th class="no-sort">Odds</th></tr></thead><tbody>`;
   rows.forEach((s,i)=>{const o=O[s.id];const tag=o&&o.clinched?' <span class="pill" style="color:var(--win)">Clinched</span>':o&&o.eliminated?' <span class="pill" style="color:var(--loss)">Eliminated</span>':"";
     const pct=o?(o.po>=.999?"99%+":o.po<.001?(o.eliminated?"0%":"<0.1%"):Math.round(o.po*100)+"%"):"—";
     h+=`<tr style="${i===P?"border-top:2px dashed var(--line-2);":""}${i>=P?"opacity:.75":""}"><td class="rankcol ${i<2?"top":""}">${i<P?i+1:"—"}</td><td>${teamLine(s.team)}</td><td class="num">${s.w}-${s.l}${s.tie?"-"+s.tie:""}</td><td class="num">${fmt(s.pf,1)}</td><td class="num">${i<P?"":gb(s)}</td><td class="num">${i<P?"—":eliminationNumber(s,cut,D.schedule.filter(x=>x.week<=RS&&(x.homeTeamId===s.id||x.awayTeamId===s.id)&&(!x.winner||x.winner==="UNDECIDED")).length)}</td><td class="num">${pct}${tag}</td></tr>`;});
@@ -3461,7 +3495,7 @@ VIEWS.shame=function(){
 /* ---------- per-player season production (used by player cards) ---------- */
 function playerSeason(pid){
   let tot=0,gp=0,pts=[];ST.weeks.slice().sort((a,b)=>a-b).forEach(w=>{const wk=(D.weekly||{})[String(w)];if(!wk)return;
-    for(const tid in wk){const r=wk[tid].find(x=>x[0]===pid);if(r){pts.push(r[2]);break;}}});
+    for(const tid in wk){const r=wk[tid].find(x=>x[0]===pid);if(r){if(byeWk((D.players?.[pid]||[])[2])!==w)pts.push(r[2]);break;}}});
   pts.forEach(p=>{tot+=p;gp++;});const l3=pts.slice(-3);
   const cw=(D.weekly||{})[String(D.meta.currentScoringPeriod)];let proj=null;if(cw)for(const tid in cw){const r=cw[tid].find(x=>x[0]===pid);if(r){proj=r[3];break;}}
   return {tot,gp,avg:gp?tot/gp:0,l3:l3.length?l3.reduce((s,x)=>s+x,0)/l3.length:0,proj};
@@ -3624,63 +3658,6 @@ async function initTradeBlock(){
 }
 
 
-/* ---- USELESS FEATURES ---- */
-const EXCUSES=["My QB had a bye week and I forgot.","ESPN's projections lied to me personally.","I set my lineup at 12:59 and the app froze.","My kicker missed an extra point on purpose.","I was playing the long game.","The waiver wire was rigged.","I started my guys out of loyalty, not logic.","My TE got 1 target. One.","I was busy and didn't check injuries. For 3 weeks.","My D/ST gave up 40 to a backup QB.","I traded for him a week before he got hurt.","I'm saving my wins for the playoffs.","My opponent's bench would have beaten me too.","I'd have won if Thursday Night Football didn't exist.","The low-scorer tax is just my weekly donation.","Monday night garbage time is a hate crime.","I'm tanking for draft position.","My RB was a decoy. His words, not mine."];
-let USE={pending:0,timer:null,global:null,sub:false,ok:true};
-VIEWS.useless=function(){
-  const mine=(()=>{try{return +localStorage.getItem("mfl-useless")||0;}catch(e){return 0;}})();
-  const nothing=(()=>{try{return +localStorage.getItem("mfl-nothing")||0;}catch(e){return 0;}})();
-  // longest current losing streak in the league
-  let skid=null;Object.values(ST.S).forEach(s=>{const n=streakNum(s);if(n<0&&(!skid||n<skid.n))skid={t:s.team,n};});
-  let html=shead("Fun","Useless Features","Absolutely no purpose");
-  html+=`<div class="grid g-2">`;
-  html+=`<div class="card card-p" style="text-align:center"><div class="sub-h" style="margin-top:0">Punch Nate</div>
-    <div style="position:relative;display:inline-block;width:min(260px,100%)" id="uwrap"><button class="ubtn" id="ubtn" type="button">CLICK TO<br>PUNCH NATE 👊</button></div>
-    <div style="margin-top:18px" class="k-label">Your punches</div><div class="ucount" id="umine">${mine.toLocaleString()}</div>
-    <div class="k-label" style="margin-top:8px">Total punches thrown at Nate</div><div class="ucount" id="uglobal" style="font-size:28px">…</div>
-    <div class="metricnote" id="unote">Nate feels nothing. Keep swinging.</div></div>`;
-  html+=`<div class="card card-p"><div class="sub-h" style="margin-top:0">Excuse Generator</div>
-    <div id="excuse" style="font-size:19px;font-weight:800;min-height:56px;line-height:1.35">Need a reason you lost? Tap below.</div>
-    <button class="btn" id="excBtn" type="button" style="margin-top:12px">Give me an excuse</button></div>`;
-  html+=`<div class="card card-p" style="text-align:center"><div class="sub-h" style="margin-top:0">Start / Sit Coin</div>
-    <div class="coin" id="coin">?</div><button class="btn" id="coinBtn" type="button" style="margin-top:10px">Flip it</button>
-    <div class="metricnote">More accurate than ESPN projections.</div></div>`;
-  html+=`<div class="card card-p"><div class="sub-h" style="margin-top:0">Losing Streak Watch</div>
-    ${skid?`<div style="display:flex;align-items:center;gap:12px">${badge(skid.t,"lg")}<div><div style="font-size:19px;font-weight:800">${esc(skid.t.name)}</div><div style="color:var(--ink-2)">has lost <b>${-skid.n}</b> straight. ${-skid.n>=4?"Someone check on them.":"Thoughts and prayers."}</div></div></div>`:`<div style="color:var(--ink-2)">Nobody is on a losing streak. Suspicious.</div>`}</div>`;
-  const sq=(()=>{try{return +localStorage.getItem("mfl-square")||0;}catch(e){return 0;}})();
-  html+=`<div class="card card-p" style="text-align:center"><div class="sub-h" style="margin-top:0">Post a Black Square on Instagram</div>
-    <div class="bsq" id="bsq"></div><button class="btn" id="bsqBtn" type="button">Click here to post</button>
-    <div class="metricnote" id="bsqNote">${sq?`Black squares posted from this device: ${sq.toLocaleString()}`:"Show the world you care. Takes one click."}</div></div>`;
-  html+=`<div class="card card-p" style="text-align:center"><div class="sub-h" style="margin-top:0">The Button That Does Nothing</div>
-    <button class="btn" id="nothingBtn" type="button">Do nothing</button>
-    <div class="metricnote" id="nothingNote">Nothing has happened ${nothing.toLocaleString()} times on this device.</div></div>`;
-  html+=`</div>`;
-  const v=el(html);
-  const um=v.querySelector("#umine"),ug=v.querySelector("#uglobal"),un=v.querySelector("#unote");
-  const showG=()=>{ug.textContent=USE.global==null?(USE.ok?"…":"—"):(USE.global+USE.pending).toLocaleString();if(!USE.ok)un.textContent="Nate feels nothing. The league-wide total isn't set up yet.";};
-  const flush=async()=>{USE.timer=null;const n=Math.min(USE.pending,200);if(!n)return;USE.pending-=n;
-    try{const {data,error}=await sb.rpc("useless_click",{n});if(error)throw error;if(typeof data==="number"||typeof data==="string")USE.global=Math.max(USE.global||0,+data);}
-    catch(e){USE.ok=false;}showG();if(USE.pending)USE.timer=setTimeout(flush,1500);};
-  const POWS=["POW!","BAM!","WHAM!","OOF!","THWACK!","KAPOW!","BONK!"];
-  v.querySelector("#ubtn").onclick=e=>{const b=e.currentTarget;b.classList.remove("hit");void b.offsetWidth;b.classList.add("hit");
-    const pw=document.createElement("div");pw.className="upow";pw.textContent=POWS[Math.floor(Math.random()*POWS.length)];pw.style.marginLeft=(Math.random()*80-40)+"px";
-    v.querySelector("#uwrap").appendChild(pw);setTimeout(()=>pw.remove(),700);let c=0;try{c=(+localStorage.getItem("mfl-useless")||0)+1;localStorage.setItem("mfl-useless",c);}catch(e){}
-    um.textContent=c.toLocaleString();if(USE.ok){USE.pending++;if(!USE.timer)USE.timer=setTimeout(flush,1500);}showG();};
-  (async()=>{try{const {data,error}=await sb.from("useless_counter").select("clicks").eq("id",1).single();if(error)throw error;USE.global=+data.clicks;USE.ok=true;
-      if(!USE.sub){USE.sub=true;sb.channel("useless").on("postgres_changes",{event:"UPDATE",schema:"public",table:"useless_counter"},p=>{if(p.new&&p.new.clicks!=null){USE.global=Math.max(USE.global||0,+p.new.clicks);const g=document.getElementById("uglobal");if(g)g.textContent=(USE.global+USE.pending).toLocaleString();}}).subscribe();}}
-    catch(e){USE.ok=false;}showG();})();
-  v.querySelector("#excBtn").onclick=()=>{const e=v.querySelector("#excuse");let n;do{n=EXCUSES[Math.floor(Math.random()*EXCUSES.length)];}while(n===e.textContent&&EXCUSES.length>1);e.textContent=n;};
-  v.querySelector("#coinBtn").onclick=()=>{const c=v.querySelector("#coin");c.classList.remove("flip");void c.offsetWidth;c.textContent="";c.classList.add("flip");setTimeout(()=>{c.textContent=Math.random()<0.5?"START":"SIT";},700);};
-  v.querySelector("#bsqBtn").onclick=e=>{const b=e.currentTarget,n=v.querySelector("#bsqNote"),q=v.querySelector("#bsq");if(b.disabled)return;b.disabled=true;q.classList.add("go");
-    const steps=["Opening Instagram…","Choosing a filter: none…","Writing caption: ⬛","Posting…"];let i=0;
-    const step=()=>{if(i<steps.length){n.textContent=steps[i++];setTimeout(step,750);return;}
-      let c=0;try{c=(+localStorage.getItem("mfl-square")||0)+1;localStorage.setItem("mfl-square",c);}catch(e){}
-      q.classList.remove("go");b.disabled=false;n.innerHTML=`✅ Posted. Your followers are deeply moved.<br><span style="color:var(--ink-3)">(Nothing was actually posted. Squares posted from this device: ${c.toLocaleString()})</span>`;};
-    step();};
-  v.querySelector("#nothingBtn").onclick=()=>{let c=0;try{c=(+localStorage.getItem("mfl-nothing")||0)+1;localStorage.setItem("mfl-nothing",c);}catch(e){}v.querySelector("#nothingNote").textContent=`Nothing has happened ${c.toLocaleString()} times on this device.`;};
-  return v;
-};
-
 /* ---- live ticker: exact last-update time + next NFL kickoff ---- */
 // Real kickoff times come from the data feed (meta.nflKickoffs, epoch ms) when present; otherwise
 // standard 2026 slots: TNF 8:15p, Sunday 1:00p (9:30a on international weekends), MNF 8:15p ET.
@@ -3753,9 +3730,8 @@ function rememberSeen(){try{localStorage.setItem("mfl-seen-update",D.meta.lastUp
 
 /* ---- MANAGER DEFENSE (joke stat) ---- */
 VIEWS.defense=function(){
-  let html=shead("Lockdown Index","Manager Defense","Opponent scoring outcomes · just for fun");
+  let html=shead("Lockdown Index","Manager Defense","Opponent scoring outcomes");
   if(!ST.started) return el(html+`<div style="margin-top:4px">${emptyState("shield","No games yet","Defensive ratings need a few matchups in the books.")}</div>`);
-  html+=`<div class="helpbox" style="margin-bottom:16px"><span class="hi">${icon("shield")}</span><div>These ratings describe opponent scoring and schedule outcomes. Fantasy managers do not directly prevent opponents from scoring. Use these numbers for league banter, not roster decisions.</div></div>`;
   const rows=Object.values(ST.S).filter(s=>s.gp>0);
   rows.forEach(s=>{let supp=0,stuffs=0,n=0;s.results.forEach(r=>{const opp=ST.S[r.opp];if(!opp)return;supp+=(opp.ppg-r.pa);if(r.pa<opp.ppg)stuffs++;n++;});s._supp=n?supp/n:0;s._stuffs=stuffs;});
   const minPA=Math.min(...rows.map(s=>s.papg)),maxPA=Math.max(...rows.map(s=>s.papg));
@@ -4502,14 +4478,19 @@ function showToast(msg){
   clearTimeout(__toastT);__toastT=setTimeout(()=>t.classList.remove("show"),2800);
 }
 EXPERIENCE=installManagerExperience({
-  views:VIEWS,labels:LABELS,esc,fmt,setTab,el,playerSeason,playerLog,openPlayer,showToast,injLabel,
+  views:VIEWS,labels:LABELS,esc,fmt,setTab,el,playerSeason,playerLog,openPlayer,showToast,injLabel,productionChart,
   enhanceTables:enhanceStatTables,
   enhanceLayout:root=>enhanceManagerLayout(root,{page:cur,team:MEID,data:D,setTab,esc,feedbackPage:VIEW_BACK.filter(p=>p!=="feedback"&&p!=="more").at(-1)||"dash"}),
   getRefreshError:()=>leagueRefreshError,getTradeBlock:()=>TB.rows,getData:()=>D,getMe:()=>meTeam()?.id??null,getCurrent:()=>cur,getDevice:()=>siteDevice,
   pickTeam:pickTeamModal,refreshData,goTeam,closeMatchup,getSubscription:currentSub,restoreWeek:w=>{if(Number.isInteger(w)&&w>0&&w<=22)mxWeek=w;},
 });
+document.addEventListener('keydown',e=>{if(e.key==='Tab')document.body.classList.add('keyboard-nav');});
+document.addEventListener('pointerdown',()=>document.body.classList.remove('keyboard-nav'),{passive:true});
+window.addEventListener('pageshow',()=>{document.body.classList.remove('keyboard-nav');if(document.activeElement?.matches('.view,.twrap'))document.activeElement.blur();});
 installDialogAccess();
+INBOX=installTeamInbox({views:VIEWS,el,esc,setTab,getTeam:meTeam,getCurrent:()=>cur,getDevice:()=>siteDevice,pickTeam:pickTeamModal,showToast});
 boot();
+INBOX.refresh();
 // opened from the saved copy: swap in the live league as soon as it arrives
 if(__LD_FROM_CACHE)window.__LDP.catch(()=>{if(D===__cachedLD){leagueRefreshError=true;updateConnection();}});
 if(__LD_FROM_CACHE)__netLD.then(nd=>{if(nd&&nd.meta)refreshData(nd);}).catch(()=>{leagueRefreshError=true;EXPERIENCE?.updateFreshness();updateConnection();});

@@ -86,9 +86,8 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
     records:[['history','History'],['analytics','Stats'],['shame','Hall of Shame']],
     draft:[['myteam','My team'],['players','Players'],['history','History']],
     parlay:[['dash','Home'],['matchup','My matchup'],['rules','Rules']],
-    useless:[['dash','Home'],['parlay','Parlay'],['shame','Hall of Shame']],
     rules:[['standings','Standings'],['faab','Waivers'],['parlay','Parlay']],
-    shame:[['records','Record book'],['history','History'],['defense','Manager D']],
+    shame:[['records','Record book'],['history','History'],['defense','Manager Defense']],
     defense:[['analytics','Stats'],['shame','Hall of Shame'],['standings','Standings']],
     feedback:[['dash','Home'],['more','More']],
     siteactivity:[['dash','Home'],['feedbackinbox','P&S Inbox']],
@@ -96,7 +95,7 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
   };
   if(shortcuts[page]){
     const bar=document.createElement('nav');bar.className='manager-quick-actions';bar.setAttribute('aria-label','Quick actions');
-    shortcuts[page].forEach(([id,label])=>{const b=document.createElement('button');b.type='button';b.className='btn ghost';b.textContent=label;b.onclick=()=>setTab(id);bar.append(b);});
+    shortcuts[page].filter(([id])=>!["players","faab","useless"].includes(id)).forEach(([id,label])=>{const b=document.createElement('button');b.type='button';b.className='btn ghost';b.textContent=label;b.onclick=()=>setTab(id);bar.append(b);});
     const hero=view.querySelector('.hero.hx');
     if(['dash','matchup'].includes(page)&&hero)view.prepend(hero);
     view.prepend(bar);
@@ -156,7 +155,7 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
   if(['outlook','records','history','h2h','shame','defense'].includes(page))sectionFolds(view);
   if(page==='outlook'&&team>=0) {
     const label=document.createElement('label');label.className='manager-search';label.textContent='Outlook for';
-    const select=document.createElement('select');select.innerHTML='<option value="mine">My team</option><option value="all">All league</option>';select.dataset.remember='outlook-scope';label.append(select);
+    const select=document.createElement('select');select.innerHTML='<option value="all">All league</option><option value="mine">My team</option>';select.dataset.remember='outlook-scope';label.append(select);
     const upcoming=(data.rosters?.[team]||[]).filter(p=>{const bye=data.meta.byeWeeks?.[p.proTeam];return bye>=data.meta.currentScoringPeriod&&bye<=data.meta.currentScoringPeriod+2;});
     const status=document.createElement('p');status.className='metricnote';status.textContent=upcoming.length?'Upcoming byes: '+upcoming.map(p=>`${p.name} · W${data.meta.byeWeeks[p.proTeam]}`).join(', '):'No roster byes in the current week or next two weeks in the available schedule.';
     view.querySelector('.shead')?.after(label,status);
@@ -177,6 +176,7 @@ export function installDialogAccess() {
     const top=sheet.querySelector('.mdl-top');if(context)top?.after(context);if(news)(context||top)?.after(news);
     const metrics=sheet.querySelector('#playerRanks');if(metrics)foldNodes([metrics,sheet.querySelector('#playerRankNote')],'NFL ranks & ownership');
     sheet.querySelectorAll('section.player-section').forEach(n=>{if(n!==news&&n!==context)foldNodes([n],n.querySelector('h3')?.textContent||'Player history');});
+    sheet.querySelector('#positionStats')?.closest('details')?.setAttribute('open','');
     const value=sheet.querySelector('.power-profile');if(value)foldNodes([value],'League trade value');
   });observer.observe(document.body,{childList:true,subtree:true});
   const connection=document.createElement('div');connection.className='manager-connection';connection.setAttribute('role','status');connection.hidden=navigator.onLine;connection.textContent='Connection lost. Displayed data may be out of date. Reconnect and refresh before making changes.';document.body.append(connection);
@@ -186,7 +186,7 @@ export function installDialogAccess() {
 // Split the identity from the label so horizontal scrolling pins only the badge.
 export function enhanceStatTables(root) {
   root.querySelectorAll('.twrap table').forEach(table=>{
-    if(table.dataset.mobileReady)return;
+    if(table.dataset.mobileReady||table.closest('.playoff-table'))return;
     table.dataset.mobileReady='true';
     table.classList.add('manager-stat-table');
     const rows=[...table.rows];

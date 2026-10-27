@@ -1,28 +1,19 @@
 {
-  "version": "1.3.0",
+  "version": "1.4.0",
   "updatedAt": null,
   "changes": [
-    "The app opens instantly from the last league update saved on your phone, then refreshes to live scores within seconds.",
-    "Works on weak signal or offline: a notice shows when you're viewing saved scores, and updates resume automatically.",
-    "New League Rules page (More → Help): trade deadline, playoffs, waivers, roster and full scoring, pulled live from ESPN.",
-    "One consistent accent color on every page, a fixed color for each team, and larger small text.",
-    "Retired the Trade Analyzer, Stat Fixes and casino games (Blackjack, Sportsbook, Slots). Extras stays in More."
+    "Team inboxes keep your notifications in one place, with unread badges beside your team name.",
+    "Redesigned mobile matchups and rosters make player scores, projections, game details, and ownership easier to scan.",
+    "My Team now includes more scoring, lineup-efficiency, matchup, and FAAB metrics.",
+    "Player analysis includes position-specific weekly charts and add/drop trends."
   ],
   "history": [
     {
-      "version": "1.2.4",
-      "title": "Shortcut row polish",
+      "version": "1.3.0",
+      "title": "Offline access & league rules",
       "changes": [
-        "Rounded page shortcuts stay side by side in a single swipeable row.",
-        "The shortcut scrollbar is hidden, including on mobile."
-      ]
-    },
-    {
-      "version": "1.2.3",
-      "title": "Shortcut button styling",
-      "changes": [
-        "Restored the original rounded shortcut buttons at the top of each page.",
-        "Mobile shortcuts fit within the page and wrap when needed, without a scrolling strip or scrollbar."
+        "The site opens from saved league data on weak signal and refreshes when connected.",
+        "League Rules brings ESPN roster, scoring, playoff, and waiver settings into the site."
       ]
     }
   ]

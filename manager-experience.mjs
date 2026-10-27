@@ -1,3 +1,5 @@
+import { playerPortrait } from "./player-presentation.mjs";
+import { positionCharts } from "./player-charts.mjs";
 import {
   STARTER_SLOTS,
   ESPN_SLOTS,
@@ -301,7 +303,7 @@ export function installManagerExperience(api) {
       !force &&
       researchKey === key &&
       research &&
-      Date.now() - Date.parse(research.updatedAt) < 300000
+      Date.now() - Date.parse(research.updatedAt) < (["matchup","myteam"].includes(api.getCurrent())?60000:300000)
     )
       return;
     if (!force && Date.now() - lastResearchAttempt < 30000) return;
@@ -326,7 +328,7 @@ export function installManagerExperience(api) {
       } finally {
         researchPending = null;
         if (
-          ["players", "faab", "dash", "myteam"].includes(api.getCurrent()) &&
+          ["players", "faab", "dash", "myteam", "matchup", "teams"].includes(api.getCurrent()) &&
           !document.querySelector(
             "#app input:focus,#app select:focus,#app textarea:focus",
           )
@@ -403,7 +405,7 @@ export function installManagerExperience(api) {
     }
   }
   function playerTable(rows, waivers = false) {
-    return `<div class="twrap mx-player-table"><table><thead><tr><th>Player</th><th class="mx-secondary">${waivers ? "Roster gain" : "Team / status"}</th><th>Proj</th><th class="mx-extra">Season avg</th><th class="mx-extra">Last 3</th><th class="mx-extra">Games</th><th>Research</th></tr></thead><tbody>${rows.map((p) => `<tr><td class="mx-who"><span class="posbadge">${esc(p.pos)}</span> ${playerButton(p)}<div class="manager-ownership">${esc(ownership(p))}</div><div class="metricnote">${kickoffTime(p.kickoff)?(kickoffTime(p.kickoff)<=Date.now()?"Game started":"Kickoff "+stamp(p.kickoff)):"Kickoff unconfirmed"}</div><div class="metricnote">${esc(p.pro)}${p.injury && !["ACTIVE", "NORMAL"].includes(p.injury) ? " · " + esc(api.injLabel(p.injury)) : ""}${p.bye ? " · Bye W" + p.bye : ""}${waivers && p.gain != null ? " · " + (p.gain >= 0 ? "+" : "") + value(p.gain) + " projected lineup pts" : ""}${waivers && p.bid ? " · Planning bid " + esc(p.bid) : ""}</div></td><td class="mx-secondary" data-label="${waivers ? "Roster gain" : "Status"}">${waivers ? `${p.gain == null ? "—" : (p.gain > 0 ? "+" : "") + value(p.gain)}<div class="metricnote">${esc(ownership(p))}</div>` : esc(ownership(p))}</td><td class="num mx-proj" data-label="Proj">${value(p.proj)}</td><td class="num mx-extra" data-label="Avg">${value(p.avg)}</td><td class="num mx-extra" data-label="Last 3">${value(p.l3)}</td><td class="num mx-extra" data-label="Games">${p.games || "—"}</td><td class="mx-research"><div class="mx-actions">${button(compare.includes(p.id) ? "Compared" : "Compare", `data-mx-add="${p.id}" aria-pressed="${compare.includes(p.id)}"`)}${button(prefs.watched_players.includes(p.id) ? "Watching" : "Watch", `data-mx-watch="${p.id}" aria-pressed="${prefs.watched_players.includes(p.id)}"`)}</div></td></tr>`).join("") || `<tr><td colspan="7">No players match these filters.</td></tr>`}</tbody></table></div>`;
+    return `<div class="twrap mx-player-table"><table><thead><tr><th>Player</th><th class="mx-secondary">${waivers ? "Roster gain" : "Team / status"}</th><th>Proj</th><th class="mx-extra">Season avg</th><th class="mx-extra">Last 3</th><th class="mx-extra">Games</th><th>Research</th></tr></thead><tbody>${rows.map((p) => `<tr><td class="mx-who"><div class="scout-player">${playerPortrait(p.id,p.name,p.pos,p.pro,esc)}<div class="scout-identity">${playerButton(p)}<div class="scout-position"><span class="posbadge tag-${esc(p.pos.toLowerCase())}">${esc(p.pos)}</span><span>${esc(p.pro||"FA")}</span>${p.injury && !["ACTIVE","NORMAL"].includes(p.injury)?`<span class="scout-injury">${esc(api.injLabel(p.injury))}</span>`:""}</div></div></div><div class="manager-ownership">${esc(ownership(p))}</div><div class="metricnote">Add/drop trend: ${Number.isFinite(p.trend)?(p.trend>0?"+":"")+value(p.trend)+" pp rostered":"Unavailable"}</div><div class="metricnote">${kickoffTime(p.kickoff)?(kickoffTime(p.kickoff)<=Date.now()?"Game started":"Kickoff "+stamp(p.kickoff)):"Kickoff unconfirmed"}</div><div class="metricnote">${esc(p.pro)}${p.injury && !["ACTIVE", "NORMAL"].includes(p.injury) ? " · " + esc(api.injLabel(p.injury)) : ""}${p.bye ? " · Bye W" + p.bye : ""}${waivers && p.gain != null ? " · " + (p.gain >= 0 ? "+" : "") + value(p.gain) + " projected lineup pts" : ""}${waivers && p.bid ? " · Planning bid " + esc(p.bid) : ""}</div></td><td class="mx-secondary" data-label="${waivers ? "Roster gain" : "Status"}">${waivers ? `${p.gain == null ? "—" : (p.gain > 0 ? "+" : "") + value(p.gain)}<div class="metricnote">${esc(ownership(p))}</div>` : esc(ownership(p))}</td><td class="num mx-proj" data-label="Proj">${value(p.proj)}</td><td class="num mx-extra" data-label="Avg">${value(p.avg)}</td><td class="num mx-extra" data-label="Last 3">${value(p.l3)}</td><td class="num mx-extra" data-label="Games">${p.games || "—"}</td><td class="mx-research"><div class="mx-actions">${button(compare.includes(p.id) ? "Compared" : "Compare", `data-mx-add="${p.id}" aria-pressed="${compare.includes(p.id)}"`)}${button(prefs.watched_players.includes(p.id) ? "Watching" : "Watch", `data-mx-watch="${p.id}" aria-pressed="${prefs.watched_players.includes(p.id)}"`)}</div></td></tr>`).join("") || `<tr><td colspan="7">No players match these filters.</td></tr>`}</tbody></table></div>`;
   }
   function comparison() {
     const list = allPlayers(),
@@ -438,7 +440,7 @@ export function installManagerExperience(api) {
   views.players = () => {
     void ensureResearch();
     const v = el(
-      `<div class="shead"><div><div class="eyebrow">The scouting desk</div><h2>Players</h2></div>${button("Share this view", "data-mx-share")}</div><p class="metricnote">Find a name, compare your options, keep an eye on what changes.</p><form class="mx-filters" id="mxFilters"><label>Search players<input type="search" name="search" value="${esc(filters.search)}" placeholder="Name or NFL team" autocomplete="off"></label><label>Position<select name="position"><option value="">All positions</option>${["QB", "RB", "WR", "TE", "K", "DST"].map((p) => `<option ${filters.position === p ? "selected" : ""}>${p}</option>`).join("")}</select></label><label>Fantasy team<select name="owner"><option value="">All players</option><option value="available" ${filters.owner === "available" ? "selected" : ""}>Available players</option>${data()
+      `<div class="shead"><div><div class="eyebrow">The scouting desk</div><h2>Players</h2></div>${button("Share this view", "data-mx-share")}</div><p class="metricnote">Compare players and track adds / drops. Trend shows ESPN net rostered percentage-point change across leagues, not transaction counts; ESPN does not supply a fixed reporting window.</p><form class="mx-filters" id="mxFilters"><label>Search players<input type="search" name="search" value="${esc(filters.search)}" placeholder="Name or NFL team" autocomplete="off"></label><label>Position<select name="position"><option value="">All positions</option>${["QB", "RB", "WR", "TE", "K", "DST"].map((p) => `<option ${filters.position === p ? "selected" : ""}>${p}</option>`).join("")}</select></label><label>Fantasy team<select name="owner"><option value="">All players</option><option value="available" ${filters.owner === "available" ? "selected" : ""}>Available players</option>${data()
         .teams.map(
           (t) =>
             `<option value="${t.id}" ${String(t.id) === filters.owner ? "selected" : ""}>${esc(t.name)}</option>`,
@@ -449,6 +451,8 @@ export function installManagerExperience(api) {
         ["proj", "This week"],
         ["avg", "Season average"],
         ["l3", "Last 3 recorded"],
+        ["trend", "Adds / drops: rising"],
+        ["drops", "Adds / drops: falling"],
       ]
         .map(
           ([k, l]) =>
@@ -547,7 +551,7 @@ export function installManagerExperience(api) {
       )
       .sort(
         (a, b) =>
-          (b[filters.sort] ?? -Infinity) - (a[filters.sort] ?? -Infinity) ||
+          (filters.sort === "drops" ? (a.trend ?? Infinity) - (b.trend ?? Infinity) : (b[filters.sort] ?? -Infinity) - (a[filters.sort] ?? -Infinity)) ||
           a.name.localeCompare(b.name),
       );
   }
@@ -690,6 +694,7 @@ export function installManagerExperience(api) {
     if(center?.dataset.rosterIssues==='0') center.remove();
     return v;
   };
+  for(const page of ["matchup","teams"]){const base=views[page];views[page]=()=>{void ensureResearch();return base();};}
   const myTeam = views.myteam;
   views.myteam = () => {
     void ensureResearch();
@@ -784,7 +789,7 @@ export function installManagerExperience(api) {
       )
       .join(
         "",
-      )}</div><p>${esc(api.injLabel(p.injury) || "")} ${p.bye ? "· Bye W" + p.bye : ""} · ${stamp(p.kickoff)}</p><div class="mx-actions">${button("Compare", `data-mx-compare="${p.id}"`)}${button(prefs.watched_players.includes(p.id) ? "Watching" : "Watch", `data-mx-watch="${p.id}"`)}</div><h3>Game log</h3><div class="twrap"><table><thead><tr><th>Week</th><th>League points</th></tr></thead><tbody>${
+      )}</div><h3>Fantasy production</h3>${api.productionChart(p.log || [])}${positionCharts(p,esc)}<p>${esc(api.injLabel(p.injury) || "")} ${p.bye ? "· Bye W" + p.bye : ""} · ${stamp(p.kickoff)}</p><div class="mx-actions">${button("Compare", `data-mx-compare="${p.id}"`)}${button(prefs.watched_players.includes(p.id) ? "Watching" : "Watch", `data-mx-watch="${p.id}"`)}</div><h3>Game log</h3><div class="twrap"><table><thead><tr><th>Week</th><th>League points</th></tr></thead><tbody>${
       (p.log || [])
         .slice()
         .reverse()
@@ -856,7 +861,7 @@ export function installManagerExperience(api) {
         owner: q.get("owner") || "",
         health: q.get("health") || "",
         bye: q.get("bye") || "",
-        sort: ["avg", "l3"].includes(q.get("sort")) ? q.get("sort") : "proj",
+        sort: ["avg", "l3", "trend", "drops"].includes(q.get("sort")) ? q.get("sort") : "proj",
         watch: q.get("watch") === "true",
       };
       compare = (q.get("compare") || "")
@@ -1199,7 +1204,7 @@ export function installManagerExperience(api) {
   setInterval(() => {
     if (document.hidden || document.getElementById("mdl")) return;
     if (
-      ["dash", "players", "myteam", "faab"].includes(api.getCurrent())
+      ["dash", "players", "myteam", "faab", "matchup", "teams"].includes(api.getCurrent())
     )
       void ensureResearch();
     updateFreshness();
@@ -1234,6 +1239,8 @@ export function installManagerExperience(api) {
     slots,
     allPlayers,
     openResearchPlayer,
+    researchPlayer: pid => knownFeed()?.players.find(p=>p.id===pid),
+    playerCharts: async (pid) => { await ensureResearch(); return positionCharts(knownFeed()?.players.find(p=>p.id===pid),esc); },
     tradePartners,
   };
 }

@@ -1,3 +1,4 @@
+import { normalizeInboxReport } from '../lib/team-inbox.mjs';
 import type {} from '@netlify/functions';
 import { getDatabase } from '@netlify/database';
 import { isAdmin, recordActivity } from '../lib/site-activity.mjs';
@@ -25,7 +26,15 @@ export default async (req: Request) => {
       const secret = Netlify.env.get('NOTIFY_SECRET');
       if (!secret || req.headers.get('x-notify-secret') !== secret) return reply({ error: 'Forbidden' }, 403);
       if (typeof p.detail !== 'string' || p.detail.length > 4000) return reply({ error: 'Invalid report' }, 400);
-      await recordActivity('notification', 'push_delivery', p.detail);
+      const note = normalizeInboxReport(p.detail);
+      if (note) {
+        // One atomic write preserves both the delivery log and the inbox copy.
+        await db.sql`WITH logged AS (
+          INSERT INTO site_activity (event_id, category, action, detail)
+          VALUES (${crypto.randomUUID()}, 'notification', 'push_delivery', ${p.detail}) RETURNING id, created_at
+        ) INSERT INTO team_inbox_messages (activity_id, title, body, url, team_ids, created_at)
+          SELECT id, ${note.title}, ${note.body}, ${note.url}, ${note.teams === null ? null : JSON.stringify(note.teams)}::jsonb, created_at FROM logged`;
+      } else await recordActivity('notification', 'push_delivery', p.detail);
       return reply({ saved: true });
     }
     const uuid = (v: unknown) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
