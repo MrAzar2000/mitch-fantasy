@@ -22,7 +22,7 @@ test('probability history exposes guides, changes and compact matchup mode witho
   const start=html.indexOf('function wpGraph('),end=html.indexOf('/* NFL context',start);
   vm.runInContext(html.slice(start,end),context);
   const full=vm.runInContext('wpGraph({id:7,week:2,homeTeamId:1,awayTeamId:2})',context);
-  assert.doesNotMatch(full,/recorded updates|First update|Latest update/);assert.match(full,/>50%<\/text>/);assert.match(full,/-5 pp/);assert.match(full,/55–70%/);assert.doesNotMatch(full,/NaN/);
+  assert.doesNotMatch(full,/recorded updates|First update|Latest update/);assert.match(full,/>50%<\/span>/);assert.match(full,/-5 pp/);assert.match(full,/55–70%/);assert.doesNotMatch(full,/NaN/);
   const compact=vm.runInContext('wpGraph({id:7,week:2,homeTeamId:1,awayTeamId:2},true)',context);
   assert.match(compact,/wpg-compact/);assert.doesNotMatch(compact,/How to read/);
   const missing=vm.runInContext('wpGraph({id:8,week:2,homeTeamId:1,awayTeamId:2},true)',context);
