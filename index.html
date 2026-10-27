@@ -1341,7 +1341,7 @@ body.phone .lx-p{padding:11px 8px}.full-context{font-size:13px}.full-context .ga
 <script type="module" src="/site-version.mjs"></script>
 <script type="module">
 import { optimalLineup, estimatedCeiling, eliminationNumber, ESPN_SLOTS } from "./lineup-tools.mjs";
-import { enhanceManagerLayout, enhanceStatTables, teamLayout, rememberView, restoreView, installDialogAccess } from "./manager-layout.mjs";
+import { enhanceManagerLayout, enhanceStatTables, teamLayout, rememberView, restoreView, forgetView, installDialogAccess } from "./manager-layout.mjs";
 import { installManagerExperience } from "./manager-experience.mjs";
 let EXPERIENCE=null;
 let navigationFromHistory=false;
@@ -1554,7 +1554,7 @@ const TITLE_HELP={"All-Play Record":"Your record if you played all 11 other team
   "Budget Used":"FAAB spent out of the season budget.","Pickups by Team":"Players each team added from waivers or free agency.","Positions drafted by round":"How many of each position went in each draft round.","More Metrics":"Extra season stats per team.",
   "Playoff Picture":"Seeds if the season ended today, and the bracket that would follow.","Trade":"Season points for the players on each side of the trade."};
 function addTitleHelp(root){root.querySelectorAll(".sub-h").forEach(h=>{if(h.title)return;const t=(h.firstChild&&h.firstChild.nodeType===3?h.firstChild.textContent:h.textContent).trim();const k=Object.keys(TITLE_HELP).find(x=>t.startsWith(x));if(!k)return;h.title=TITLE_HELP[k];h.insertAdjacentHTML("beforeend",'<span class="qi" aria-hidden="true">?</span>');});}
-function setTab(id){
+function setTab(id,fresh=false){
   if((id==='siteactivity'||id==='feedbackinbox')&&!ADMIN)id='dash';
   if(id==='other')id='useless';
   if(!VIEWS[id])id='dash'; // retired pages (Trade Analyzer, Stat Fixes, casino games) fall back to Home
@@ -1563,9 +1563,10 @@ function setTab(id){
   // re-rendering the SAME view (sort, dropdown, week switch) keeps your scroll
   // position; only navigating to a DIFFERENT view jumps back to the top.
   const sameView=(id===cur);
-  const keepY=sameView?(window.scrollY||document.documentElement.scrollTop||0):0;
+  const keepY=sameView&&!fresh?(window.scrollY||document.documentElement.scrollTop||0):0;
   if(document.getElementById("mdl"))closeMatchup();
   rememberView(cur,document.getElementById("app"));
+  if(fresh)forgetView(id);
   cur=id; renderNav();
   document.body.classList.remove("navopen");
   const pt=document.getElementById("pageTitle");if(pt)pt.textContent=LABELS[id]||"Home";
@@ -1589,6 +1590,8 @@ function setTab(id){
   if(id==='matchup'&&mxWeek!=null)history.replaceState(null,'','#matchup?week='+mxWeek);
   if(!sameView){el.tabIndex=-1;el.focus({preventScroll:true});}
 }
+// Home button and MFL mark: always the top of Home, with its sections in their default state
+function goHome(){setTab("dash",true);window.scrollTo({top:0,behavior:"instant"});}
 function paintView(root){
   markChangedScores(root);
 }
@@ -1598,7 +1601,7 @@ function renderNav(){
   const markup=cls=>primary.map(([id,label,ic])=>`<button class="${cls} ${id===active?'on active':''}" data-primary="${id}" ${id===active?'aria-current="page"':''}>${icon(ic)}<span>${label}</span></button>`).join('');
   document.getElementById('ptabs').innerHTML=markup('pt');
   document.getElementById('bnav').innerHTML=markup('');
-  document.querySelectorAll('[data-primary]').forEach(b=>b.onclick=()=>setTab(b.dataset.primary));
+  document.querySelectorAll('[data-primary]').forEach(b=>b.onclick=()=>b.dataset.primary==="dash"?goHome():setTab(b.dataset.primary));
   const sub=document.getElementById('nav');sub.hidden=true;sub.innerHTML='';renderMeBtn();
 }
 
@@ -1703,8 +1706,12 @@ VIEWS.dash=function(){
   html+=myHome();
   html+=`<section class="home-parlay" aria-label="Weekly parlay">${lowBanner()||`<div class="card card-p"><div class="eyebrow">Week ${parlayWk()} parlay</div><h3>The league's weekly picks</h3><p class="metricnote">Add your leg and check the week's submissions.</p><button class="btn" data-goto="parlay">Enter your pick</button><div class="parlay-progress" id="parlayProgress" role="status"></div><details class="fold parlay-wait"><summary>Participation details</summary><div id="lbMiss">Checking who's in…</div></details></div>`}</section>`;
   html+=updatesBanner()+birthdayBanner();
-  html+=`<div class="grid g-2 home-league-overview"><section class="card card-p"><div class="mx-heading"><h3>${ST.started?'Power rankings':'Projected finish'}</h3><button class="btn ghost" data-goto="power">View rankings</button></div><p class="metricnote">${ST.started?'League power score · finalized weeks':'ESPN draft-day projection'}</p>${pr.map(r=>`<div class="home-ranking"><span class="rankcol">${r.rank}</span>${teamLine(r.team)}<span class="num">${r.score!=null?fmt(r.score,1):'—'}</span></div>`).join('')}<button class="btn ghost home-standings-link" data-goto="standings">Official standings</button></section>
-  <section class="card card-p"><div class="mx-heading"><h3>Week ${focusWk} matchups</h3><button class="btn ghost" data-goto="scoreboard">Scoreboard</button></div>${wk1.map(matchupMini).join('')||'<p class="metricnote">Matchups appear when the schedule is available.</p>'}</section></div>`;
+  // this week's games first, in the same card style as the Scoreboard
+  const ranks=Object.fromEntries(standOrder().map((t,i)=>[t.id,i+1]));
+  const games=wk1.slice().sort((a,b)=>Number(b.homeTeamId===MEID||b.awayTeamId===MEID)-Number(a.homeTeamId===MEID||a.awayTeamId===MEID));
+  html+=`<section class="home-matchups"><div class="mx-heading"><h3>Week ${focusWk} matchups</h3><button class="btn ghost" data-goto="scoreboard">Scoreboard</button></div>${games.length?`<div class="grid g-sb">${games.map(x=>scoreCard(x,ranks)).join("")}</div>`:'<p class="metricnote">Matchups appear when the schedule is available.</p>'}</section>`;
+  const avgScore=pr.filter(r=>r.score!=null).reduce((a,r,_,all)=>a+r.score/all.length,0);
+  html+=`<section class="card card-p home-league-overview"><div class="mx-heading"><h3>${ST.started?'Power rankings':'Projected finish'}</h3><button class="btn ghost" data-goto="power">View rankings</button></div><p class="metricnote">${ST.started?'League power score · finalized weeks · <span class="num-pos">green</span> above league average, <span class="num-neg">red</span> below':'ESPN draft-day projection'}</p>${pr.map(r=>`<div class="home-ranking"><span class="rankcol">${r.rank}</span>${teamLine(r.team)}<span class="num ${ST.started&&r.score!=null?toneCls(r.score-avgScore):""}">${r.score!=null?fmt(r.score,1):'—'}</span></div>`).join('')}<button class="btn ghost home-standings-link" data-goto="standings">Official standings</button></section>`;
   html+=gamesToWatch(focusWk,pr)+dayRecap()+recapCard()+awardsCard();
   html+=`<details class="fold home-fold"><summary>League notices</summary><div class="fold-b">${subNotice()}</div></details>`;
   const v=el(html);
@@ -1759,7 +1766,7 @@ function recapCard(){
   if(bench&&bench.left>0)h+=row("Most left on bench",`<span class="nm">${esc(bench.t.name)}</span> <span style="color:var(--ink-3)">best possible lineup was ${fmt(bench.left,1)} pts better</span>`,fmt(bench.left,1));
   return h+`</div>`;
 }
-function kpi(l,v,s){return `<div class="kpi"><div class="k-label">${l}</div><div class="k-val num">${esc(v)}</div><div class="k-sub">${esc(s)}</div></div>`;}
+function kpi(l,v,s,tone=0){return `<div class="kpi"><div class="k-label">${l}</div><div class="k-val num ${toneCls(tone)}">${esc(v)}</div><div class="k-sub">${esc(s)}</div></div>`;}
 function kpiHot(l,v,s){return `<div class="kpi hot"><div class="k-label">${l}</div><div class="k-val" style="font-size:20px;margin-top:9px">${esc(v)}</div><div class="k-sub">${esc(s)}</div></div>`;}
 function gamesToWatch(wk,pr){
   const rank={}; pr.forEach(r=>rank[r.team.id]=r.rank);
@@ -1807,14 +1814,6 @@ function tbHomeNote(v){
   if(!TB.sub)initTradeBlock();
   let tries=0;const t=setInterval(()=>{tries++;if(TB.loaded||tries>16){clearInterval(t);fill();}},300);
 }
-function matchupMini(x){
-  const h=teamById[x.homeTeamId],a=teamById[x.awayTeamId];if(!h||!a)return"";
-  const s=mstate(x);
-  return `<div data-mid="${x.id}" style="padding:7px 0;border-bottom:1px solid var(--line)">
-    <div class="mrow ${s.aw?"wn":""}" style="padding:2px 0">${badge(a)}<span class="nm" style="font-size:13px">${esc(a.name)}</span><span class="sc">${s.show?fmt(s.as,1):""}</span></div>
-    <div class="mrow ${s.hw?"wn":""}" style="padding:2px 0">${badge(h)}<span class="nm" style="font-size:13px">${esc(h.name)}</span><span class="sc">${s.show?fmt(s.hs,1):'<span class="vs">VS</span>'}</span></div>${(()=>{const p=winProb(x);return p?`<div class="wpmini">win chance ${Math.round(p.pa*100)}% · ${Math.round(p.ph*100)}%</div>`:"";})()}</div>`;
-}
-
 /* ---- MY MATCHUP (head-to-head lineup, slot by slot) ---- */
 let mxWeek=null;
 function lineupTotals(rows){if(!rows)return null;const st=rows.filter(r=>r.slot!==20&&r.slot!==21);
@@ -1874,9 +1873,9 @@ VIEWS.myteam=function(){
   if(!t){const v=el(pickPrompt("your roster and season"));wirePicker(v);return v;}
   const s=ST.S[t.id],order=standOrder(),rk=order.findIndex(o=>o.id===t.id)+1,pr=powerRanks(),prk=(pr.find(r=>r.team.id===t.id)||{}).rank;
   let html=`<div class="hero hm"><div class="hm-l">${badge(t,"xl")}<div style="min-width:0"><div class="eyebrow">My team</div><h2>${esc(t.name)}</h2><div class="hx-ow">${esc(t.owner||"")}</div></div></div>
-    <div class="hm-stats"><div><b>${recStr(s)}</b><span>Record</span></div><div><b>${ordinal(rk)}</b><span>Standings</span></div><div><b>${prk?"#"+prk:"—"}</b><span>Power</span></div><div><b>${ST.started?fmt(s.ppg,1):"—"}</b><span>PPG</span></div></div>
+    <div class="hm-stats"><div><b class="${ST.started?toneCls(s.w-s.l):""}">${recStr(s)}</b><span>Record</span></div><div><b class="${ST.started?toneCls(cutTone(rk)):""}">${ordinal(rk)}</b><span>Standings</span></div><div><b class="${ST.started&&prk?toneCls(cutTone(prk)):""}">${prk?"#"+prk:"—"}</b><span>Power</span></div><div><b class="${ST.started?toneCls(s.ppg-leaguePPG()):""}">${ST.started?fmt(s.ppg,1):"—"}</b><span>PPG</span></div></div>
     <button class="btn ghost hm-sw" id="meSwitch">Switch team</button></div>`;
-  html+=`<div class="grid g-kpi" style="margin-top:16px">${kpi("Points for",ST.started?fmt(s.pf,1):"—",ST.started?`${fmt(s.pa,1)} against`:"")}${kpi("All-play",ST.started?`${s.aw}-${s.al}`:"—","vs every team, every week")}${kpi("Luck",ST.started?(s.luck>0?"+":"")+fmt(s.luck,1):"—","wins above expected")}${kpi("Streak",ST.started?streakBare(s.streak):"—","current run")}</div>`;
+  html+=`<div class="grid g-kpi" style="margin-top:16px">${kpi("Points for",ST.started?fmt(s.pf,1):"—",ST.started?`${fmt(s.pa,1)} against`:"",ST.started?s.pf-s.pa:0)}${kpi("All-play",ST.started?`${s.aw}-${s.al}`:"—","vs every team, every week",ST.started?s.aw-s.al:0)}${kpi("Luck",ST.started?(s.luck>0?"+":"")+fmt(s.luck,1):"—","wins above expected",ST.started?+fmt(s.luck,1):0)}${kpi("Streak",ST.started?streakBare(s.streak):"—","current run",ST.started?streakNum(s):0)}</div>`;
   html+=`<div id="teamDetail" class="myteam"></div>`;
   const v=el(html);
   v.querySelector("#meSwitch").onclick=pickTeamModal;
@@ -1888,6 +1887,11 @@ function myHome(){const t=meTeam();if(!t)return `<div class="hero hero-pick slim
 
 /* ---- STANDINGS ---- */
 let standSort={key:"pct",dir:-1};
+// green for good, red for bad: colors a number by the sign of its comparison
+function toneCls(n){return n>0?"num-pos":n<0?"num-neg":"";}
+// inside the playoff cut is good (green), outside is bad (red)
+function cutTone(rank){return rank<=D.meta.playoffTeamCount?1:-1;}
+function leaguePPG(){const all=Object.values(ST.S);return all.length?all.reduce((a,t)=>a+(t.ppg||0),0)/all.length:0;}
 VIEWS.standings=function(){
   let html=shead("Regular Season","Standings",ST.started?"Click a column to sort":"Records populate after Week 1");
   if(!ST.started){
@@ -1908,18 +1912,19 @@ VIEWS.standings=function(){
   if(!ST.started) rows.sort((a,b)=>(a.team.draftProjRank||99)-(b.team.draftProjRank||99));
   html+=`<div class="twrap"><table><thead><tr><th class="no-sort">#</th>`+
     cols.map(c=>`<th aria-sort="${standSort.key===c[0]?(standSort.dir<0?"descending":"ascending"):"none"}"><button class="sort-control" data-k="${c[0]}">${c[1]}${standSort.key===c[0]?` <span class="ar">${standSort.dir<0?"▼":"▲"}</span>`:""}</button></th>`).join("")+`</tr></thead><tbody>`;
+  const avgPPG=leaguePPG();
   rows.forEach((s,i)=>{
     const isCut=ST.started&&officialOrder&&officialRanks.get(s.id)===D.meta.playoffTeamCount;
     html+=`<tr class="${s.id===MEID?"me":""} ${isCut?"playoff-line":""}">
       <td class="rankcol ${officialRanks.get(s.id)<=3?"top":""}">${ST.started?officialRanks.get(s.id):"—"}</td>
       <td>${teamLine(s.team)}</td>
       <td class="lead num">${s.w}</td><td class="num">${s.l}</td><td class="num">${s.tie}</td>
-      <td class="num">${ST.started?fmt(s.pct,3).replace(/^0/,""):"—"}</td>
+      <td class="num ${ST.started?toneCls(s.pct-.5):""}">${ST.started?fmt(s.pct,3).replace(/^0/,""):"—"}</td>
       <td class="num">${ST.started?fmt(s.pf,1):"—"}</td><td class="num">${ST.started?fmt(s.pa,1):"—"}</td>
-      <td class="num">${ST.started?fmt(s.ppg,1):"—"}</td><td class="num">${ST.started?fmt(s.papg,1):"—"}</td>
+      <td class="num ${ST.started?toneCls(s.ppg-avgPPG):""}">${ST.started?fmt(s.ppg,1):"—"}</td><td class="num">${ST.started?fmt(s.papg,1):"—"}</td>
       <td>${ST.started?streakPill(s.streak):"—"}</td>
       <td class="num" style="color:${s.luck>0?"var(--win)":s.luck<0?"var(--loss)":"var(--ink-2)"}">${ST.started?(s.luck>0?"+":"")+fmt(s.luck,1):"—"}</td>
-      ${[s.expW,s.apPct!=null?s.apPct*100:null,s.hi,s.lo,s.std].map((value,j)=>`<td class="num">${ST.started&&value!=null?fmt(value,1)+(j===1?"%":""):"—"}</td>`).join("")}</tr>`;
+      ${[s.expW,s.apPct!=null?s.apPct*100:null,s.hi,s.lo,s.std].map((value,j)=>`<td class="num ${j===1&&ST.started&&value!=null?toneCls(value-50):""}">${ST.started&&value!=null?fmt(value,1)+(j===1?"%":""):"—"}</td>`).join("")}</tr>`;
   });
   html+=`</tbody></table></div>`;
   html+=`<div class="metricnote"><b>Ranked by record, then total points (PF) as the tiebreaker.</b> <b>PCT</b> win % (ties½). <b>PF/PA</b> total points for/against. <b>PPG</b> points per game. <b>PA/G</b> points opponents scored per game. <b>STRK</b> current streak (W3 = won the last 3). <b>EXP W</b> expected wins. <b>ALL-PLAY %</b> win rate against every team each week. <b>HIGH/LOW</b> best and lowest finalized weekly score. <b>SPREAD</b> weekly scoring standard deviation (lower is steadier). <b>LUCK</b> = actual wins minus expected wins. Expected wins: each week, the share of the other 11 teams a score would have beaten (beat 8 of 11 = 0.73 wins), added up. Positive means a team has won more than its scoring "deserved". Rank stays in record/PF order while sorting. The playoff cut (top ${D.meta.playoffTeamCount}) appears only in default standings order. Confirm league-specific tiebreaks in ESPN.</div>`;
@@ -2012,7 +2017,7 @@ function winProb(x){
   return {ph,pa:1-ph,proj:x.week===D.meta.currentScoringPeriod&&x.homeProj!=null};
 }
 function wpBar(x,a,h){const p=winProb(x);if(!p)return"";const pa=Math.round(p.pa*100),ph=100-pa;
-  return `<div class="wp" title="Win probability"><span class="wp-a" style="width:${pa}%"></span><span class="wp-h"></span></div><div class="wp-l"><span><b>${pa}%</b> ${esc(a.name)}</span><span>win chance</span><span>${esc(h.name)} <b>${ph}%</b></span></div>`;}
+  return `<div class="wp" title="Win probability"><span class="wp-a" style="width:${pa}%"></span><span class="wp-h"></span></div><div class="wp-l"><span><b class="${toneCls(pa-50)}">${pa}%</b> ${esc(a.name)}</span><span>win chance</span><span>${esc(h.name)} <b class="${toneCls(ph-50)}">${ph}%</b></span></div>`;}
 function wpGraph(x,compact=false){
   if(x.week!==D.meta.currentScoringPeriod)return "";
   const a=teamById[x.awayTeamId],h=teamById[x.homeTeamId];if(!a||!h)return "";
@@ -2268,6 +2273,23 @@ function pickupStats(){
 // the week people care about: live week, else the current (upcoming) week, else the last finished one
 function focusWeek(){const c=D.meta.currentScoringPeriod;if(D.meta.liveWeek)return D.meta.liveWeek;if(c&&D.schedule.some(x=>x.week===c))return c;return ST.started?Math.max(...ST.weeks):1;}
 let curWeek=focusWeek();
+/* scoreboard-style matchup card (Scoreboard page and Home) */
+function scoreCard(x,ranks){
+    const h=teamById[x.homeTeamId],a=teamById[x.awayTeamId];if(!h||!a)return "";
+    const s=mstate(x);
+    const foot=s.live?`<span style="color:var(--loss);font-weight:700"><span class="livedot"></span>LIVE · in progress</span><span>Margin ${fmt(Math.abs(s.hs-s.as),1)}</span>`
+      :s.played?`<span>${fmt(x.homeScore+x.awayScore,1)} total</span><span>Margin ${fmt(Math.abs(x.homeScore-x.awayScore),1)}</span>`
+      :`<span>Not yet played</span><span></span>`;
+    const rec=t=>ST.S[t.id]?recStr(ST.S[t.id]):"";
+    return `<div class="mcard mx2 ${a.id===MEID||h.id===MEID?"mine":""}" data-mid="${x.id}">
+      <div class="m2">
+        <div class="m2-t ${s.aw?"wn":s.hw?"ls":""}">${badge(a,"lg")}<div class="m2-id"><div class="nm"><span class="team-rank">#${ranks[a.id]}</span> ${esc(a.name)}</div><div class="ow">${esc(a.owner)} · ${rec(a)}</div></div><span class="sc">${s.show?fmt(s.as,1):""}</span></div>
+        <div class="m2-t r ${s.hw?"wn":s.aw?"ls":""}"><span class="sc">${s.show?fmt(s.hs,1):""}</span><div class="m2-id"><div class="nm"><span class="team-rank">#${ranks[h.id]}</span> ${esc(h.name)}</div><div class="ow">${esc(h.owner)} · ${rec(h)}</div></div>${badge(h,"lg")}</div>
+      </div>
+      ${wpBar(x,a,h)}
+      <div class="m2-foot">${foot}</div>
+    </div>`;
+}
 VIEWS.scoreboard=function(){
   const weeks=[];for(let i=1;i<=D.meta.regularSeasonWeeks;i++)weeks.push(i);
   const isLiveWk=D.meta.liveWeek===curWeek;
@@ -2278,23 +2300,7 @@ VIEWS.scoreboard=function(){
   const ranks=Object.fromEntries(standOrder().map((t,i)=>[t.id,i+1]));
   const games=D.schedule.filter(x=>x.week===curWeek).sort((a,b)=>Number(b.homeTeamId===MEID||b.awayTeamId===MEID)-Number(a.homeTeamId===MEID||a.awayTeamId===MEID));
   const anyShown=games.some(g=>mstate(g).show);
-  html+=`<div class="grid g-sb">`;
-  games.forEach(x=>{
-    const h=teamById[x.homeTeamId],a=teamById[x.awayTeamId];if(!h||!a)return;
-    const s=mstate(x);
-    const foot=s.live?`<span style="color:var(--loss);font-weight:700"><span class="livedot"></span>LIVE · in progress</span><span>Margin ${fmt(Math.abs(s.hs-s.as),1)}</span>`
-      :s.played?`<span>${fmt(x.homeScore+x.awayScore,1)} total</span><span>Margin ${fmt(Math.abs(x.homeScore-x.awayScore),1)}</span>`
-      :`<span>Not yet played</span><span></span>`;
-    const rec=t=>ST.S[t.id]?recStr(ST.S[t.id]):"";
-    html+=`<div class="mcard mx2 ${a.id===MEID||h.id===MEID?"mine":""}" data-mid="${x.id}">
-      <div class="m2">
-        <div class="m2-t ${s.aw?"wn":""}">${badge(a,"lg")}<div class="m2-id"><div class="nm"><span class="team-rank">#${ranks[a.id]}</span> ${esc(a.name)}</div><div class="ow">${esc(a.owner)} · ${rec(a)}</div></div><span class="sc">${s.show?fmt(s.as,1):""}</span></div>
-        <div class="m2-t r ${s.hw?"wn":""}"><span class="sc">${s.show?fmt(s.hs,1):""}</span><div class="m2-id"><div class="nm"><span class="team-rank">#${ranks[h.id]}</span> ${esc(h.name)}</div><div class="ow">${esc(h.owner)} · ${rec(h)}</div></div>${badge(h,"lg")}</div>
-      </div>
-      ${wpBar(x,a,h)}
-      <div class="m2-foot">${foot}</div>
-    </div>`;
-  });
+  html+=`<div class="grid g-sb">${games.map(x=>scoreCard(x,ranks)).join("")}`;
   html+=`</div>`;
   if(!anyShown) html+=`<div style="margin-top:16px">${emptyState("calendar","Week "+curWeek+" hasn't kicked off","Matchups are set from the schedule. Live scores appear here once the week's games are underway.")}</div>`;
   if(games.some(g=>winProb(g))) html+=`<div class="metricnote"><b>Win probability</b> blends each team's season scoring (average and week-to-week spread). For the current week it starts from ESPN's projected totals and tightens as games finish. A guide, not a promise.</div>`;
@@ -2955,7 +2961,12 @@ function updParlayMissing(){const e=document.getElementById("lbMiss");if(!e)retu
   if(!parlayLoaded){e.textContent=__sb?"Checking who's in…":"";return;}
   const got=new Set(parlayPicks.map(p=>p.manager)),all=D.teams.map(t=>t.owner||t.name),miss=all.filter(n=>!got.has(n)).sort((a,b)=>a.localeCompare(b));
   const progress=document.getElementById("parlayProgress");if(progress)progress.innerHTML=`<span><b>${all.length-miss.length}/${all.length}</b> managers in</span><progress aria-label="Parlay picks submitted" value="${all.length-miss.length}" max="${all.length}"></progress>`;
-  e.innerHTML=miss.length?`<b>Still waiting on ${miss.length} of ${all.length}:</b> `+miss.map(n=>`<span class="mchip">${esc(n)}</span>`).join(""):`<span class="ok">All ${all.length} picks submitted</span>`;}
+  e.innerHTML=miss.length?`<b>Still waiting on ${miss.length} of ${all.length}:</b> `+miss.map(n=>`<span class="mchip">${esc(n)}</span>`).join(""):`<span class="ok">All ${all.length} picks submitted</span>`;
+  // everyone's in: shrink the Home parlay box to a one-line link
+  const home=e.closest(".home-parlay");
+  if(home&&!miss.length&&all.length){const st=parlayStatus(parlayPicks);
+    home.innerHTML=`<div class="parlay-done"><div class="pd-txt"><span class="pd-wk">Week ${parlayWeek} parlay</span><span class="pd-st" style="color:${st.tone}">All ${all.length} picks in · ${esc(st.label)}</span></div><button class="btn ghost" data-goto="parlay">View this week's picks</button></div>`;
+    home.querySelector("[data-goto]").onclick=()=>setTab("parlay");}}
 function currentParlayLegs(picks){
   const seen=new Set();
   return picks.slice().sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at)||b.id-a.id).filter(p=>{const key=p.teamId??p.manager;if(seen.has(key))return false;seen.add(key);return true;});
@@ -4345,9 +4356,9 @@ function boot(){
   startSiteTracking();
   const m=D.meta;
   if(MEID>=0&&!teamById[MEID])MEID=-1;
-  const br=document.getElementById("abBrand");if(br)br.onclick=()=>setTab("dash");
+  const br=document.getElementById("abBrand");if(br)br.onclick=goHome;
   document.getElementById("lgname").textContent=m.leagueName;
-  document.getElementById("lgsub").textContent=`${m.season} Season · ESPN League ${m.leagueId}`;
+  {const sub=document.getElementById("lgsub"),id=document.createElement("span");id.className="lgid";id.textContent=` · ESPN League ${m.leagueId}`;sub.textContent=`${m.season} Season`;sub.append(id);}
   document.getElementById("mark").textContent="MFL";
   document.getElementById("chips").innerHTML=
     `<span class="chip gold">${m.size} teams</span><span class="chip">${m.ppr} PPR</span><span class="chip">${m.regularSeasonWeeks}-wk season</span><span class="chip">${m.playoffTeamCount} playoff</span>`;

@@ -9,6 +9,7 @@ export function rememberView(page, root) {
     fields: [...root.querySelectorAll('[data-remember]')].map(n=>[n.dataset.remember,n.value]),
   });
 }
+export function forgetView(page) { viewStates.delete(page); }
 export function restoreView(page, root, scroll) {
   const state=viewStates.get(page);if(!state)return;
   root.querySelectorAll('details').forEach((d,i)=>{const saved=state.details.get(detailKey(d,i));if(saved!=null)d.open=saved;});
@@ -111,10 +112,11 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
   }
 
   if(page==='myteam') {
-    view.querySelector('.g-kpi')?.remove();
+    // Season stats sit right under the team header, ahead of the trend chart.
     const detail=view.querySelector('#teamDetail');
+    const kpis=view.querySelector(':scope > .g-kpi');
     const trend=detail?.querySelector('.team-season-trend');
-    if(trend)view.querySelector('.hero.hm')?.after(trend);
+    if(trend)(kpis||view.querySelector('.hero.hm'))?.after(trend);
     teamLayout(detail);
   }
   if(page==='teams')teamLayout(view.querySelector('#teamDetail'));
