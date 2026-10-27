@@ -632,8 +632,6 @@ body .btn:active,body .tbtn:active { background:var(--surface-3); }
 /* Color-coded numbers: green is good, red is bad, at a glance. */
 body .num-pos,body #app .kpi .k-val.num-pos,body .hm-stats b.num-pos { color:var(--win); }
 body .num-neg,body #app .kpi .k-val.num-neg,body .hm-stats b.num-neg { color:var(--loss); }
-body .m2-t.wn .sc { color:var(--win); }
-body .m2-t.ls .sc { color:var(--loss); }
 
 /* Home: this week's matchups, then power rankings */
 .home-matchups { margin:20px 0; }

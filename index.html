@@ -1710,8 +1710,7 @@ VIEWS.dash=function(){
   const ranks=Object.fromEntries(standOrder().map((t,i)=>[t.id,i+1]));
   const games=wk1.slice().sort((a,b)=>Number(b.homeTeamId===MEID||b.awayTeamId===MEID)-Number(a.homeTeamId===MEID||a.awayTeamId===MEID));
   html+=`<section class="home-matchups"><div class="mx-heading"><h3>Week ${focusWk} matchups</h3><button class="btn ghost" data-goto="scoreboard">Scoreboard</button></div>${games.length?`<div class="grid g-sb">${games.map(x=>scoreCard(x,ranks)).join("")}</div>`:'<p class="metricnote">Matchups appear when the schedule is available.</p>'}</section>`;
-  const avgScore=pr.filter(r=>r.score!=null).reduce((a,r,_,all)=>a+r.score/all.length,0);
-  html+=`<section class="card card-p home-league-overview"><div class="mx-heading"><h3>${ST.started?'Power rankings':'Projected finish'}</h3><button class="btn ghost" data-goto="power">View rankings</button></div><p class="metricnote">${ST.started?'League power score · finalized weeks · <span class="num-pos">green</span> above league average, <span class="num-neg">red</span> below':'ESPN draft-day projection'}</p>${pr.map(r=>`<div class="home-ranking"><span class="rankcol">${r.rank}</span>${teamLine(r.team)}<span class="num ${ST.started&&r.score!=null?toneCls(r.score-avgScore):""}">${r.score!=null?fmt(r.score,1):'—'}</span></div>`).join('')}<button class="btn ghost home-standings-link" data-goto="standings">Official standings</button></section>`;
+  html+=`<section class="card card-p home-league-overview"><div class="mx-heading"><h3>${ST.started?'Power rankings':'Projected finish'}</h3><button class="btn ghost" data-goto="power">View rankings</button></div><p class="metricnote">${ST.started?'League power score · finalized weeks':'ESPN draft-day projection'}</p>${pr.map(r=>`<div class="home-ranking"><span class="rankcol">${r.rank}</span>${teamLine(r.team)}<span class="num">${r.score!=null?fmt(r.score,1):'—'}</span></div>`).join('')}<button class="btn ghost home-standings-link" data-goto="standings">Official standings</button></section>`;
   html+=gamesToWatch(focusWk,pr)+dayRecap()+recapCard()+awardsCard();
   html+=`<details class="fold home-fold"><summary>League notices</summary><div class="fold-b">${subNotice()}</div></details>`;
   const v=el(html);
@@ -2017,7 +2016,7 @@ function winProb(x){
   return {ph,pa:1-ph,proj:x.week===D.meta.currentScoringPeriod&&x.homeProj!=null};
 }
 function wpBar(x,a,h){const p=winProb(x);if(!p)return"";const pa=Math.round(p.pa*100),ph=100-pa;
-  return `<div class="wp" title="Win probability"><span class="wp-a" style="width:${pa}%"></span><span class="wp-h"></span></div><div class="wp-l"><span><b class="${toneCls(pa-50)}">${pa}%</b> ${esc(a.name)}</span><span>win chance</span><span>${esc(h.name)} <b class="${toneCls(ph-50)}">${ph}%</b></span></div>`;}
+  return `<div class="wp" title="Win probability"><span class="wp-a" style="width:${pa}%"></span><span class="wp-h"></span></div><div class="wp-l"><span><b>${pa}%</b> ${esc(a.name)}</span><span>win chance</span><span>${esc(h.name)} <b>${ph}%</b></span></div>`;}
 function wpGraph(x,compact=false){
   if(x.week!==D.meta.currentScoringPeriod)return "";
   const a=teamById[x.awayTeamId],h=teamById[x.homeTeamId];if(!a||!h)return "";
