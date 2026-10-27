@@ -73,6 +73,7 @@ export function normalizeResearch(
           s.statSplitTypeId === 1 &&
           s.scoringPeriodId > 0 &&
           s.scoringPeriodId < week &&
+          s.scoringPeriodId !== teams.get(p.proTeamId)?.byeWeek &&
           typeof s.appliedTotal === "number" &&
           Number.isFinite(s.appliedTotal) &&
           s.stats &&
@@ -117,8 +118,12 @@ export function normalizeResearch(
         log: history.map((s: Json) => ({
           week: s.scoringPeriodId,
           pts: s.appliedTotal,
+          stats: s.stats,
         })),
+        currentStats: stats.find((s: Json) => s.seasonId === season && s.statSourceId === 0 && s.statSplitTypeId === 1 && s.scoringPeriodId === week)?.stats ?? null,
         owned: p.ownership?.percentOwned ?? null,
+        started: p.ownership?.percentStarted ?? null,
+        trend: typeof p.ownership?.percentChange === "number" && Number.isFinite(p.ownership.percentChange) ? p.ownership.percentChange : null,
         kickoff:
           typeof kickoff === "number" && Number.isFinite(kickoff) && kickoff > 0
             ? kickoff

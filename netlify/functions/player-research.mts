@@ -44,7 +44,7 @@ export default async (req: Request) => {
       get(`${root}?view=proTeamSchedules_wl`),
     ]);
     return Response.json(normalizeResearch(data, schedule, season, week), {
-      headers: { "Cache-Control": "public, max-age=120, s-maxage=300" },
+      headers: { "Cache-Control": "public, max-age=30, s-maxage=60" },
     });
   } catch {
     return Response.json(
