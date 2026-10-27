@@ -941,28 +941,6 @@ export function installManagerExperience(api) {
         }
       };
     });
-    root.querySelectorAll(".sub-h[title]").forEach((n) => {
-      if (n.querySelector(".mx-help")) return;
-      const text = n.title;
-      n.removeAttribute("title");
-      n.querySelector(".qi")?.remove();
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "mx-help";
-      b.textContent = "?";
-      b.setAttribute("aria-label", "Explain this metric");
-      b.setAttribute("aria-expanded", "false");
-      const p = document.createElement("p");
-      p.className = "metricnote";
-      p.hidden = true;
-      p.textContent = text;
-      b.onclick = () => {
-        p.hidden = !p.hidden;
-        b.setAttribute("aria-expanded", String(!p.hidden));
-      };
-      n.appendChild(b);
-      n.after(p);
-    });
     root.querySelectorAll(".twrap").forEach((n) => {
       if (!n.querySelector("table")) return;
       n.tabIndex = 0;
