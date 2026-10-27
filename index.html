@@ -475,7 +475,8 @@ body.mdl-open{overflow:hidden}
 .lu .sub{font-size:11.5px;color:var(--ink-3)}
 .lu td.r{text-align:right}
 .lu .won{color:var(--win)}
-.lu-bench{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.lu-bench{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:12px;row-gap:6px;margin-top:12px;align-items:stretch}
+.lu-bench>.k-label{margin-bottom:0}
 .lu-bench .row{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;padding:4px 0;border-bottom:1px solid var(--line);color:var(--ink-2)}
 .lu{table-layout:fixed}
 .lu .pl{max-width:100%}
@@ -1709,7 +1710,7 @@ VIEWS.dash=function(){
   // this week's games first, in the same card style as the Scoreboard
   const ranks=Object.fromEntries(standOrder().map((t,i)=>[t.id,i+1]));
   const games=wk1.slice().sort((a,b)=>Number(b.homeTeamId===MEID||b.awayTeamId===MEID)-Number(a.homeTeamId===MEID||a.awayTeamId===MEID));
-  html+=`<section class="home-matchups"><div class="mx-heading"><h3>Week ${focusWk} matchups</h3><button class="btn ghost" data-goto="scoreboard">Scoreboard</button></div>${games.length?`<div class="grid g-sb">${games.map(x=>scoreCard(x,ranks)).join("")}</div>`:'<p class="metricnote">Matchups appear when the schedule is available.</p>'}</section>`;
+  html+=`<section class="home-matchups"><div class="mx-heading"><h3>Week ${focusWk} matchups</h3></div>${games.length?`<div class="grid g-sb">${games.map(x=>scoreCard(x,ranks)).join("")}</div>`:'<p class="metricnote">Matchups appear when the schedule is available.</p>'}</section>`;
   html+=`<section class="card card-p home-league-overview"><div class="mx-heading"><h3>${ST.started?'Power rankings':'Projected finish'}</h3><button class="btn ghost" data-goto="power">View rankings</button></div><p class="metricnote">${ST.started?'League power score · finalized weeks':'ESPN draft-day projection'}</p>${pr.map(r=>`<div class="home-ranking"><span class="rankcol">${r.rank}</span>${teamLine(r.team)}<span class="num">${r.score!=null?fmt(r.score,1):'—'}</span></div>`).join('')}<button class="btn ghost home-standings-link" data-goto="standings">Official standings</button></section>`;
   html+=gamesToWatch(focusWk,pr)+dayRecap()+recapCard()+awardsCard();
   html+=`<details class="fold home-fold"><summary>League notices</summary><div class="fold-b">${subNotice()}</div></details>`;
@@ -1739,7 +1740,7 @@ function dayRecap(){
   let label=""; for(const ab of ln){const g=nfl[ab]; if(g&&g.opp&&ln.has(g.opp)){label=ab+" vs "+g.opp; break;}}
   if(!label) label=[...ln].join(" · ");
   const prow=o=>`<div style="display:flex;align-items:center;gap:9px;padding:5px 0;border-bottom:1px solid var(--line)"><span class="posbadge tag-${(o.pos||"").toLowerCase()}">${esc(o.pos)}</span><span style="flex:1;min-width:0;font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(pname(o.pid))}${pFlags(o.pid,(D.players[o.pid]||[])[2])} <span style="color:var(--ink-3);font-weight:400">${esc((D.players[o.pid]||[])[2])}</span></span><span style="font-size:12px;color:var(--ink-3)">${esc(o.t.name)}</span><span class="num" style="font-weight:700;width:46px;text-align:right">${fmt(o.pts,1)}</span></div>`;
-  let h=`<div class="card card-p" style="margin-bottom:16px"><div class="sub-h" style="margin-top:0">Latest game day <span style="font-weight:400;font-size:12px;color:var(--ink-3);text-transform:none;letter-spacing:0">${esc(label)}</span></div>`;
+  let h=`<div class="card card-p home-gameday" style="margin:16px 0"><div class="sub-h" style="margin-top:0">Latest game day <span style="font-weight:400;font-size:12px;color:var(--ink-3);text-transform:none;letter-spacing:0">${esc(label)}</span></div>`;
   h+=`<div class="k-label" style="color:var(--win);margin:0 0 2px">Top performers</div>${studs.map(prow).join("")}`;
   if(perf.length>=7){const duds=perf.slice(-2).reverse(); if(duds[0].pts<studs[studs.length-1].pts) h+=`<div class="k-label" style="color:var(--loss);margin:10px 0 2px">Started &amp; struggled</div>${duds.map(prow).join("")}`;}
   return h+`</div>`;
@@ -1785,7 +1786,7 @@ function gamesToWatch(wk,pr){
   const pick=games.filter(g=>g.upset||g.projM<=12).slice(0,4);
   if(!pick.length) return "";
   const live=D.meta.liveWeek===wk;
-  let h=`<div class="sub-h" style="margin-top:20px">Games to Watch <span style="font-weight:400;font-size:12px;color:var(--ink-3);text-transform:none;letter-spacing:0">tightest projected matchups this week</span></div><div class="grid g-2">`;
+  let h=`<div class="sub-h" style="margin-top:20px">Games to Watch <span style="font-weight:400;font-size:12px;color:var(--ink-3);text-transform:none;letter-spacing:0">tightest projected matchups this week</span></div><div class="grid g-2 home-watch" style="margin-bottom:16px">`;
   pick.forEach(g=>{
     const tag=g.upset?`<span class="tag-out" style="font-size:11.5px">Upset watch</span>`:`<span class="tag-in" style="font-size:11.5px">Nail-biter</span>`;
     const as=g.s.show?fmt(g.s.as,1):fmt(g.ap,1),hs=g.s.show?fmt(g.s.hs,1):fmt(g.hp,1);
@@ -1852,10 +1853,13 @@ VIEWS.matchup=function(){
     STARTER_ORDER.forEach((sl,i)=>{const p=lm[i],q=lo[i],pp=p?p.pts||0:-1,qq=q?q.pts||0:-1;
       html+=`<div class="lx-row">${luSide(p,pp>qq&&pp>0,false,x.week)}<div class="lx-slot">${SLOTNAME[sl]}</div>${luSide(q,qq>pp&&qq>0,true,x.week)}</div>`;});
     html+=`</div>`;
-    const bn=rows=>(rows||[]).filter(r=>r.slot===20||r.slot===21).sort((u,w)=>(w.proj??w.pts??0)-(u.proj??u.pts??0)),bm=bn(M),bo=bn(O);
+    const bn=(rows,sl)=>(rows||[]).filter(r=>r.slot===sl).sort((u,w)=>(w.proj??w.pts??0)-(u.proj??u.pts??0)),bm=bn(M,20),bo=bn(O,20),im=bn(M,21),io=bn(O,21);
     html+=`<div class="sub-h">Bench</div><div class="lx lx-bench"><div class="lx-row lx-hd"><div class="lx-p">${esc(me.name)}</div><div></div><div class="lx-p r">${esc(op.name)}</div></div>`;
-    for(let i=0;i<Math.max(bm.length,bo.length,1);i++){const p=bm[i],q=bo[i];
-      html+=`<div class="lx-row">${luSide(p,false,false,x.week,true)}<div class="lx-slot">${p&&p.slot===21||q&&q.slot===21?"IR":"BN"}</div>${luSide(q,false,true,x.week,true)}</div>`;}
+    for(let i=0;i<Math.max(bm.length,bo.length,1);i++)
+      html+=`<div class="lx-row">${luSide(bm[i],false,false,x.week,true)}<div class="lx-slot">BN</div>${luSide(bo[i],false,true,x.week,true)}</div>`;
+    // the IR spot is always last and only shown when either team is using it
+    for(let i=0;i<Math.max(im.length,io.length);i++)
+      html+=`<div class="lx-row">${luSide(im[i],false,false,x.week,true)}<div class="lx-slot">IR</div>${luSide(io[i],false,true,x.week,true)}</div>`;
     html+=`</div>`;
   } else html+=`<div style="margin-top:16px">${emptyState("users","Lineups not available yet","Player-by-player lineups show up once ESPN publishes this week's rosters.")}</div>`;
   html+=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px"><button class="btn" data-open="${x.id}">${icon("calculator")} What-if calculator & weather</button><button class="btn ghost" data-goto="scoreboard">All Week ${x.week} games</button></div>`;
@@ -2020,22 +2024,27 @@ function wpBar(x,a,h){const p=winProb(x);if(!p)return"";const pa=Math.round(p.pa
 function wpGraph(x,compact=false){
   if(x.week!==D.meta.currentScoringPeriod)return "";
   const a=teamById[x.awayTeamId],h=teamById[x.homeTeamId];if(!a||!h)return "";
-  const samples=((D.wpHistory||{})[String(x.id)]||[]).filter(sm=>Array.isArray(sm)&&[sm[1],sm[2],sm[3],sm[4]].every(Number.isFinite));
-  const vals=samples.flatMap(sm=>{const p=winProb({week:x.week,homeTeamId:x.homeTeamId,awayTeamId:x.awayTeamId,homeProj:sm[3],awayProj:sm[4],homeLive:sm[1],awayLive:sm[2],winner:"UNDECIDED"});return p?[Math.round(p.ph*100)]:[];});
+  const vals=wpSeries(x);
   if(vals.length<2)return `<div class="wpg wpg-empty"><span class="wpg-h">Win probability trend</span><p class="metricnote">The trend appears after two recorded updates. Current estimates are shown with the score.</p></div>`;
-  const W=320,Hh=128,L=34,R=10,T=12,B=26,n=vals.length;
-  const xf=i=>L+(W-L-R)*i/(n-1),yf=v=>T+(Hh-T-B)*(1-v/100);
-  const path=vals.map((v,i)=>(i?'L':'M')+xf(i).toFixed(1)+' '+yf(v).toFixed(1)).join(' ');
+  // The plot stretches to any width; labels and the latest marker are HTML so they never distort.
+  const n=vals.length,T=6,B=6,xf=i=>100*i/(n-1),yf=v=>T+(100-T-B)*(1-v/100);
+  const pts=vals.map((v,i)=>xf(i).toFixed(2)+' '+yf(v).toFixed(2));
+  const line='M'+pts.join(' L'),area=`${line} L100 ${yf(50)} L0 ${yf(50)} Z`;
   const last=vals.at(-1),delta=last-vals[0],low=Math.min(...vals),high=Math.max(...vals);
-  return `<section class="wpg ${compact?'wpg-compact':''}" aria-label="Win probability history"><div class="wpg-heading"><h3>Win probability</h3></div><p class="wpg-caption">Line tracks ${esc(h.name)} · estimated chance</p>
-    <svg viewBox="0 0 ${W} ${Hh}" class="wpg-svg" role="img" aria-label="${esc(h.name)} chance: first ${vals[0]} percent, latest ${last} percent, range ${low} to ${high} percent. Updates are evenly spaced, not elapsed time.">
-      ${[0,50,100].map(v=>`<line x1="${L}" y1="${yf(v)}" x2="${W-R}" y2="${yf(v)}" class="wpg-mid"/><text x="${L-6}" y="${yf(v)+4}" text-anchor="end">${v}%</text>`).join('')}
-      <path d="${path}" class="wpg-line"/>
-      ${vals.map((v,i)=>`<circle cx="${xf(i)}" cy="${yf(v)}" r="${i===n-1?3.5:1.5}" class="wpg-point"><title>Update ${i+1}: ${esc(h.name)} ${v}%, ${esc(a.name)} ${100-v}%</title></circle>`).join('')}
-      </svg>
+  return `<section class="wpg ${compact?'wpg-compact':''}" aria-label="Win probability history"><div class="wpg-heading"><h3>Win probability</h3><span class="wpg-now">${esc(h.name)} <b>${last}%</b></span></div><p class="wpg-caption">Line tracks ${esc(h.name)} · estimated chance</p>
+    <div class="wpg-plot">${[100,50,0].map(v=>`<span class="wpg-y" style="top:${yf(v)}%">${v}%</span>`).join('')}
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="wpg-svg" role="img" aria-label="${esc(h.name)} chance: first ${vals[0]} percent, latest ${last} percent, range ${low} to ${high} percent. Updates are evenly spaced, not elapsed time.">
+      ${[0,100].map(v=>`<line x1="0" y1="${yf(v)}" x2="100" y2="${yf(v)}" class="wpg-grid"/>`).join('')}<line x1="0" y1="${yf(50)}" x2="100" y2="${yf(50)}" class="wpg-mid"/>
+      <path d="${area}" class="wpg-area"/><path d="${line}" class="wpg-line"/>
+    </svg><span class="wpg-dot" style="left:100%;top:${yf(last)}%" aria-hidden="true"></span></div>
     <div class="wpg-l"><span>${esc(a.name)} <b>${100-last}%</b></span><span>${esc(h.name)} <b>${last}%</b></span></div>
-    ${compact?'':`<div class="wpg-insights"><span>Change <b>${delta>0?'+':''}${delta} pp</b></span><span>Range <b>${low}–${high}%</b></span></div><details class="fold"><summary>How to read this chart</summary><p class="metricnote">The line shows ${esc(h.name)}’s estimated win chance; the other team's chance is its complement. The dashed midpoint is 50%. Change is since the first saved update. Updates are evenly spaced, not a time scale. This model uses scoring history and projections; it is not an ESPN probability.</p></details>`}
+    ${compact?'':`<div class="wpg-insights"><span>Change <b>${delta>0?'+':''}${delta} pp</b></span><span>Range <b>${low}–${high}%</b></span></div>`}
     </section>`;
+}
+// Home team's win chance (0–100) at each saved update for this matchup.
+function wpSeries(x){
+  const samples=((D.wpHistory||{})[String(x.id)]||[]).filter(sm=>Array.isArray(sm)&&[sm[1],sm[2],sm[3],sm[4]].every(Number.isFinite));
+  return samples.flatMap(sm=>{const p=winProb({week:x.week,homeTeamId:x.homeTeamId,awayTeamId:x.awayTeamId,homeProj:sm[3],awayProj:sm[4],homeLive:sm[1],awayLive:sm[2],winner:"UNDECIDED"});return p?[Math.round(p.ph*100)]:[];});
 }
 
 /* NFL context is fetched separately so the league remains usable during provider outages. */
@@ -2365,7 +2374,7 @@ function showTeam(id,v,quiet){
   const _shop=new Set((_tbL.available||[]).map(Number)),_offer=new Set((_tbL.openTo||[]).map(Number));
   const tbMark=p=>_shop.has(p.playerId)?' <span class="tag-in" style="font-size:9px">On the block</span>':_offer.has(p.playerId)?' <span style="font-size:9px;color:var(--t-amber);font-weight:700">Open to offers</span>':'';
   // roster
-  h+=`<div class="card card-p"><div class="sub-h" style="margin-top:0">Roster <span style="font-weight:400;font-size:12px;color:var(--ink-3);text-transform:none;letter-spacing:0">${r.length} players</span></div>`;
+  h+=`<div class="card card-p"><div class="sub-h" style="margin-top:0">Roster <span style="font-weight:400;font-size:12px;color:var(--ink-3);text-transform:none;letter-spacing:0">${r.length-r.filter(p=>p.slot==="IR").length} players${r.some(p=>p.slot==="IR")?` + ${r.filter(p=>p.slot==="IR").length} on IR`:""}</span></div>`;
   h+=`<div style="font-size:11.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.08em;margin:2px 0 4px">Starters</div>`;
   sortR(starters).forEach(p=>h+=rosterRow(p,tbMark(p)));
   if(bench.length){h+=`<div style="font-size:11.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 4px">Bench / IR</div>`;sortR(bench).forEach(p=>h+=rosterRow(p,tbMark(p)));}
@@ -2578,14 +2587,6 @@ VIEWS.analytics=function(){
   const scoring=rows.slice().sort((a,b)=>b.pf-a.pf),record=standOrder();
   const focus=meTeam()?ST.S[MEID]:scoring[0];
   if(focus)html+=`<div class="helpbox"><div><b>${esc(focus.team.name)}</b> is ${ordinal(scoring.findIndex(x=>x.id===focus.id)+1)} in scoring and ${ordinal(record.findIndex(x=>x.id===focus.id)+1)} in the standings. Explore all-play and luck below to see how the schedule compares.</div></div>`;
-  html+=`<details class="explain"><summary>What these metrics mean</summary><div class="ex-grid">
-    <div class="ex-item"><h4>Luck Index</h4><p><b>Actual wins − expected wins.</b> Each week a team's score is compared with the other 11; beating 8 of them = 8/11 = 0.73 expected wins. Added up over the season. +1.5 means about 1½ more wins than the scoring earned.</p></div>
-    <div class="ex-item"><h4>All-Play Record</h4><p>The record a team would have if it played <b>every team every week</b>. A week where you outscore 9 teams is 9-2. The best read on how good a team is, regardless of who it drew.</p></div>
-    <div class="ex-item"><h4>Consistency</h4><p>The <b>standard deviation</b> of weekly scores, in points. 10 = most weeks land within about 10 points of the team's average; 30 = boom-or-bust.</p></div>
-    <div class="ex-item"><h4>Strength of Schedule</h4><p>The average season PPG of the opponents a team has played. Higher = tougher opponents. Uses each opponent's full-season average, not what they scored in that game.</p></div>
-    <div class="ex-item"><h4>Pts &gt; Med</h4><p>Weeks a team finished in the top half of the league's 12 scores. 5/6 = above the middle score in 5 of 6 weeks.</p></div>
-    <div class="ex-item"><h4>Close / Blowout · Avg Margin</h4><p>W-L in games decided by 10 points or fewer, and by 40 or more. Avg Margin is the average of (your score − opponent's score).</p></div>
-  </div></details>`;
   // Luck
   html+=`<div class="sub-h" style="margin-top:6px">Luck Index <span style="font-weight:400;font-size:12px;color:var(--ink-3);text-transform:none;letter-spacing:0">actual wins − expected wins</span></div>`;
   html+=barChart(rows.slice().sort((a,b)=>b.luck-a.luck),s=>s.luck,s=>(s.luck>0?"+":"")+fmt(s.luck,1),true);
@@ -2629,6 +2630,14 @@ VIEWS.analytics=function(){
   }
   html+=scheduleSwap();
   html+=`<div class="metricnote"><b>Pts&gt;Med</b> weeks scoring above the league median. <b>Close</b> record in games decided by ≤10 pts. <b>Blowout</b> games decided by ≥40. <b>Avg Margin</b> mean point differential. <b>Hi/Lo</b> best & worst single-week score.</div>`;
+  html+=`<details class="explain analytics-explain" style="margin-top:20px"><summary>What these metrics mean</summary><div class="ex-grid">
+    <div class="ex-item"><h4>Luck Index</h4><p><b>Actual wins − expected wins.</b> Each week a team's score is compared with the other 11; beating 8 of them = 8/11 = 0.73 expected wins. Added up over the season. +1.5 means about 1½ more wins than the scoring earned.</p></div>
+    <div class="ex-item"><h4>All-Play Record</h4><p>The record a team would have if it played <b>every team every week</b>. A week where you outscore 9 teams is 9-2. The best read on how good a team is, regardless of who it drew.</p></div>
+    <div class="ex-item"><h4>Consistency</h4><p>The <b>standard deviation</b> of weekly scores, in points. 10 = most weeks land within about 10 points of the team's average; 30 = boom-or-bust.</p></div>
+    <div class="ex-item"><h4>Strength of Schedule</h4><p>The average season PPG of the opponents a team has played. Higher = tougher opponents. Uses each opponent's full-season average, not what they scored in that game.</p></div>
+    <div class="ex-item"><h4>Pts &gt; Med</h4><p>Weeks a team finished in the top half of the league's 12 scores. 5/6 = above the middle score in 5 of 6 weeks.</p></div>
+    <div class="ex-item"><h4>Close / Blowout · Avg Margin</h4><p>W-L in games decided by 10 points or fewer, and by 40 or more. Avg Margin is the average of (your score − opponent's score).</p></div>
+  </div></details>`;
   return el(html);
 };
 function analyticsPreview(){
@@ -3205,10 +3214,12 @@ function openMatchup(mid){
         if(open(r))return `<td class="pts ${c} ${left?"l":""}"><span class="wi-off">${playerScoreText(r,W)}${r.proj!=null?`<small>proj ${fmt(r.proj,1)}</small>`:""}</span><span class="wi-cell"><input class="wi" type="number" step="0.1" inputmode="decimal" data-side="${side}" data-k="${key(r)}" data-pts="${r.pts}" data-def="${Math.max(r.pts,r.proj!=null?r.proj:r.pts).toFixed(1)}" value="${(+guess(r)).toFixed(1)}" aria-label="${esc(r.name)} final points"><small>now ${playerScoreText(r,W)}</small></span></td>`;
         return `<td class="pts ${c} ${left?"l":""} ${won?"won":""}" ${cur?`data-fx="${side}" data-v="${r.pts}"`:""}>${playerScoreText(r,W)}${r.proj!=null?`<small>proj ${fmt(r.proj,1)}</small>`:""}</td>`;};
       return `<tr>${cell(p,"ca")}${num(p,pw,"ca","a")}<td class="slot">${SLOTNAME[sl]}</td>${num(q,qw,"ch","h",true)}${cell(q,"ch",true)}</tr>`;}).join("")+`</tbody></table>`;
-    const bench=rows=>rows.filter(r=>r.slot===20||r.slot===21).sort((x,y)=>y.pts-x.pts).map(r=>`<div class="row"><span><span class="pclick" data-pid="${r.pid}">${esc(r.name)}</span>${pFlags(r.pid,r.pro,W)}${cur?todayTag(r.pro,W):""} <span class="sub">${esc(r.pos)} · ${esc(r.pro)}${r.slot===21?" · IR":""}${stTag(r)}</span>${playerGameContext(r,W)}</span><span class="num" style="text-align:right;line-height:1.15">${playerScoreText(r,W)}<small style="display:block;font-size:11px;color:var(--ink-3);font-weight:400">proj ${r.proj!=null?fmt(r.proj,1):"—"}</small></span></div>`).join("")||'<div class="sub">—</div>';
+    const benchRows=rows=>rows.filter(r=>r.slot===20||r.slot===21).sort((x,y)=>(x.slot-y.slot)||(y.pts-x.pts)),benchRow=r=>!r?'<div class="row emp"></div>':`<div class="row"><span><span class="pclick" data-pid="${r.pid}">${esc(r.name)}</span>${pFlags(r.pid,r.pro,W)}${cur?todayTag(r.pro,W):""} <span class="sub">${esc(r.pos)} · ${esc(r.pro)}${r.slot===21?" · IR":""}${stTag(r)}</span>${playerGameContext(r,W)}</span><span class="num" style="text-align:right;line-height:1.15">${playerScoreText(r,W)}<small style="display:block;font-size:11px;color:var(--ink-3);font-weight:400">proj ${r.proj!=null?fmt(r.proj,1):"—"}</small></span></div>`;
     if(cur){const emp=rows=>STARTER_ORDER.map((sl,i)=>rows[i]?null:SLOTNAME[sl]).filter(Boolean);
       body=alertBox(lineupAlerts(la.filter(Boolean),emp(la),W),a)+alertBox(lineupAlerts(lh.filter(Boolean),emp(lh),W),h)+body;}
-    body+=`<div class="lu-bench"><div><div class="k-label ca" style="margin-bottom:4px">Bench · ${esc(a.name)}</div>${bench(A)}</div><div><div class="k-label ch" style="margin-bottom:4px">Bench · ${esc(h.name)}</div>${bench(H)}</div></div>`;
+    // one row per bench pair so each player sits beside the opponent's player at the same depth
+    const ba=benchRows(A),bh=benchRows(H);
+    body+=`<div class="lu-bench"><div class="k-label ca">Bench · ${esc(a.name)}</div><div class="k-label ch">Bench · ${esc(h.name)}</div>${Array.from({length:Math.max(ba.length,bh.length)},(_,i)=>benchRow(ba[i])+benchRow(bh[i])).join("")||'<div class="sub">—</div><div class="sub">—</div>'}</div>`;
     if(cur&&!D.meta.nflGames)body+=`<div class="metricnote">Game-day weather is currently unavailable.</div>`;
   }
   const status=final?"Final":s.live?'<span class="pill live"><span class="livedot"></span>LIVE</span>':cur?"This week":"Week "+W;
@@ -3340,6 +3351,21 @@ function shareCard(x){
   const a=teamById[x.awayTeamId],h=teamById[x.homeTeamId],s=mstate(x),final=x.winner&&x.winner!=="UNDECIDED";if(!a||!h||!s.show)return;
   const c=document.createElement("canvas");c.width=1080;c.height=1080;const g=c.getContext("2d");
   const bg=g.createLinearGradient(0,0,0,1080);bg.addColorStop(0,"#171a21");bg.addColorStop(1,"#0d0f13");g.fillStyle=bg;g.fillRect(0,0,1080,1080);
+  // win-probability trend as the backdrop; results are drawn over it
+  const series=wpSeries(x);
+  if(series.length>=2){
+    const top=230,bot=950,yf=v=>top+(bot-top)*(1-v/100),xf=i=>1080*i/(series.length-1);
+    g.strokeStyle="rgba(255,255,255,.07)";g.lineWidth=2;g.setLineDash([10,12]);g.beginPath();g.moveTo(0,yf(50));g.lineTo(1080,yf(50));g.stroke();g.setLineDash([]);
+    g.font='700 26px "Archivo", system-ui, sans-serif';g.fillStyle="rgba(255,255,255,.16)";g.textAlign="right";g.fillText(`${h.name} win chance`,1050,top-14);
+    const trace=()=>{g.beginPath();series.forEach((v,i)=>i?g.lineTo(xf(i),yf(v)):g.moveTo(xf(i),yf(v)));};
+    // above the midline favors the home team (blue), below favors the away team (coral)
+    const fill=g.createLinearGradient(0,top,0,bot);fill.addColorStop(0,"rgba(110,168,255,.26)");fill.addColorStop(.5,"rgba(110,168,255,0)");fill.addColorStop(.5,"rgba(255,148,112,0)");fill.addColorStop(1,"rgba(255,148,112,.26)");
+    trace();g.lineTo(1080,yf(50));g.lineTo(0,yf(50));g.closePath();g.fillStyle=fill;g.fill();
+    trace();g.strokeStyle="rgba(255,210,63,.45)";g.lineWidth=6;g.lineJoin="round";g.lineCap="round";g.stroke();
+    const lv=series.at(-1);g.beginPath();g.arc(1080-14,yf(lv),12,0,Math.PI*2);g.fillStyle="rgba(255,210,63,.6)";g.fill();
+    // soft veil keeps the scores readable on top of the chart
+    g.fillStyle="rgba(13,15,19,.38)";g.fillRect(0,0,1080,1080);
+  }
   const fit=(t,max,size,w)=>{let z=size;do{g.font=`${w} ${z}px "Archivo", system-ui, sans-serif`;z-=2;}while(g.measureText(t).width>max&&z>20);return t;};
   g.textAlign="center";g.fillStyle="#8b93a7";g.font='700 34px "Archivo", system-ui, sans-serif';g.fillText((D.meta.leagueName||"").toUpperCase(),540,110);
   g.fillStyle="#e8ebf2";g.font='800 44px "Archivo", system-ui, sans-serif';g.fillText(`WEEK ${x.week} ${final?"FINAL":"IN PROGRESS"}`,540,170);
@@ -4313,14 +4339,15 @@ function initPullRefresh(){
   const iOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
   let hapticSwitch=null;
   if(iOS){
-    hapticSwitch=document.createElement("input");hapticSwitch.type="checkbox";hapticSwitch.setAttribute("switch","");
-    hapticSwitch.tabIndex=-1;hapticSwitch.setAttribute("aria-hidden","true");
-    hapticSwitch.style.cssText="position:fixed;left:-100px;top:0;width:1px;height:1px;opacity:0;pointer-events:none";
+    // Safari plays the switch haptic when its label is clicked, so the label is what gets clicked.
+    const box=document.createElement("input");box.type="checkbox";box.setAttribute("switch","");box.tabIndex=-1;
+    hapticSwitch=document.createElement("label");hapticSwitch.setAttribute("aria-hidden","true");hapticSwitch.append(box);
+    hapticSwitch.style.cssText="position:fixed;left:-100px;top:0;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden";
     document.body.appendChild(hapticSwitch);
   }
   const haptic=()=>{
     // Best effort: device settings and WebKit versions may suppress feedback.
-    try{if(hapticSwitch)hapticSwitch.click();else if(typeof navigator.vibrate==="function")navigator.vibrate(15);}catch(e){}
+    try{if(hapticSwitch)hapticSwitch.click();if(typeof navigator.vibrate==="function")navigator.vibrate(15);}catch(e){}
   };
   let startY=0,startX=0,pulling=false,dist=0,armed=false,loading=false;const TH=70;
   const atTop=()=>window.scrollY<=0;
@@ -4345,6 +4372,7 @@ function initPullRefresh(){
     if(!pulling)return;
     if(!armed){reset();return;}
     pulling=false;loading=true;ind.classList.remove("armed");ind.classList.add("ready");label.textContent="Refreshing…";
+    haptic();
     // Give the refresh state a frame to paint before navigating.
     requestAnimationFrame(()=>requestAnimationFrame(()=>location.reload()));
   },{passive:true});

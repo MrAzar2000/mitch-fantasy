@@ -118,6 +118,20 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
     const trend=detail?.querySelector('.team-season-trend');
     if(trend)(kpis||view.querySelector('.hero.hm'))?.after(trend);
     teamLayout(detail);
+    // Every section starts collapsed so the page opens as a short list of headings.
+    const collapse=(card,title)=>{
+      if(!card||card.closest('details'))return;
+      const heading=card.firstElementChild;if(heading?.matches('.sub-h'))heading.hidden=true;
+      foldNodes([card],title,false);
+    };
+    collapse(trend,'Weekly scores');
+    if(detail){
+      const lineup=detail.querySelector(':scope > .mx-lineup');
+      collapse(lineup,lineup?.querySelector('h3')?.textContent.trim()||'Lineup Lab');
+      const roster=[...detail.children].find(n=>n.querySelector('.rrow'));
+      collapse(roster,roster?.querySelector('.sub-h')?.textContent.replace(/\s+/g,' ').trim()||'Roster');
+    }
+    view.querySelectorAll(':scope > details, #teamDetail > details, #teamDetail > div > .manager-fold').forEach(d=>{d.open=false;});
   }
   if(page==='teams')teamLayout(view.querySelector('#teamDetail'));
   if(page==='dash') {
