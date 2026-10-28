@@ -1324,6 +1324,7 @@ body.phone .lx-p{padding:11px 8px}.full-context{font-size:13px}.full-context .ga
     <div class="ab-in">
       <button class="ab-brand" id="abBrand" aria-label="League home">
         <div class="mark" id="mark">MFL</div>
+        <span class="ab-week" id="headerWeek" hidden><small>Week</small><b id="headerWeekNumber"></b></span>
         <div class="ab-id"><h1 id="lgname">League</h1><div class="sub" id="lgsub">—</div></div>
       </button>
       <nav class="ptabs" id="ptabs" aria-label="Sections"></nav>
@@ -1339,14 +1340,17 @@ body.phone .lx-p{padding:11px 8px}.full-context{font-size:13px}.full-context .ga
     <aside class="rail" id="rail"><div id="railBody"></div>
       <div class="rail-meta"><div class="chiprow" id="chips"></div></div></aside>
   </div>
-  <nav class="bnav" id="bnav" aria-label="Sections"></nav>
+
 </div>
 
 <script type="module" src="/site-version.mjs"></script>
+<nav class="bnav" id="bnav" aria-label="Sections"></nav>
 <script type="module">
 import { optimalLineup, estimatedCeiling, eliminationNumber, ESPN_SLOTS } from "./lineup-tools.mjs";
 import { enhanceManagerLayout, enhanceStatTables, teamLayout, rememberView, restoreView, forgetView, installDialogAccess } from "./manager-layout.mjs";
 import { installTeamInbox } from "./team-inbox.mjs";
+import { installManagerTimeouts } from "./manager-timeouts.mjs";
+import { installMobileViewport, pageScrollY, scrollPageTo } from "./mobile-viewport.mjs";
 import { extraPersonalMetrics } from "./personal-metrics.mjs";
 import { playerPortrait, shortPlayerName, playerStatLine } from "./player-presentation.mjs";
 import { installManagerExperience } from "./manager-experience.mjs";
@@ -1426,6 +1430,7 @@ const ICON_P={
   checkcircle:'<circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
   flag:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V4s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="4"/>',
   menu:'<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>',
+  back:'<path d="m14 6-6 6 6 6"/>',
   'arrow-up':'<path d="M12 19V5M6 11l6-6 6 6"/>',
   'arrow-down':'<path d="M12 5v14M6 13l6 6 6-6"/>',
   sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2 12h2M20 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>',
@@ -1550,9 +1555,19 @@ const LABELS={more:"More",players:"Players",faab:"Waivers"}; NAV.forEach(g=>g[3]
 function groupOf(id){return NAV.find(g=>g[3].some(it=>it[0]===id))||NAV[0];}
 const LASTIN={}; // last page visited in each section, so tapping a section returns there
 let cur="dash";
+let viewedTeamId=null;
 const VIEW_BACK=[];let swipingBack=false;
 // click any team badge or team name to open that team's page
-function goTeam(tid){closeMatchup();setTab("teams");const v=document.querySelector("#app .view");if(v&&teamById[tid]){showTeam(tid,v);history.replaceState(null,'','#teams?team='+tid);}}
+function goTeam(tid){
+  if(!teamById[tid])return;
+  closeMatchup();viewedTeamId=Number(tid);setTab("teams",true);
+  history.replaceState(null,'','#teams?team='+tid);
+}
+function readTeamRoute(){
+  const [page,query='']=location.hash.slice(1).split('?');
+  const id=Number(new URLSearchParams(query).get('team'));
+  viewedTeamId=page==='teams'&&teamById[id]?id:null;
+}
 document.addEventListener("click",e=>{const n=e.target.closest("[data-tid]");if(!n||n.closest("[data-mid]")||n.closest("[data-team]")||n.closest("[data-goto]"))return;
   if(e.target.closest("button,a,input,select"))return;const tid=+n.dataset.tid;if(!teamById[tid])return;e.preventDefault();goTeam(tid);});
 // hover a section title to see what it means
@@ -1566,6 +1581,7 @@ const TITLE_HELP={"All-Play Record":"Your record if you played all 11 other team
   "Playoff Picture":"Seeds if the season ended today, and the bracket that would follow.","Trade":"Season points for the players on each side of the trade."};
 function addTitleHelp(root){root.querySelectorAll(".sub-h").forEach(h=>{if(h.title)return;const t=(h.firstChild&&h.firstChild.nodeType===3?h.firstChild.textContent:h.textContent).trim();const k=Object.keys(TITLE_HELP).find(x=>t.startsWith(x));if(!k)return;h.title=TITLE_HELP[k];});}
 function setTab(id,fresh=false){
+  if(id!=="teams")viewedTeamId=null;
   if((id==='siteactivity'||id==='feedbackinbox')&&!ADMIN)id='dash';
   if(id==='other')id='useless';
   if(!VIEWS[id])id='dash'; // retired pages (Trade Analyzer, Stat Fixes, casino games) fall back to Home
@@ -1576,7 +1592,7 @@ function setTab(id,fresh=false){
   const sameView=(id===cur);
   // Async data and inbox refreshes must never dismiss an open composer or menu.
   if(sameView && document.getElementById("mdl"))return;
-  const keepY=sameView&&!fresh?(window.scrollY||document.documentElement.scrollTop||0):0;
+  const keepY=sameView&&!fresh?pageScrollY():0;
   if(document.getElementById("mdl"))closeMatchup();
   rememberView(cur,document.getElementById("app"));
   if(fresh)forgetView(id);
@@ -1592,8 +1608,8 @@ function setTab(id,fresh=false){
   document.body.dataset.view=id;
   el.querySelectorAll(".seg").forEach(sg=>{const on=sg.querySelector(".on");if(on&&sg.scrollWidth>sg.clientWidth)sg.scrollLeft=on.offsetLeft-sg.clientWidth/2+on.offsetWidth/2;});
   if(id==="dash")updParlayMissing();
-  window.scrollTo({top:keepY,behavior:"instant"});
-  restoreView(id,el,!sameView);
+  scrollPageTo({top:keepY,behavior:"instant"});
+  restoreView(id,el,!sameView&&!(id==="teams"&&viewedTeamId!==null));
   // visitor stats: each tab counts as its own page (/standings, /odds, ...); re-sorting a page doesn't count again
   if(id!==setTab.counted){setTab.counted=id;const v={path:"/"+(id==="dash"?"":id),title:LABELS[id]||id};
     try{if(window.goatcounter&&window.goatcounter.count)window.goatcounter.count(v);else(window.__gcq=window.__gcq||[]).push(v);}catch(e){}}
@@ -1604,7 +1620,7 @@ function setTab(id,fresh=false){
   if(!sameView){el.tabIndex=-1;if(document.body.classList.contains("keyboard-nav"))el.focus({preventScroll:true});}
 }
 // Home button and MFL mark: always the top of Home, with its sections in their default state
-function goHome(){setTab("dash",true);window.scrollTo({top:0,behavior:"instant"});}
+function goHome(){setTab("dash",true);scrollPageTo({top:0,behavior:"instant"});}
 function paintView(root){
   markChangedScores(root);
 }
@@ -1706,7 +1722,7 @@ function birthdayBanner(){const n=new Date();if(!(n.getMonth()===9&&n.getDate()=
 const VIEWS={};
 VIEWS.more=function(){
  const groups=[['League',['standings','scoreboard','power','odds','teams']],['Roster & trades',['inbox','block','outlook']],['Work in Progress',['players','faab']],['Analysis & history',['analytics','h2h','history','records','draft']],['League fun',['parlay','shame','defense']],['Help',['rules','feedback']],...(ADMIN?[['Admin',['feedbackinbox','siteactivity']]]:[])];
- const v=el(shead('Your league, organized','More')+`<div class="manager-menu">${groups.map(([title,ids])=>`<section class="card card-p"><h3>${title}</h3>${ids.map(id=>`<button class="manager-menu-link" data-goto="${id}">${esc(LABELS[id])}<span aria-hidden="true">›</span></button>`).join('')}</section>`).join('')}<section class="card card-p"><h3>Settings & setup</h3><button class="manager-menu-link" data-settings="notifyBtn">Notification preferences</button><button class="manager-menu-link" data-theme-toggle>Switch to ${document.documentElement.getAttribute("data-theme")==="light"?"dark":"light"} mode</button><a class="manager-menu-link" href="/tutorial.html">Install & notification guide</a><button class="more-admin" data-admin type="button">${icon("shield")} Admin controls${ADMIN?" · On":""}</button></section></div>`);
+ const v=el(shead('Your league, organized','More')+`<div class="manager-menu">${groups.map(([title,ids])=>`<section class="card card-p"><h3>${title}</h3>${ids.map(id=>`<button class="manager-menu-link" data-goto="${id}">${esc(LABELS[id])}<span aria-hidden="true">›</span></button>`).join('')}</section>`).join('')}<section class="card card-p"><h3>Settings & setup</h3><button class="manager-menu-link" data-settings="notifyBtn">Notification preferences</button><button class="manager-menu-link" data-theme-toggle>Switch to ${document.documentElement.getAttribute("data-theme")==="light"?"dark":"light"} mode</button><a class="manager-menu-link" href="/tutorial.html">Install & notification guide</a><button class="more-admin" data-admin type="button">${icon("shield")} Admin controls</button></section></div>`);
  v.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>setTab(b.dataset.goto));v.querySelectorAll('[data-settings]').forEach(b=>b.onclick=()=>document.getElementById(b.dataset.settings).click());v.querySelector('[data-theme-toggle]').onclick=()=>{toggleTheme();setTab('more');};v.querySelector('[data-admin]').onclick=adminLogin;return v;
 };
 
@@ -2356,6 +2372,12 @@ VIEWS.scoreboard=function(){
 
 /* ---- TEAMS ---- */
 VIEWS.teams=function(){
+  if(viewedTeamId!==null&&teamById[viewedTeamId]){
+    const v=el(`<button class="btn ghost team-back" type="button">${icon('back')} All Teams</button><div id="teamDetail"></div>`);
+    v.querySelector('.team-back').onclick=()=>{viewedTeamId=null;history.replaceState(null,'','#teams');setTab('teams',true);};
+    showTeam(viewedTeamId,v,true);
+    return v;
+  }
   let html=shead("Franchises","Teams","Tap a team for its roster & season");
   html+=`<div class="grid g-teams">`;
   D.teams.forEach(t=>{
@@ -2371,8 +2393,8 @@ VIEWS.teams=function(){
   });
   html+=`</div><div id="teamDetail"></div>`;
   const v=el(html);
-  v.querySelectorAll("[data-team]").forEach(c=>{c.onclick=()=>showTeam(+c.dataset.team,v);
-    c.onkeydown=e=>{if(e.key==="Enter")showTeam(+c.dataset.team,v);};
+  v.querySelectorAll("[data-team]").forEach(c=>{c.onclick=()=>goTeam(+c.dataset.team);
+    c.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();goTeam(+c.dataset.team);}};
     c.onmouseenter=()=>c.style.borderColor="var(--line-2)";c.onmouseleave=()=>c.style.borderColor="";});
   return v;
 };
@@ -2386,10 +2408,10 @@ function showTeam(id,v,quiet){
   const bench=r.filter(p=>p.slot==="BE"||p.slot==="IR");
   const sortR=a=>a.slice().sort((x,y)=>(order[x.slot]??9)-(order[y.slot]??9));
   let h=`<div class="sub-h" id="tdh">${esc(t.name)} · Detail</div>`;
-  h+=`<div class="card card-p" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-     ${badge(t,"xl")}<div><div style="font-family:var(--font-display);font-weight:900;font-size:22px">${esc(t.name)}</div>
+  h+=`<div class="card card-p team-detail-header">
+     ${badge(t,"xl")}<div class="team-detail-identity"><div class="team-detail-name">${esc(t.name)}</div>
      <div class="ow" style="font-size:13px">${esc(t.owner)} · ${esc(t.abbrev)}</div></div>
-     <div style="margin-left:auto;display:flex;gap:22px;text-align:center">
+     <div class="team-detail-stats">
        ${tstat(ST.started?`${s.w}-${s.l}${s.tie?"-"+s.tie:""}`:"0-0","Record")}
        ${tstat(ST.started?fmt(s.pf,1):"—","Points For")}
        ${tstat(ST.started?fmt(s.ppg,1):"—","PPG")}
@@ -2408,7 +2430,7 @@ function showTeam(id,v,quiet){
   const _shop=new Set((_tbL.available||[]).map(Number)),_offer=new Set((_tbL.openTo||[]).map(Number));
   const tbMark=p=>_shop.has(p.playerId)?' <span class="tag-in" style="font-size:9px">On the block</span>':_offer.has(p.playerId)?' <span style="font-size:9px;color:var(--t-amber);font-weight:700">Open to offers</span>':'';
   // roster
-  h+=`<div class="card card-p"><div class="sub-h" style="margin-top:0">Roster <span style="font-weight:400;font-size:12px;color:var(--ink-3);text-transform:none;letter-spacing:0">${r.length-r.filter(p=>p.slot==="IR").length} players${r.some(p=>p.slot==="IR")?` + ${r.filter(p=>p.slot==="IR").length} on IR`:""}</span></div>`;
+  h+=`<div class="card card-p team-roster"><div class="sub-h" style="margin-top:0">Roster <span style="font-weight:400;font-size:12px;color:var(--ink-3);text-transform:none;letter-spacing:0">${r.length-r.filter(p=>p.slot==="IR").length} players${r.some(p=>p.slot==="IR")?` + ${r.filter(p=>p.slot==="IR").length} on IR`:""}</span></div>`;
   h+=`<div style="font-size:11.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.08em;margin:2px 0 4px">Starters</div>`;
   sortR(starters).forEach(p=>h+=rosterRow(p,tbMark(p)));
   if(bench.length){h+=`<div style="font-size:11.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 4px">Bench / IR</div>`;sortR(bench).forEach(p=>h+=rosterRow(p,tbMark(p)));}
@@ -2436,7 +2458,7 @@ function showTeam(id,v,quiet){
       ${played?`<span class="pill ${res==="W"?"w":res==="L"?"l":"t"}" style="width:20px;justify-content:center">${res}</span>`:`<span class="pill pos">—</span>`}</div>`;
   });
   h+=`</div></div></div><div style="margin-top:14px">${dh}</div>`;
-  const dd=v.querySelector("#teamDetail");dd.innerHTML=h;if(quiet)return;teamLayout(dd);try{paintView(dd);addTitleHelp(dd);}catch(e){}dd.scrollIntoView({behavior:"smooth",block:"start"});
+  const dd=v.querySelector("#teamDetail");delete dd.dataset.organized;dd.innerHTML=h;if(quiet)return;teamLayout(dd);try{paintView(dd);addTitleHelp(dd);}catch(e){}dd.scrollIntoView({behavior:"smooth",block:"start"});
 }
 function tstat(v,l){return `<div><div style="font-family:var(--font-display);font-weight:900;font-size:19px">${esc(v)}</div><div style="font-size:11.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em">${l}</div></div>`;}
 function streakBare(str){return (!str||str==="—")?"—":str;}
@@ -4016,7 +4038,7 @@ function adminLogin(){
   closeMatchup();
   const wrap=document.createElement("div");wrap.className="mdl";wrap.id="mdl";wrap.setAttribute("role","dialog");wrap.setAttribute("aria-modal","true");
   const inner=ADMIN
-    ?`<div style="font-size:13.5px;margin-bottom:14px">You're in <b style="color:var(--win)">admin mode</b>. Edit/delete controls are visible across the site.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="aMng" type="button">Manage announcements</button><button class="btn" id="aHome" type="button">Edit home page</button><button class="btn" id="aSetup" type="button">Notification checklist</button><button class="btn" id="aPush" type="button">Send notification</button><button class="btn" id="aParlayMng" type="button">Manage parlay picks</button><button class="btn" id="aGrade" type="button">Grade parlay</button><button class="btn" id="aTB" type="button">Manage trade block</button><button class="wi-reset" id="aOut" type="button">Exit admin</button></div>`
+    ?`<div style="font-size:13.5px;margin-bottom:14px">You're in <b style="color:var(--win)">admin mode</b>. Edit/delete controls are visible across the site.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="aMng" type="button">Manage announcements</button><button class="btn" id="aHome" type="button">Edit home page</button><button class="btn" id="aSetup" type="button">Notification checklist</button><button class="btn" id="aPush" type="button">Send notification</button><button class="btn" id="aParlayMng" type="button">Manage parlay picks</button><button class="btn" id="aGrade" type="button">Grade parlay</button><button class="btn" id="aTB" type="button">Manage trade block</button><button class="btn" id="aTimeout" type="button">Manager timeouts</button><button class="wi-reset" id="aOut" type="button">Exit admin</button></div>`
     :`<div style="font-size:13.5px;line-height:1.6;margin-bottom:12px">Enter the admin password to unlock edit &amp; delete controls.</div><input class="txt" id="aPw" type="password" placeholder="Password" autocomplete="off" style="width:100%;margin-bottom:12px"><button class="btn" id="aIn" type="button">Unlock</button><div id="aMsg" style="font-size:12.5px;color:var(--ink-3);margin-top:10px"></div>`;
   wrap.innerHTML=`<div class="mdl-box"><div class="mdl-top"><div><div class="eyebrow" style="font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--t-blue)">Admin</div><div style="font-size:12.5px;color:var(--ink-3)">Master access</div></div><button class="x" aria-label="Close" type="button">✕</button></div><div style="padding:2px">${inner}</div></div>`;
   wrap.addEventListener("click",e=>{if(e.target===wrap)closeMatchup();});
@@ -4033,6 +4055,7 @@ function adminLogin(){
   const pmng=wrap.querySelector("#aParlayMng");if(pmng)pmng.onclick=()=>{closeMatchup();adminParlayManage();};
   const grade=wrap.querySelector("#aGrade");if(grade)grade.onclick=()=>{closeMatchup();adminGradeParlay();};
   const atb=wrap.querySelector("#aTB");if(atb)atb.onclick=()=>{closeMatchup();adminTradeBlock();};
+  const timeout=wrap.querySelector("#aTimeout");if(timeout)timeout.onclick=()=>{closeMatchup();TIMEOUTS.openAdmin();};
   const out=wrap.querySelector("#aOut");if(out)out.onclick=()=>{closeMatchup();adminSet(false);showToast("Admin mode off");};
 }
 function notificationTeamStatus(rows){
@@ -4290,7 +4313,7 @@ function initSwipeNavigation(){
   let gesture=null,suppressUntil=0;
   const reset=()=>{if(gesture?.sheet){gesture.sheet.style.transform='';gesture.sheet.classList.remove('sheet-dragging');}gesture=null;};
   document.addEventListener('touchstart',e=>{
-    reset();if(e.touches.length!==1||e.target.closest('button,a,input,textarea,select,summary,.twrap,.matrix,.seg,.stabs,.production-chart,.trend'))return;
+    reset();if(e.touches.length!==1||e.target.closest('button,a,input,textarea,select,summary,[role=button],[data-team],[data-tid],dialog,.twrap,.matrix,.seg,.stabs,.production-chart,.trend'))return;
     const modal=document.getElementById('mdl'),sheet=modal?.querySelector('.mdl-box'),p=e.touches[0];
     if(!modal&&p.clientX>28)return;
     gesture={x:p.clientX,y:p.clientY,dx:0,dy:0,sheet,modal,vertical:!!e.target.closest('.mdl-top')||!!sheet&&p.clientY<(sheet.getBoundingClientRect?.().top??-100)+40,active:false};
@@ -4305,7 +4328,7 @@ function initSwipeNavigation(){
   document.addEventListener('touchend',()=>{
     if(!gesture)return;const g=gesture,close=g.active&&(g.direction==='down'?g.dy>100:g.dx>90);reset();if(!close)return;suppressUntil=Date.now()+400;
     if(g.modal){closeMatchup();return;}
-    if(cur==='teams'&&document.querySelector('#app .view[data-team-detail]')){setTab('teams');return;}
+    if(cur==='teams'&&document.querySelector('#app .view[data-team-detail]')){viewedTeamId=null;history.replaceState(null,'','#teams');setTab('teams',true);return;}
     const target=VIEW_BACK.pop()||'dash';swipingBack=true;try{setTab(target);}finally{swipingBack=false;}
   },{passive:true});
   document.addEventListener('touchcancel',reset,{passive:true});
@@ -4334,10 +4357,10 @@ function initPullRefresh(){
     try{if(hapticSwitch)hapticSwitch.click();if(typeof navigator.vibrate==="function")navigator.vibrate(15);}catch(e){}
   };
   let startY=0,startX=0,pulling=false,dist=0,armed=false,loading=false;const TH=70;
-  const atTop=()=>window.scrollY<=0;
+  const atTop=()=>pageScrollY()<=0;
   const reset=()=>{pulling=false;dist=0;armed=false;ind.style.transform="";ind.style.opacity="";ind.classList.remove("ready","armed");label.textContent="Pull to refresh";};
   window.addEventListener("touchstart",e=>{
-    const blocked=e.target.closest&&e.target.closest("input,textarea,select,button,a,summary,.mdl,.twrap,.matrix,.stabs");
+    const blocked=e.target.closest&&e.target.closest("input,textarea,select,button,a,summary,[role=button],[data-team],[data-tid],dialog,.mdl,.twrap,.matrix,.stabs");
     if(!loading&&e.touches.length===1&&atTop()&&!blocked&&!document.querySelector(".mdl")&&!document.body.classList.contains("navopen")){startY=e.touches[0].clientY;startX=e.touches[0].clientX;pulling=true;dist=0;}
   },{passive:true});
   window.addEventListener("touchmove",e=>{
@@ -4399,11 +4422,11 @@ function boot(){
   const mq=window.matchMedia("(max-width: 700px)");
   const isPhone=()=>mq.matches||(/iPhone|iPod|Android.+Mobile|Windows Phone/i.test(navigator.userAgent)&&window.innerWidth<900);
   const applyPhone=()=>document.body.classList.toggle("phone",isPhone());
-  applyPhone();(mq.addEventListener?mq.addEventListener("change",applyPhone):mq.addListener(applyPhone));window.addEventListener("resize",applyPhone);
+  applyPhone();installMobileViewport();(mq.addEventListener?mq.addEventListener("change",applyPhone):mq.addListener(applyPhone));window.addEventListener("resize",applyPhone);
   const fromHash=()=>{let h=(location.hash||"").slice(1).split("?")[0];if(h==="calc")h="scoreboard";if(h==="other")h="useless";return VIEWS[h]?h:null;};
-  {const q=new URLSearchParams((location.hash.split('?')[1]||''));const w=Number(q.get('week'));if(Number.isInteger(w)&&w>0&&w<=22)mxWeek=w;}EXPERIENCE?.route();renderNav();navigationFromHistory=true;setTab(fromHash()||"dash");navigationFromHistory=false;
-  window.addEventListener("popstate",()=>{EXPERIENCE?.route();const h=fromHash()||"dash";navigationFromHistory=true;try{setTab(h);}finally{navigationFromHistory=false;}});
-  window.addEventListener("hashchange",()=>{const h=fromHash();if(h&&h!==cur){EXPERIENCE?.route();navigationFromHistory=true;try{setTab(h);}finally{navigationFromHistory=false;}}});
+  {const q=new URLSearchParams((location.hash.split('?')[1]||''));const w=Number(q.get('week'));if(Number.isInteger(w)&&w>0&&w<=22)mxWeek=w;}readTeamRoute();EXPERIENCE?.route();renderNav();navigationFromHistory=true;setTab(fromHash()||"dash");navigationFromHistory=false;
+  window.addEventListener("popstate",()=>{readTeamRoute();EXPERIENCE?.route();const h=fromHash()||"dash";navigationFromHistory=true;try{setTab(h);}finally{navigationFromHistory=false;}});
+  window.addEventListener("hashchange",()=>{const h=fromHash();if(h&&(h!==cur||h==="teams")){readTeamRoute();EXPERIENCE?.route();navigationFromHistory=true;try{setTab(h);}finally{navigationFromHistory=false;}}});
   loadNflInsights();
   renderTicker(false);
   if(prevSeen) flagUpdate(prevSeen);
@@ -4415,7 +4438,11 @@ function boot(){
 function initialsMark(name){const w=name.split(/\s+/).filter(Boolean);return (w.slice(0,3).map(x=>x[0]).join("")||"FL").toUpperCase();}
 
 /* ---------- live auto-refresh (polls the DB; re-renders only when data changed) ---------- */
-function setFresh(){renderTicker(false);}
+function setFresh(){
+  const week=Number(D.meta.currentScoringPeriod),badge=document.getElementById('headerWeek');
+  if(badge){badge.hidden=!Number.isInteger(week)||week<1;document.getElementById('headerWeekNumber').textContent=badge.hidden?'':String(week);}
+  renderTicker(false);
+}
 
 let HB=null;
 async function loadHeartbeat(){try{const q=await sb.from("league_data").select("hb:data->>checked").eq("id","heartbeat").single();if(q.data&&q.data.hb)HB=new Date(q.data.hb).getTime();}catch(e){}}
@@ -4445,9 +4472,9 @@ async function refreshData(preloaded){
       const busy=tag==="INPUT"||tag==="SELECT"||tag==="TEXTAREA";
       if(cur!=="parlay" && cur!=="calc" && !busy && !document.getElementById("mdl")){
         rememberView(cur,document.getElementById("app"));
-        const y=window.scrollY||0;
+        const y=pageScrollY();
         const app=document.getElementById("app"); app.innerHTML=""; app.appendChild(VIEWS[cur]()); paintView(app); addTitleHelp(app);EXPERIENCE?.enhanceView(app);
-        restoreView(cur,app,false);window.scrollTo({top:y,behavior:"instant"});
+        restoreView(cur,app,false);scrollPageTo({top:y,behavior:"instant"});
       }
       flagUpdate(prev);
       showToast((D.meta.liveWeek?"Live scores updated · ":"Data updated · ")+new Date(D.meta.lastUpdated).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit",second:"2-digit"}));
@@ -4489,6 +4516,7 @@ document.addEventListener('pointerdown',()=>document.body.classList.remove('keyb
 window.addEventListener('pageshow',()=>{document.body.classList.remove('keyboard-nav');if(document.activeElement?.matches('.view,.twrap'))document.activeElement.blur();});
 installDialogAccess();
 INBOX=installTeamInbox({views:VIEWS,el,esc,setTab,getTeam:meTeam,getCurrent:()=>cur,getDevice:()=>siteDevice,pickTeam:pickTeamModal,showToast});
+const TIMEOUTS=installManagerTimeouts({getTeam:meTeam,getTeams:()=>D.teams,isAdmin:()=>ADMIN,esc,showToast});
 boot();
 INBOX.refresh();
 // opened from the saved copy: swap in the live league as soon as it arrives

@@ -6,10 +6,10 @@
      background.
    - League data, APIs and analytics are never cached here (the page keeps its
      own saved copy of the league). */
-const SHELL = "mfl-shell-v1";
+const SHELL = "mfl-shell-v2";
 const CDN = "mfl-cdn-v1";
-const PRECACHE = ["/", "/manager-experience.css", "/manager-experience.mjs", "/manager-layout.mjs",
-  "/lineup-tools.mjs", "/player-charts.mjs", "/player-presentation.mjs", "/team-inbox.mjs", "/personal-metrics.mjs", "/site-version.mjs", "/manifest.webmanifest", "/icon-192.png", "/apple-touch-icon.png", "/assets/teams/half-chubb.jpg"];
+const PRECACHE = ["/", "/manager-experience.css", "/manager-experience.mjs", "/manager-layout.mjs", "/mobile-viewport.mjs",
+  "/lineup-tools.mjs", "/player-charts.mjs", "/player-presentation.mjs", "/team-inbox.mjs", "/manager-timeouts.mjs", "/personal-metrics.mjs", "/site-version.mjs", "/manifest.webmanifest", "/icon-192.png", "/apple-touch-icon.png", "/assets/teams/half-chubb.jpg"];
 const NETWORK_WAIT = 3500;
 
 self.addEventListener("install", (e) => {

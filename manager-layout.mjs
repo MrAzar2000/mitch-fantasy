@@ -1,10 +1,11 @@
+import {pageScrollY,scrollPageTo} from './mobile-viewport.mjs';
 // Presentation-only state lasts for this visit; league records remain in their existing stores.
 const viewStates = new Map();
 const detailKey = (node, index) => node.dataset.sectionKey || `${index}:${node.querySelector('summary')?.textContent.trim()}`;
 export function rememberView(page, root) {
   if (!root?.querySelector('.view')) return;
   viewStates.set(page, {
-    y: window.scrollY,
+    y: pageScrollY(),
     details: new Map([...root.querySelectorAll('details')].map((d,i)=>[detailKey(d,i),d.open])),
     fields: [...root.querySelectorAll('[data-remember]')].map(n=>[n.dataset.remember,n.value]),
   });
@@ -17,7 +18,7 @@ export function restoreView(page, root, scroll) {
     const n=[...root.querySelectorAll('[data-remember]')].find(n=>n.dataset.remember===key);
     if(n){n.value=value;n.dispatchEvent(new Event('input'));}
   }
-  if(scroll)window.scrollTo({top:state.y,behavior:'instant'});
+  if(scroll)scrollPageTo({top:state.y,behavior:'instant'});
 }
 function foldNodes(nodes,title,open=true) {
   const list=nodes.filter(Boolean);if(!list.length)return null;
@@ -38,15 +39,18 @@ export function teamLayout(container) {
   if(!container||container.dataset.organized)return;
   container.dataset.organized='true';
   const grid=[...container.children].find(n=>n.matches('.grid.g-2'));
-  const roster=grid?.querySelector('.rrow')?.closest('.card');
+  const roster=grid?.querySelector('.team-roster')||grid?.querySelector('.rrow')?.closest('.card');
   if(!roster)return;
+  const header=container.querySelector(':scope > .team-detail-header');
+  const title=container.querySelector(':scope > #tdh');if(title)title.hidden=true;
   const lineup=container.querySelector('.mx-lineup')||container.querySelector('[data-lineup-mode]')?.closest('section');
   const alerts=[...container.children].filter(n=>n.matches('.alertbox,.lineup-alerts,.lalert'));
-  const others=[...container.children].filter(n=>n!==grid&&n!==lineup&&!alerts.includes(n)&&!n.matches('.manager-fold'));
+  const others=[...container.children].filter(n=>n!==grid&&n!==lineup&&n!==header&&n!==title&&!alerts.includes(n)&&!n.matches('.manager-fold'));
   foldNodes(others,'Season summary & history');
   if(lineup)container.prepend(lineup);
-  container.insertBefore(roster,lineup?.nextSibling||container.firstChild);
+  container.insertBefore(roster,lineup||container.firstChild);
   alerts.reverse().forEach(n=>container.prepend(n));
+  if(header)container.prepend(header);
   // Keep schedule and any coverage content, but remove the desktop two-column shell.
   if(grid){grid.classList.remove('grid','g-2');foldNodes([...grid.children],'Schedule & roster coverage');}
 }
