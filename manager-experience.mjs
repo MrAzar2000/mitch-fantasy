@@ -870,11 +870,6 @@ export function installManagerExperience(api) {
         .filter((x) => Number.isInteger(x) && x > 0)
         .slice(0, 4);
     }
-    if (page === "teams" && q.has("team")) {
-      const id = Number(q.get("team"));
-      if (data().teams.some((t) => t.id === id))
-        setTimeout(() => api.goTeam(id), 0);
-    }
     if (page === "matchup" && q.has("week"))
       api.restoreWeek(Number(q.get("week")));
     if (q.has("player")) {
