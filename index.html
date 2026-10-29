@@ -929,7 +929,7 @@ input.txt:focus,select:focus,.cplayer input:focus{outline:none;border-color:var(
 .m2-t.wn .sc{color:var(--ink)}
 .m2-t.wn .tb{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--accent)}
 .m2+.wp{margin-top:12px}
-.mx2 .wp-l span:nth-child(2){display:none}
+.mx2 .wp-l .wp-mid{display:none}
 .m2-foot{display:flex;justify-content:space-between;margin-top:10px;font-size:12.5px;color:var(--ink-3)}
 .mrow .sc{font-family:var(--font-display);font-weight:700}
 
@@ -1324,7 +1324,7 @@ body.phone .lx-p{padding:11px 8px}.full-context{font-size:13px}.full-context .ga
     <div class="ab-in">
       <button class="ab-brand" id="abBrand" aria-label="League home">
         <div class="mark" id="mark">MFL</div>
-        <span class="ab-week" id="headerWeek" hidden><small>Week</small><b id="headerWeekNumber"></b></span>
+        <span class="ab-week" id="headerWeek" hidden><span class="abw-main"><small>Week</small><b id="headerWeekNumber"></b></span><span class="abw-sub" id="headerWeekSub"></span></span>
         <div class="ab-id"><h1 id="lgname">League</h1><div class="sub" id="lgsub">—</div></div>
       </button>
       <nav class="ptabs" id="ptabs" aria-label="Sections"></nav>
@@ -1547,7 +1547,7 @@ function powerRanks(){
 /* ---------- routing ---------- */
 const NAV=[
   ["League","league","home",[["dash","Home"],["standings","Standings"],["power","Power Rankings"],["odds","Playoff Odds"],["history","History"],["parlay","Parlay"],["rules","Rules"],["feedback","Problems & Suggestions"],["feedbackinbox","P&S Inbox"],["siteactivity","Site Log"]]],
-  ["Matchup","matchup","swords",[["matchup","My Matchup"],["scoreboard","Scoreboard"],["h2h","Head-to-Head"]]],
+  ["Matchup","matchup","swords",[["matchup","Matchup"],["lineups","Lineups"],["scoreboard","Scoreboard"],["h2h","Head-to-Head"]]],
   ["Team","team","users",[["myteam","My Team"],["inbox","Inbox"],["teams","All Teams"],["block","Trade Block"],["draft","Draft"]]],
   ["Stats","stats","line",[["analytics","Analytics"],["outlook","Outlook"],["records","Record Book"],["defense","Manager Defense"],["shame","Hall of Shame"]]],
 ];
@@ -1556,12 +1556,22 @@ function groupOf(id){return NAV.find(g=>g[3].some(it=>it[0]===id))||NAV[0];}
 const LASTIN={}; // last page visited in each section, so tapping a section returns there
 let cur="dash";
 let viewedTeamId=null;
-const VIEW_BACK=[];let swipingBack=false;
+const VIEW_BACK=[];VIEW_BACK.sections=[];let swipingBack=false;
+// Bottom-bar tabs. The page buttons under a tab open pages inside that tab instead of switching tabs.
+const SECTION_ROOTS=["dash","myteam","matchup","analytics","more"];
+const SECTION_PAGES={
+  dash:[["dash","Home"],["parlay","Parlay"],["standings","Standings"],["scoreboard","Scoreboard"]],
+  myteam:[["myteam","My team"],["teams","All teams"],["block","Trade block"],["standings","Standings"]],
+  matchup:[["matchup","Matchup"],["lineups","Lineups"],["scoreboard","Scoreboard"],["h2h","Head-to-head"]],
+  analytics:[["analytics","Stats"],["standings","Standings"],["power","Power rankings"],["odds","Playoff odds"],["outlook","Outlook"]],
+};
+let SECTION="dash";
+function homeSection(id){return SECTION_ROOTS.includes(id)?id:(Object.keys(SECTION_PAGES).find(s=>SECTION_PAGES[s].some(p=>p[0]===id))||"more");}
 // click any team badge or team name to open that team's page
 function goTeam(tid){
   if(!teamById[tid])return;
   closeMatchup();viewedTeamId=Number(tid);setTab("teams",true);
-  history.replaceState(null,'','#teams?team='+tid);
+  history.replaceState(history.state,'','#teams?team='+tid);
 }
 function readTeamRoute(){
   const [page,query='']=location.hash.slice(1).split('?');
@@ -1580,7 +1590,7 @@ const TITLE_HELP={"All-Play Record":"Your record if you played all 11 other team
   "Budget Used":"FAAB spent out of the season budget.","Pickups by Team":"Players each team added from waivers or free agency.","Positions drafted by round":"How many of each position went in each draft round.","More Metrics":"Extra season stats per team.",
   "Playoff Picture":"Seeds if the season ended today, and the bracket that would follow.","Trade":"Season points for the players on each side of the trade."};
 function addTitleHelp(root){root.querySelectorAll(".sub-h").forEach(h=>{if(h.title)return;const t=(h.firstChild&&h.firstChild.nodeType===3?h.firstChild.textContent:h.textContent).trim();const k=Object.keys(TITLE_HELP).find(x=>t.startsWith(x));if(!k)return;h.title=TITLE_HELP[k];});}
-function setTab(id,fresh=false){
+function setTab(id,fresh=false,section){
   if(id!=="teams")viewedTeamId=null;
   if((id==='siteactivity'||id==='feedbackinbox')&&!ADMIN)id='dash';
   if(id==='other')id='useless';
@@ -1592,6 +1602,10 @@ function setTab(id,fresh=false){
   const sameView=(id===cur);
   // Async data and inbox refreshes must never dismiss an open composer or menu.
   if(sameView && document.getElementById("mdl"))return;
+  if(!sameView&&!swipingBack){VIEW_BACK.sections.push(SECTION);if(VIEW_BACK.sections.length>30)VIEW_BACK.sections.shift();}
+  // A tab's own page selects that tab; any other page stays inside the tab you are in.
+  const remembered=navigationFromHistory?(history.state&&history.state.mflSection)||homeSection(id):null;
+  SECTION=SECTION_ROOTS.includes(id)?id:SECTION_ROOTS.includes(section)?section:SECTION_ROOTS.includes(remembered)?remembered:SECTION;
   const keepY=sameView&&!fresh?pageScrollY():0;
   if(document.getElementById("mdl"))closeMatchup();
   rememberView(cur,document.getElementById("app"));
@@ -1614,9 +1628,9 @@ function setTab(id,fresh=false){
   if(id!==setTab.counted){setTab.counted=id;const v={path:"/"+(id==="dash"?"":id),title:LABELS[id]||id};
     try{if(window.goatcounter&&window.goatcounter.count)window.goatcounter.count(v);else(window.__gcq=window.__gcq||[]).push(v);}catch(e){}}
   // shareable link to this page, e.g. mitch-fantasy.netlify.app/#standings
-  try{ const existing=(location.hash||'').slice(1).split('?')[0];if(existing!==id){const url=id==='dash'?location.pathname:'#'+id;history[navigationFromHistory||sameView?'replaceState':'pushState'](null,'',url);} }catch(e){}
+  try{ const existing=(location.hash||'').slice(1).split('?')[0];const state={mflSection:SECTION};if(existing!==id){const url=id==='dash'?location.pathname:'#'+id;history[navigationFromHistory||sameView?'replaceState':'pushState'](state,'',url);}else if(history.state?.mflSection!==SECTION)history.replaceState(state,'',location.href); }catch(e){}
   if(id==='players')EXPERIENCE?.updateUrl();
-  if(id==='matchup'&&mxWeek!=null)history.replaceState(null,'','#matchup?week='+mxWeek);
+  if((id==='matchup'||id==='lineups')&&mxWeek!=null)try{history.replaceState(history.state,'','#'+id+'?week='+mxWeek);}catch(e){}
   if(!sameView){el.tabIndex=-1;if(document.body.classList.contains("keyboard-nav"))el.focus({preventScroll:true});}
 }
 // Home button and MFL mark: always the top of Home, with its sections in their default state
@@ -1626,8 +1640,8 @@ function paintView(root){
 }
 function renderNav(){
   const primary=[["dash","Home","home"],["myteam","My Team","users"],["matchup","Matchup","swords"],["analytics","Stats","line"],["more","More","menu"]];
-  const active=primary.some(x=>x[0]===cur)?cur:"more";
-  const markup=cls=>primary.map(([id,label,ic])=>`<button class="${cls} ${id===active?'on active':''}" data-primary="${id}" ${id===active?'aria-current="page"':''}>${icon(ic)}<span>${label}</span></button>`).join('');
+  const active=primary.some(x=>x[0]===SECTION)?SECTION:"more";
+  const markup=cls=>primary.map(([id,label,ic])=>`<button class="${cls} ${id===active?'on active':''}" data-primary="${id}" ${id===active?(id===cur?'aria-current="page"':'aria-current="true"'):''}>${icon(ic)}<span>${label}</span></button>`).join('');
   document.getElementById('ptabs').innerHTML=markup('pt');
   document.getElementById('bnav').innerHTML=markup('');
   document.querySelectorAll('[data-primary]').forEach(b=>b.onclick=()=>b.dataset.primary==="dash"?goHome():setTab(b.dataset.primary));
@@ -1841,7 +1855,7 @@ function tbHomeNote(v){
   if(!TB.sub)initTradeBlock();
   let tries=0;const t=setInterval(()=>{tries++;if(TB.loaded||tries>16){clearInterval(t);fill();}},300);
 }
-/* ---- MY MATCHUP (head-to-head lineup, slot by slot) ---- */
+/* ---- MY MATCHUP: the what-if matchup page and the slot-by-slot lineups ---- */
 let mxWeek=null;
 function lineupTotals(rows){if(!rows)return null;const st=rows.filter(r=>r.slot!==20&&r.slot!==21);
   return {pts:st.reduce((a,r)=>a+(r.pts||0),0),proj:st.some(r=>r.proj!=null)?st.reduce((a,r)=>a+(r.proj!=null?r.proj:(r.pts||0)),0):null};}
@@ -1879,13 +1893,34 @@ function luSide(r,won,right,W,blank){
   const statline=playerStatLine(r.pos,stats),bye=byeWk(r.pro);
   return `<div class="lx-p ${right?'r':''}"><div class="lx-txt"><div class="lx-nm"><button type="button" class="pclick" data-pid="${r.pid}" aria-label="Analyze ${esc(r.name)}" title="${esc(r.name)}">${esc(shortPlayerName(r.name))}</button></div><div class="lx-sub"><span class="tag-${String(r.pos).toLowerCase()}">${esc(r.pos)}</span> · ${esc(r.pro||'FA')}${bye?' ('+bye+')':''}${pFlags(r.pid,r.pro,W)}</div></div><div class="lx-pts ${pending?'pending':won?'won':''}"><span aria-label="${pending?'No points recorded yet':'Fantasy points'}">${playerScoreText(r,W)}</span><span class="lx-proj" aria-label="Projected points">${r.proj!=null?fmt(r.proj,1):'—'}</span></div><div class="lx-game">${playerGameLine(r,W)}</div>${statline?`<div class="lx-statline">${esc(statline)}</div>`:''}</div>`;
 }
-VIEWS.matchup=function(){
-  if(!meTeam()){const v=el(pickPrompt("your matchup"));wirePicker(v);return v;}
+// Your games this season; also settles which week the Matchup and Lineups pages show.
+function myGames(){
   const games=D.schedule.filter(x=>x.homeTeamId===MEID||x.awayTeamId===MEID).sort((a,b)=>a.week-b.week);
   if(mxWeek==null||!games.some(g=>g.week===mxWeek))mxWeek=(myGame(focusWeek())||games[games.length-1]||{}).week;
-  let html=`<div class="wkbar"><div class="seg" id="mxseg">${games.map(g=>`<button class="${g.week===mxWeek?"on":""}" data-w="${g.week}">W${g.week}</button>`).join("")}</div></div>`;
+  return games;
+}
+function myWeekSeg(games){return `<div class="wkbar"><div class="seg" id="mxseg">${games.map(g=>`<button class="${g.week===mxWeek?"on":""}" data-w="${g.week}">W${g.week}</button>`).join("")}</div></div>`;}
+function wireMyWeeks(v,page){v.querySelectorAll("#mxseg button").forEach(b=>b.onclick=()=>{mxWeek=+b.dataset.w;setTab(page);});}
+let mxWhatIf=false; // the calculator stays open when live scores redraw the Matchup page
+VIEWS.matchup=function(){
+  if(!meTeam()){const v=el(pickPrompt("your matchup"));wirePicker(v);return v;}
+  const games=myGames(),x=games.find(g=>g.week===mxWeek),d=x?matchupDetail(x):null;
+  const when=!x?"":x.winner&&x.winner!=="UNDECIDED"?"Final":d&&d.s.live?'<span class="pill live"><span class="livedot"></span>LIVE</span>':x.week===D.meta.currentScoringPeriod?"This week":x.week>D.meta.currentScoringPeriod?"Upcoming":"";
+  const tools=d?`${d.whatif?`<button class="wi-reset" id="wiToggle" type="button">${mxWhatIf?"Hide what-if":"What-if calculator"}</button>`:""}${d.s.show?`<button class="wi-reset" id="shareBtn" type="button">Share card</button>`:""}`:"";
+  let html=`<div class="shead mx-title"><div><div class="eyebrow">${x?`Week ${x.week}`:"Your schedule"}${when?` <span class="mx-when">${when}</span>`:""}</div><h2>Matchup</h2></div>${tools?`<div class="mx-title-tools">${tools}</div>`:""}</div>`+myWeekSeg(games);
+  if(!d)html+=emptyState("calendar","No matchup","There's no game on your schedule for this week.");
+  else html+=`<div class="mx-page ${d.whatif&&mxWhatIf?"wi-on":""}">${d.content}</div>`;
+  const v=el(html);wireMyWeeks(v,"matchup");
+  if(d)wireMatchupDetail(v,v.querySelector(".mx-page"),x,d,on=>{mxWhatIf=on;});
+  return v;
+};
+/* ---- LINEUPS (my lineup against my opponent's, slot by slot) ---- */
+VIEWS.lineups=function(){
+  if(!meTeam()){const v=el(pickPrompt("your lineups"));wirePicker(v);return v;}
+  const games=myGames();
+  let html=myWeekSeg(games);
   const x=games.find(g=>g.week===mxWeek);
-  if(!x){html+=emptyState("calendar","No matchup","There's no game on your schedule for this week.");const v=el(html);return v;}
+  if(!x){html+=emptyState("calendar","No matchup","There's no game on your schedule for this week.");const v=el(html);wireMyWeeks(v,"lineups");return v;}
   html+=matchupHero(x,true)+wpGraph(x,true);
   const meHome=x.homeTeamId===MEID,me=teamById[MEID],op=teamById[meHome?x.awayTeamId:x.homeTeamId];
   const M=lineupRows(MEID,x.week),O=lineupRows(op.id,x.week);
@@ -1904,10 +1939,9 @@ VIEWS.matchup=function(){
       html+=`<div class="lx-row">${luSide(im[i],false,false,x.week,true)}<div class="lx-slot">IR</div>${luSide(io[i],false,true,x.week,true)}</div>`;
     html+=`</div>`;
   } else html+=`<div style="margin-top:16px">${emptyState("users","Lineups not available yet","Player-by-player lineups show up once ESPN publishes this week's rosters.")}</div>`;
-  html+=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px"><button class="btn" data-open="${x.id}">${icon("calculator")} What-if calculator & weather</button><button class="btn ghost" data-goto="scoreboard">All Week ${x.week} games</button></div>`;
-  const v=el(html);
-  v.querySelectorAll("#mxseg button").forEach(b=>b.onclick=()=>{mxWeek=+b.dataset.w;setTab("matchup");});
-  v.querySelectorAll("[data-open],.hx[data-mid]").forEach(b=>b.onclick=()=>openMatchup(+(b.dataset.open||b.dataset.mid)));
+  html+=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px"><button class="btn" data-goto="matchup">${icon("calculator")} What-if calculator</button><button class="btn ghost" data-goto="scoreboard">All Week ${x.week} games</button></div>`;
+  const v=el(html);wireMyWeeks(v,"lineups");
+  v.querySelectorAll(".hx[data-mid]").forEach(b=>b.onclick=()=>setTab("matchup"));
   v.querySelectorAll("[data-goto]").forEach(a=>a.onclick=()=>setTab(a.dataset.goto));
   return v;
 };
@@ -2066,7 +2100,7 @@ function winProb(x){
   return {ph,pa:1-ph,proj:x.week===D.meta.currentScoringPeriod&&x.homeProj!=null};
 }
 function wpBar(x,a,h){const p=winProb(x);if(!p)return"";const pa=Math.round(p.pa*100),ph=100-pa;
-  return `<div class="wp" title="Win probability"><span class="wp-a" style="width:${pa}%"></span><span class="wp-h"></span></div><div class="wp-l"><span><b>${pa}%</b> ${esc(a.name)}</span><span>win chance</span><span>${esc(h.name)} <b>${ph}%</b></span></div>`;}
+  return `<div class="wp" title="Win probability"><span class="wp-a" style="width:${pa}%"></span><span class="wp-h"></span></div><div class="wp-l"><span class="wp-side"><b>${pa}%</b><span class="wp-nm">${esc(a.name)}</span></span><span class="wp-mid">win chance</span><span class="wp-side r"><span class="wp-nm">${esc(h.name)}</span><b>${ph}%</b></span></div>`;}
 function wpGraph(x,compact=false){
   if(x.week!==D.meta.currentScoringPeriod)return "";
   const a=teamById[x.awayTeamId],h=teamById[x.homeTeamId];if(!a||!h)return "";
@@ -2167,7 +2201,7 @@ function productionChart(rows){
 }
 
 function openPlayer(pid){
-  const playerLink=()=>{const [page,query='']=(location.hash.slice(1)||cur).split('?');const q=new URLSearchParams(query);q.set('player',pid);history.replaceState(null,'','#'+page+'?'+q);};
+  const playerLink=()=>{const [page,query='']=(location.hash.slice(1)||cur).split('?');const q=new URLSearchParams(query);q.set('player',pid);history.replaceState(history.state,'','#'+page+'?'+q);};
   setTimeout(playerLink,0);
   if(EXPERIENCE?.openResearchPlayer(pid))return;
   trackSite("player_view",String(pid));
@@ -2181,7 +2215,7 @@ function openPlayer(pid){
   const rankInfo=NFL_INSIGHTS?.players?.[pid];
   const ranks=data=>`${metric('Position rank',data?.positionRank?'#'+data.positionRank:'—',esc(pos)+' · season points')}${metric('Overall rank',data?.rank?'#'+data.rank:'—','NFL fantasy points')}${metric('Rostered',data?.owned!=null?fmt(data.owned,1)+'%':'—','ESPN leagues')}${metric('Started',data?.started!=null?fmt(data.started,1)+'%':'—','ESPN leagues')}`;
   const wrap=document.createElement('div');wrap.className='mdl';wrap.id='mdl';wrap.setAttribute('role','dialog');wrap.setAttribute('aria-modal','true');wrap.setAttribute('aria-label',nm+' player analysis');
-  wrap.innerHTML=`<div class="mdl-box player-sheet"><div class="mdl-top"><div><div class="eyebrow">PLAYER ANALYSIS</div><h2>${esc(nm)} ${injTag(current?.injury)}</h2><div class="metricnote">${esc(pos)} · ${esc(pro)} · ${tid!=null?esc(teamById[tid]?.name||''):'Free agent'}</div></div><button class="x" type="button" aria-label="Close">✕</button></div>
+  wrap.innerHTML=`<div class="mdl-box player-sheet"><div class="mdl-top"><div class="sheet-id">${playerPortrait(pid,nm,pos==='D/ST'?'DST':pos,pro,esc,{size:72,eager:true})}<div><div class="eyebrow">PLAYER ANALYSIS</div><h2>${esc(nm)} ${injTag(current?.injury)}</h2><div class="metricnote">${esc(pos)} · ${esc(pro)} · ${tid!=null?esc(teamById[tid]?.name||''):'Free agent'}</div></div></div><button class="x" type="button" aria-label="Close">✕</button></div>
     <div class="player-metrics">${metric('Season points',fmt(ps.tot,1),ps.gp+' recorded weeks')}${metric('Points / week',ps.gp?fmt(ps.avg,1):'—','Last 3: '+fmt(ps.l3,1))}${metric('Projection',ps.proj!=null?fmt(ps.proj,1):'—','Week '+D.meta.currentScoringPeriod)}${metric('League start rate',m.rows.length?fmt(starts/m.rows.length*100,0)+'%':'—',starts+' of '+m.rows.length+' recorded weeks')}</div>
     <div class="player-metrics" id="playerRanks">${ranks(rankInfo)}</div><div id="playerRankNote" class="metricnote">${NFL_INSIGHTS?.scoring?esc(NFL_INSIGHTS.scoring)+' · completed weeks only':'Loading NFL ranks and ownership…'}</div>
     <section class="player-section"><div class="power-profile"><span>League Trade Value</span><b id="playerTradeValue">${tradeValueText(pid)}</b></div>${powerGuide()}<h3>This week's matchup</h3>${playerGameContext({pro,pos},D.meta.currentScoringPeriod,true)}</section>
@@ -2373,7 +2407,7 @@ VIEWS.scoreboard=function(){
 VIEWS.teams=function(){
   if(viewedTeamId!==null&&teamById[viewedTeamId]){
     const v=el(`<button class="btn ghost team-back" type="button">${icon('back')} All Teams</button><div id="teamDetail"></div>`);
-    v.querySelector('.team-back').onclick=()=>{viewedTeamId=null;history.replaceState(null,'','#teams');setTab('teams',true);};
+    v.querySelector('.team-back').onclick=()=>{viewedTeamId=null;history.replaceState(history.state,'','#teams');setTab('teams',true);};
     showTeam(viewedTeamId,v,true);
     return v;
   }
@@ -3224,7 +3258,7 @@ function lineupRows(tid,W){
   if(W===D.meta.currentScoringPeriod) return (D.rosters[tid]||[]).map(p=>({pid:p.playerId,slot:SLOTID[p.slot]??20,name:p.name,pos:p.pos,pro:p.proTeam,pts:p.live||0,proj:null}));
   return null;
 }
-function closeMatchup(){try{const [page,query='']=location.hash.slice(1).split('?');const q=new URLSearchParams(query);if(q.has('player')){q.delete('player');history.replaceState(null,'','#'+page+(q.size?'?'+q:''));}}catch{}const m=document.getElementById("mdl");if(m)m.remove();document.body.classList.remove("mdl-open");document.removeEventListener("keydown",mdlKey);}
+function closeMatchup(){try{const [page,query='']=location.hash.slice(1).split('?');const q=new URLSearchParams(query);if(q.has('player')){q.delete('player');history.replaceState(history.state,'','#'+page+(q.size?'?'+q:''));}}catch{}const m=document.getElementById("mdl");if(m)m.remove();document.body.classList.remove("mdl-open");document.removeEventListener("keydown",mdlKey);}
 function mdlKey(e){if(e.key==="Escape")closeMatchup();}
 function wxIcon(t){t=(t||"").toLowerCase();
   return /snow|flurr|sleet|ice/.test(t)?"❄️":/thunder|storm/.test(t)?"⛈️":/rain|shower|drizzle/.test(t)?"🌧️":/fog|haze/.test(t)?"🌫️":/wind/.test(t)?"💨":
@@ -3238,9 +3272,9 @@ function wxFor(pro,W){
   if(g.wx)return {vs,txt:`${wxIcon(g.wx)} ${g.temp!=null?Math.round(g.temp)+"° ":""}${g.wx}`,title:where,bad:/rain|shower|snow|storm|thunder|sleet|wind|flurr|drizzle/i.test(g.wx)};
   return {vs,txt:`📍 ${g.city||"Outdoors"} · forecast soon`,title:where};
 }
-function openMatchup(mid){
-  const x=D.schedule.find(m=>m.id===mid);if(!x)return;
-  const a=teamById[x.awayTeamId],h=teamById[x.homeTeamId];if(!a||!h)return;
+// Both lineups side by side with the what-if calculator: the Matchup page and the scoreboard's matchup sheet.
+function matchupDetail(x){
+  const a=teamById[x.awayTeamId],h=teamById[x.homeTeamId];if(!a||!h)return null;
   const s=mstate(x),W=x.week,final=x.winner&&x.winner!=="UNDECIDED",cur=W===D.meta.currentScoringPeriod&&!final;
   const A=lineupRows(a.id,W),H=lineupRows(h.id,W);
   const gst=r=>cur?gameStatus(r.pro,W):"done";
@@ -3279,12 +3313,12 @@ function openMatchup(mid){
   const wiBox=whatif?`<div class="whatif"><div class="wi-h">What if?</div>
     <div class="wi-how">Like a what-if grade calculator: type what you think any player whose game has not finished will finish with, and see who wins. Boxes start at ESPN's projection. Players marked DONE are locked.</div>
     <div class="wi-res" id="wiRes"></div><button type="button" class="wi-reset" id="wiReset">Reset to projections</button></div>`:"";
-  const wrap=document.createElement("div");wrap.className="mdl";wrap.id="mdl";wrap.setAttribute("role","dialog");wrap.setAttribute("aria-modal","true");
-  wrap.innerHTML=`<div class="mdl-box"><div class="mdl-top"><div><div class="eyebrow" style="font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--t-blue)">Week ${W} matchup</div><div style="font-size:12.5px;color:var(--ink-3)">${status}</div></div>${whatif?`<button class="wi-reset" id="wiToggle" type="button" style="margin:0 8px 0 auto">What-if calculator</button>`:""}${s.show?`<button class="wi-reset" id="shareBtn" type="button" style="margin:0 8px 0 ${whatif?"0":"auto"}">Share card</button>`:""}<button class="x" aria-label="Close" type="button" ${s.show?'style="margin-left:0"':""}>✕</button></div>
-    <div class="mx-head">${panel(a,s.as,pjA,"a")}<div class="mx-vs">vs</div>${panel(h,s.hs,pjH,"h")}</div>
-    ${wpBar(x,a,h)}${wpGraph(x)}${wiBox}${body}</div>`;
-  wrap.addEventListener("click",e=>{if(e.target===wrap)closeMatchup();});
-  wrap.querySelector(".x").onclick=closeMatchup;
+  return {a,h,s,W,status,whatif,content:`<div class="mx-head">${panel(a,s.as,pjA,"a")}<div class="mx-vs">vs</div>${panel(h,s.hs,pjH,"h")}</div>
+    ${wpBar(x,a,h)}${wpGraph(x)}${wiBox}${body}`};
+}
+// box holds the wi-on class that shows the calculator; onToggle remembers it for the Matchup page.
+function wireMatchupDetail(wrap,box,x,d,onToggle){
+  const {a,h,whatif}=d;
   const sh=wrap.querySelector("#shareBtn");if(sh)sh.onclick=()=>shareCard(x);
   if(whatif){
     const res=wrap.querySelector("#wiRes");
@@ -3302,8 +3336,18 @@ function openMatchup(mid){
     wrap.querySelector("#wiReset").onclick=()=>{wrap.querySelectorAll("input.wi").forEach(e=>{delete calcOverride[e.dataset.k];e.value=e.dataset.def;});calc();};
     calc();
     const wiTg=wrap.querySelector("#wiToggle");
-    if(wiTg)wiTg.onclick=()=>{const on=wrap.querySelector(".mdl-box").classList.toggle("wi-on");wiTg.textContent=on?"Hide what-if":"What-if calculator";if(on)calc();};
+    if(wiTg)wiTg.onclick=()=>{const on=box.classList.toggle("wi-on");wiTg.textContent=on?"Hide what-if":"What-if calculator";if(onToggle)onToggle(on);if(on)calc();};
   }
+}
+function openMatchup(mid){
+  const x=D.schedule.find(m=>m.id===mid);if(!x)return;
+  const d=matchupDetail(x);if(!d)return;
+  const wrap=document.createElement("div");wrap.className="mdl";wrap.id="mdl";wrap.setAttribute("role","dialog");wrap.setAttribute("aria-modal","true");
+  wrap.innerHTML=`<div class="mdl-box"><div class="mdl-top"><div><div class="eyebrow" style="font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--t-blue)">Week ${d.W} matchup</div><div style="font-size:12.5px;color:var(--ink-3)">${d.status}</div></div>${d.whatif?`<button class="wi-reset" id="wiToggle" type="button" style="margin:0 8px 0 auto">What-if calculator</button>`:""}${d.s.show?`<button class="wi-reset" id="shareBtn" type="button" style="margin:0 8px 0 ${d.whatif?"0":"auto"}">Share card</button>`:""}<button class="x" aria-label="Close" type="button" ${d.s.show?'style="margin-left:0"':""}>✕</button></div>
+    ${d.content}</div>`;
+  wrap.addEventListener("click",e=>{if(e.target===wrap)closeMatchup();});
+  wrap.querySelector(".x").onclick=closeMatchup;
+  wireMatchupDetail(wrap,wrap.querySelector(".mdl-box"),x,d);
   document.body.appendChild(wrap);document.body.classList.add("mdl-open");document.addEventListener("keydown",mdlKey);
 }
 
@@ -4327,8 +4371,8 @@ function initSwipeNavigation(){
   document.addEventListener('touchend',()=>{
     if(!gesture)return;const g=gesture,close=g.active&&(g.direction==='down'?g.dy>100:g.dx>90);reset();if(!close)return;suppressUntil=Date.now()+400;
     if(g.modal){closeMatchup();return;}
-    if(cur==='teams'&&document.querySelector('#app .view[data-team-detail]')){viewedTeamId=null;history.replaceState(null,'','#teams');setTab('teams',true);return;}
-    const target=VIEW_BACK.pop()||'dash';swipingBack=true;try{setTab(target);}finally{swipingBack=false;}
+    if(cur==='teams'&&document.querySelector('#app .view[data-team-detail]')){viewedTeamId=null;history.replaceState(history.state,'','#teams');setTab('teams',true);return;}
+    const target=VIEW_BACK.pop()||'dash',section=VIEW_BACK.sections?.pop();swipingBack=true;try{setTab(target,false,section);}finally{swipingBack=false;}
   },{passive:true});
   document.addEventListener('touchcancel',reset,{passive:true});
   document.addEventListener('click',e=>{if(Date.now()<suppressUntil){e.preventDefault();e.stopImmediatePropagation();}},{capture:true});
@@ -4355,18 +4399,23 @@ function initPullRefresh(){
     // Best effort: device settings and WebKit versions may suppress feedback.
     try{if(hapticSwitch)hapticSwitch.click();if(typeof navigator.vibrate==="function")navigator.vibrate(15);}catch(e){}
   };
-  let startY=0,startX=0,pulling=false,dist=0,armed=false,loading=false;const TH=70;
+  let startY=0,startX=0,pulling=false,dist=0,armed=false,loading=false,dragged=false,sideways=false,suppressUntil=0;const TH=70;
   const atTop=()=>pageScrollY()<=0;
   const reset=()=>{pulling=false;dist=0;armed=false;ind.style.transform="";ind.style.opacity="";ind.classList.remove("ready","armed");label.textContent="Pull to refresh";};
+  // A pull can start anywhere on the page, including matchup cards, buttons and links;
+  // only text fields and open sheets keep the gesture for themselves.
   window.addEventListener("touchstart",e=>{
-    const blocked=e.target.closest&&e.target.closest("input,textarea,select,button,a,summary,[role=button],[data-team],[data-tid],dialog,.mdl,.twrap,.matrix,.stabs");
+    const blocked=e.target.closest&&e.target.closest("input,textarea,select,[contenteditable],dialog,.mdl");
+    // in sideways-scrolling tables and button rows the pull has to be clearly downward
+    dragged=false;suppressUntil=0;sideways=!!(e.target.closest&&e.target.closest(".twrap,.matrix,.stabs,.seg,.manager-quick-actions"));
     if(!loading&&e.touches.length===1&&atTop()&&!blocked&&!document.querySelector(".mdl")&&!document.body.classList.contains("navopen")){startY=e.touches[0].clientY;startX=e.touches[0].clientX;pulling=true;dist=0;}
   },{passive:true});
   window.addEventListener("touchmove",e=>{
     if(!pulling)return;
     if(e.touches.length!==1){reset();return;}
     dist=e.touches[0].clientY-startY;
-    if(dist<=0||!atTop()||Math.abs(e.touches[0].clientX-startX)>Math.abs(dist)){reset();return;}
+    if(dist<=0||!atTop()||Math.abs(e.touches[0].clientX-startX)*(sideways?2:1)>Math.abs(dist)){reset();return;}
+    if(dist>10)dragged=true;
     if(e.cancelable)e.preventDefault();
     const d=Math.min(dist*.5,100),next=d>=TH;
     ind.style.transform=`translateX(-50%) translateY(${d}px)`;ind.style.opacity=String(Math.min(d/35,1));
@@ -4376,6 +4425,8 @@ function initPullRefresh(){
   },{passive:false});
   window.addEventListener("touchend",()=>{
     if(!pulling)return;
+    // the card or button the pull started on must not open when the finger lifts
+    if(dragged)suppressUntil=Date.now()+400;
     if(!armed){reset();return;}
     pulling=false;loading=true;ind.classList.remove("armed");ind.classList.add("ready");label.textContent="Refreshing…";
     haptic();
@@ -4383,6 +4434,8 @@ function initPullRefresh(){
     requestAnimationFrame(()=>requestAnimationFrame(()=>location.reload()));
   },{passive:true});
   window.addEventListener("touchcancel",reset,{passive:true});
+  // the haptic switch click is synthetic, so only real taps are swallowed
+  document.addEventListener("click",e=>{if(e.isTrusted&&Date.now()<suppressUntil){suppressUntil=0;e.preventDefault();e.stopImmediatePropagation();}},{capture:true});
 }
 
 function boot(){
@@ -4423,7 +4476,7 @@ function boot(){
   const applyPhone=()=>document.body.classList.toggle("phone",isPhone());
   applyPhone();installMobileViewport();(mq.addEventListener?mq.addEventListener("change",applyPhone):mq.addListener(applyPhone));window.addEventListener("resize",applyPhone);
   const fromHash=()=>{let h=(location.hash||"").slice(1).split("?")[0];if(h==="calc")h="scoreboard";if(h==="other")h="useless";return VIEWS[h]?h:null;};
-  {const q=new URLSearchParams((location.hash.split('?')[1]||''));const w=Number(q.get('week'));if(Number.isInteger(w)&&w>0&&w<=22)mxWeek=w;}readTeamRoute();EXPERIENCE?.route();renderNav();navigationFromHistory=true;setTab(fromHash()||"dash");navigationFromHistory=false;
+  {const q=new URLSearchParams((location.hash.split('?')[1]||''));const w=Number(q.get('week'));if(Number.isInteger(w)&&w>0&&w<=22)mxWeek=w;}readTeamRoute();EXPERIENCE?.route();SECTION=homeSection(fromHash()||"dash");renderNav();navigationFromHistory=true;setTab(fromHash()||"dash");navigationFromHistory=false;
   window.addEventListener("popstate",()=>{readTeamRoute();EXPERIENCE?.route();const h=fromHash()||"dash";navigationFromHistory=true;try{setTab(h);}finally{navigationFromHistory=false;}});
   window.addEventListener("hashchange",()=>{const h=fromHash();if(h&&(h!==cur||h==="teams")){readTeamRoute();EXPERIENCE?.route();navigationFromHistory=true;try{setTab(h);}finally{navigationFromHistory=false;}}});
   loadNflInsights();
@@ -4439,7 +4492,9 @@ function initialsMark(name){const w=name.split(/\s+/).filter(Boolean);return (w.
 /* ---------- live auto-refresh (polls the DB; re-renders only when data changed) ---------- */
 function setFresh(){
   const week=Number(D.meta.currentScoringPeriod),badge=document.getElementById('headerWeek');
-  if(badge){badge.hidden=!Number.isInteger(week)||week<1;document.getElementById('headerWeekNumber').textContent=badge.hidden?'':String(week);}
+  if(badge){badge.hidden=!Number.isInteger(week)||week<1;document.getElementById('headerWeekNumber').textContent=badge.hidden?'':String(week);
+    const rs=Number(D.meta.regularSeasonWeeks),sub=document.getElementById('headerWeekSub');
+    if(sub)sub.innerHTML=badge.hidden||!(rs>0)?'':week>rs?'Playoffs':`of ${rs}<span class="abw-more"> · regular season</span>`;}
   renderTicker(false);
 }
 
@@ -4506,7 +4561,9 @@ function showToast(msg){
 EXPERIENCE=installManagerExperience({
   views:VIEWS,labels:LABELS,esc,fmt,setTab,el,playerSeason,playerLog,openPlayer,showToast,injLabel,productionChart,
   enhanceTables:enhanceStatTables,
-  enhanceLayout:root=>enhanceManagerLayout(root,{page:cur,team:MEID,data:D,setTab,esc,feedbackPage:VIEW_BACK.filter(p=>p!=="feedback"&&p!=="more").at(-1)||"dash"}),
+  enhanceLayout:root=>enhanceManagerLayout(root,{page:cur,team:MEID,data:D,esc,feedbackPage:VIEW_BACK.filter(p=>p!=="feedback"&&p!=="more").at(-1)||"dash",section:SECTION,sectionPages:SECTION_PAGES,
+    // the All teams button on a team's page goes back to the list of teams
+    setTab:(id,fresh)=>{if(id==="teams"&&cur==="teams"&&viewedTeamId!=null){viewedTeamId=null;try{history.replaceState(history.state,"","#teams");}catch(e){}}setTab(id,fresh);}}),
   getRefreshError:()=>leagueRefreshError,getTradeBlock:()=>TB.rows,getData:()=>D,getMe:()=>meTeam()?.id??null,getCurrent:()=>cur,getDevice:()=>siteDevice,
   pickTeam:pickTeamModal,refreshData,goTeam,closeMatchup,getSubscription:currentSub,restoreWeek:w=>{if(Number.isInteger(w)&&w>0&&w<=22)mxWeek=w;},
 });

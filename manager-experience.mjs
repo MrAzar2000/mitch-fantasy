@@ -303,7 +303,7 @@ export function installManagerExperience(api) {
       !force &&
       researchKey === key &&
       research &&
-      Date.now() - Date.parse(research.updatedAt) < (["matchup","myteam"].includes(api.getCurrent())?60000:300000)
+      Date.now() - Date.parse(research.updatedAt) < (["matchup","lineups","myteam"].includes(api.getCurrent())?60000:300000)
     )
       return;
     if (!force && Date.now() - lastResearchAttempt < 30000) return;
@@ -328,7 +328,7 @@ export function installManagerExperience(api) {
       } finally {
         researchPending = null;
         if (
-          ["players", "faab", "dash", "myteam", "matchup", "teams"].includes(api.getCurrent()) &&
+          ["players", "faab", "dash", "myteam", "matchup", "lineups", "teams"].includes(api.getCurrent()) &&
           !document.querySelector(
             "#app input:focus,#app select:focus,#app textarea:focus",
           )
@@ -694,7 +694,7 @@ export function installManagerExperience(api) {
     if(center?.dataset.rosterIssues==='0') center.remove();
     return v;
   };
-  for(const page of ["matchup","teams"]){const base=views[page];views[page]=()=>{void ensureResearch();return base();};}
+  for(const page of ["matchup","lineups","teams"]){const base=views[page];views[page]=()=>{void ensureResearch();return base();};}
   const myTeam = views.myteam;
   views.myteam = () => {
     void ensureResearch();
@@ -777,7 +777,7 @@ export function installManagerExperience(api) {
     modal.id = "mdl";
     modal.className = "mdl";
     modal.setAttribute("aria-label", p.name + " player analysis");
-    modal.innerHTML = `<div class="mdl-box player-sheet"><div class="mdl-top"><div><div class="eyebrow">Player analysis</div><h2>${esc(p.name)}</h2><p class="metricnote">${esc(p.pos)} · ${esc(p.pro)} · ${esc(ownership(p))}</p></div><button type="button" class="x" aria-label="Close">✕</button></div><div class="grid g-2">${[
+    modal.innerHTML = `<div class="mdl-box player-sheet"><div class="mdl-top"><div class="sheet-id">${playerPortrait(p.id,p.name,p.pos,p.pro,esc,{size:72,eager:true})}<div><div class="eyebrow">Player analysis</div><h2>${esc(p.name)}</h2><p class="metricnote">${esc(p.pos)} · ${esc(p.pro)} · ${esc(ownership(p))}</p></div></div><button type="button" class="x" aria-label="Close">✕</button></div><div class="grid g-2">${[
       ["This week projection", value(p.proj)],
       ["Season avg", value(p.avg)],
       ["Last 3 recorded", value(p.l3)],
@@ -848,7 +848,7 @@ export function installManagerExperience(api) {
     }
     const target = "#" + id + (q.size ? "?" + q : "");
     if (location.hash !== target)
-      history[replace ? "replaceState" : "pushState"](null, "", target);
+      history[replace ? "replaceState" : "pushState"](history.state, "", target);
   }
   function route() {
     const [page, query = ""] = location.hash.slice(1).split("?"),
@@ -870,7 +870,7 @@ export function installManagerExperience(api) {
         .filter((x) => Number.isInteger(x) && x > 0)
         .slice(0, 4);
     }
-    if (page === "matchup" && q.has("week"))
+    if ((page === "matchup" || page === "lineups") && q.has("week"))
       api.restoreWeek(Number(q.get("week")));
     if (q.has("player")) {
       const pid = Number(q.get("player"));
@@ -1199,7 +1199,7 @@ export function installManagerExperience(api) {
   setInterval(() => {
     if (document.hidden || document.getElementById("mdl")) return;
     if (
-      ["dash", "players", "myteam", "faab", "matchup", "teams"].includes(api.getCurrent())
+      ["dash", "players", "myteam", "faab", "matchup", "lineups", "teams"].includes(api.getCurrent())
     )
       void ensureResearch();
     updateFreshness();

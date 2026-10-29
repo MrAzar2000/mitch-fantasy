@@ -67,7 +67,7 @@ function weekPicker(root,selector) {
   select.onchange=()=>buttons[Number(select.value)].click();prev.onclick=()=>buttons[active-1]?.click();next.onclick=()=>buttons[active+1]?.click();
   group.append(prev,select,next);seg.replaceWith(group);
 }
-export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPage}) {
+export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPage,section,sectionPages}) {
   const view=root.querySelector('.view');if(!view||view.dataset.layoutReady)return;
   view.dataset.layoutReady='true';
   view.querySelectorAll('details').forEach(fold=>{if(fold.matches('[data-lineup-mode]')||fold.querySelector('table,svg,.rank-history-list,[data-lineup-mode]'))fold.open=true;});
@@ -78,18 +78,18 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
     analytics:[['standings','Standings'],['power','Power rankings'],['odds','Playoff odds'],['outlook','Outlook']],
     players:[['myteam','My team'],['faab','Waivers'],['block','Trade block']],
     faab:[['players','Players'],['myteam','My team']],
-    scoreboard:[['matchup','My matchup'],['standings','Standings']],
+    scoreboard:[['matchup','Matchup'],['standings','Standings']],
     block:[['teams','All teams'],['myteam','My team']],
     history:[['records','Record book'],['h2h','Head-to-head']],
     standings:[['scoreboard','Scoreboard'],['power','Power rankings'],['odds','Playoff odds']],
     power:[['standings','Standings'],['odds','Playoff odds'],['analytics','Stats']],
-    odds:[['standings','Standings'],['power','Power rankings'],['matchup','My matchup']],
+    odds:[['standings','Standings'],['power','Power rankings'],['matchup','Matchup']],
     teams:[['myteam','My team'],['players','Players'],['block','Trade block']],
     outlook:[['myteam','My team'],['faab','Waivers'],['analytics','Stats']],
-    h2h:[['matchup','My matchup'],['history','History'],['records','Record book']],
+    h2h:[['matchup','Matchup'],['history','History'],['records','Record book']],
     records:[['history','History'],['analytics','Stats'],['shame','Hall of Shame']],
     draft:[['myteam','My team'],['players','Players'],['history','History']],
-    parlay:[['dash','Home'],['matchup','My matchup'],['rules','Rules']],
+    parlay:[['dash','Home'],['matchup','Matchup'],['rules','Rules']],
     rules:[['standings','Standings'],['faab','Waivers'],['parlay','Parlay']],
     shame:[['records','Record book'],['history','History'],['defense','Manager Defense']],
     defense:[['analytics','Stats'],['shame','Hall of Shame'],['standings','Standings']],
@@ -97,17 +97,17 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
     siteactivity:[['dash','Home'],['feedbackinbox','P&S Inbox']],
     feedbackinbox:[['more','More'],['siteactivity','Site Log']]
   };
-  if(shortcuts[page]){
-    const bar=document.createElement('nav');bar.className='manager-quick-actions';bar.setAttribute('aria-label','Quick actions');
-    shortcuts[page].filter(([id])=>!["players","faab","useless"].includes(id)).forEach(([id,label])=>{const b=document.createElement('button');b.type='button';b.className='btn ghost';b.textContent=label;b.onclick=()=>setTab(id);bar.append(b);});
+  // Inside a bottom-bar tab the buttons are that tab's pages; under More they are related pages, never another tab.
+  const tabPages=section&&section!=='more'?sectionPages?.[section]:null;
+  const links=tabPages||(shortcuts[page]||[]).filter(([id])=>!["players","faab","useless","dash","myteam","matchup","analytics"].includes(id));
+  if(links.length){
+    const bar=document.createElement('nav');bar.className='manager-quick-actions';bar.setAttribute('aria-label',tabPages?'Pages':'Related pages');
+    links.forEach(([id,label])=>{const b=document.createElement('button');b.type='button';b.className='btn ghost';b.textContent=label;
+      if(id===page){b.classList.add('on');b.setAttribute('aria-current','page');}
+      b.onclick=()=>setTab(id,id===page);bar.append(b);});
     const hero=view.querySelector('.hero.hx');
-    if(['dash','matchup'].includes(page)&&hero)view.prepend(hero);
+    if(['dash','lineups'].includes(page)&&hero)view.prepend(hero);
     view.prepend(bar);
-    if(page==='matchup'){
-      const calculator=view.querySelector('[data-open]');
-      if(calculator){const oldActions=calculator.parentElement;bar.append(calculator);oldActions.remove();}
-    }
-
   }
   if(page==='dash'){
     // Remove the old duplicate shortcut strip; quick actions now stay near the score.
@@ -148,8 +148,8 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
     const updates=view.querySelector('#updBanner');
     if(updates){const items=[...updates.querySelectorAll('.ub-i')];if(items.length>1)foldNodes(items.slice(1),'Older announcements');}
   }
-  if(page==='matchup'||page==='scoreboard')weekPicker(view,page==='matchup'?'#mxseg':'#wkseg');
-  if(page==='matchup') {
+  if(page==='matchup'||page==='lineups'||page==='scoreboard')weekPicker(view,page==='scoreboard'?'#wkseg':'#mxseg');
+  if(page==='lineups') {
     const bench=view.querySelector('.lx-bench');if(bench)foldNodes([bench.previousElementSibling,bench],'Bench & IR');
   }
   if(page==='standings') {
@@ -187,6 +187,43 @@ export function installDialogAccess() {
   window.addEventListener('offline',()=>connection.hidden=false);window.addEventListener('online',()=>connection.hidden=true);
 }
 
+// Phones: a table wider than the screen opens on a whole column instead of one sliced at the edge.
+// The team column (or the last whole column) takes up the leftover space; the rest stays a swipe away.
+// Aligning waits a frame so the width change is never reported back inside the same resize pass.
+const edgeWatch=typeof ResizeObserver==='function'?new ResizeObserver(entries=>requestAnimationFrame(()=>entries.forEach(e=>alignTableEdge(e.target)))):null;
+const watched=new Set();
+function alignTableEdge(wrap) {
+  const table=wrap.querySelector(':scope > table');if(!table||!wrap.isConnected)return;
+  const row=[...table.rows].slice(0,3).sort((a,b)=>b.cells.length-a.cells.length)[0];if(!row)return;
+  const cells=[...row.cells];
+  cells.forEach(c=>{if(c.dataset.edgeWidth!==undefined){c.style.width=c.dataset.edgeWidth;c.style.minWidth=c.dataset.edgeMin;c.style.maxWidth=c.dataset.edgeMax;delete c.dataset.edgeWidth;delete c.dataset.edgeMin;delete c.dataset.edgeMax;}});
+  const visible=wrap.clientWidth;
+  if(!document.body.classList.contains('phone')||!visible||wrap.scrollWidth<=visible+1)return;
+  const origin=table.getBoundingClientRect().left,edge=c=>c.getBoundingClientRect().right-origin;
+  let last=-1;cells.forEach((c,i)=>{if(edge(c)<=visible+0.5)last=i;});
+  if(last<0||last>=cells.length-1||visible-edge(cells[last])<1)return;
+  const gap=()=>visible-(cells[last+1].getBoundingClientRect().left-origin);
+  const pick=cells.findIndex((c,i)=>i<=last&&c.classList.contains('manager-team-name'));
+  for(const target of new Set([cells[pick>=0?pick:last],cells[last]])){
+    // header cells stick to the top, which is fine; a column pinned to the left must keep its width
+    const pinned=getComputedStyle(target);if(pinned.position==='sticky'&&pinned.left!=='auto')continue;
+    target.dataset.edgeWidth=target.style.width;target.dataset.edgeMin=target.style.minWidth;target.dataset.edgeMax=target.style.maxWidth;target.style.maxWidth='none';
+    // widths include padding differently per engine, and collapsed-border tables only honor min-width,
+    // so set both and nudge until the next column starts at the edge
+    for(let i=0;i<3&&Math.abs(gap())>=0.5;i++)
+      target.style.width=target.style.minWidth=Math.max(0,(parseFloat(target.style.width)||target.getBoundingClientRect().width)+gap())+'px';
+    if(Math.abs(gap())<0.5)break;
+  }
+}
+function alignTableEdges(root) {
+  // tables from earlier renders are gone; stop watching them
+  watched.forEach(wrap=>{if(!wrap.isConnected){edgeWatch.unobserve(wrap);watched.delete(wrap);}});
+  root.querySelectorAll('.twrap,.matrix').forEach(wrap=>{
+    if(!edgeWatch)alignTableEdge(wrap);
+    else if(!watched.has(wrap)){watched.add(wrap);edgeWatch.observe(wrap);}
+  });
+}
+if(typeof document!=='undefined')document.fonts?.ready?.then(()=>document.querySelectorAll('#app .twrap,#app .matrix').forEach(alignTableEdge));
 // Split the identity from the label so horizontal scrolling pins only the badge.
 export function enhanceStatTables(root) {
   root.querySelectorAll('.twrap table').forEach(table=>{
@@ -209,9 +246,10 @@ export function enhanceStatTables(root) {
       if(badge){
         const label=cell.querySelector('.nm')?.textContent||badge.title;
         badge.setAttribute('aria-label',label);pinned.append(badge);
-      }else{pinned.textContent='Team';pinned.scope='col';}
+      }else{pinned.scope='col';pinned.setAttribute('aria-label','Team badge');}
       row.prepend(pinned);
       cell.classList.add('manager-team-name');
     });
   });
+  alignTableEdges(root);
 }

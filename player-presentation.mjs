@@ -1,11 +1,12 @@
 // League IDs are ESPN IDs; no cross-provider ID mapping is needed for portraits.
-export function playerPortrait(id, name, position, pro, esc) {
+export function playerPortrait(id, name, position, pro, esc, {size=56,eager=false}={}) {
   const initials=String(name||pro||'?').trim().split(/\s+/).map(x=>x[0]).slice(0,2).join('').toUpperCase();
   const key=['QB','RB','WR','TE','K','DST'].includes(position)?position.toLowerCase():'other';
   const source=Number.isInteger(Number(id))&&Number(id)>0&&position!=='DST'
     ? `https://a.espncdn.com/i/headshots/nfl/players/full/${Number(id)}.png` : null;
-  const src=source?`/.netlify/images?url=${encodeURIComponent(source)}&w=112&h=112&fit=cover&position=top&q=80`:null;
-  return `<span class="player-portrait player-pos-${key}" aria-hidden="true"><span class="portrait-fallback">${esc(position==='DST'?(pro||'DST'):initials)}</span>${src?`<img src="${esc(src)}" alt="" width="56" height="56" loading="lazy" decoding="async" referrerpolicy="no-referrer">`:''}</span>`;
+  const px=Math.round(size*2);
+  const src=source?`/.netlify/images?url=${encodeURIComponent(source)}&w=${px}&h=${px}&fit=cover&position=top&q=80`:null;
+  return `<span class="player-portrait player-pos-${key}" aria-hidden="true"><span class="portrait-fallback">${esc(position==='DST'?(pro||'DST'):initials)}</span>${src?`<img src="${esc(src)}" alt="" width="${size}" height="${size}" loading="${eager?'eager':'lazy'}" decoding="async" referrerpolicy="no-referrer">`:''}</span>`;
 }
 // Keep initials visible when a headshot is unavailable, including offline visits.
 if(typeof document!=='undefined')document.addEventListener('error',event=>{
