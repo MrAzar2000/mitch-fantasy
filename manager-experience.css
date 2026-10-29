@@ -1099,3 +1099,28 @@ body .lx-row:not(.lx-hd) > .lx-slot,body.phone .lx-row:not(.lx-hd) > .lx-slot { 
 body.phone .pr-chart .barrow .bl { width:auto; }
 body.phone .pr-chart .barrow .bv { min-width:0; }
 @media(max-width:360px) { .pr-tiles { gap:8px; } }
+
+/* Parlay page: submitted legs line up in a fixed grid. Desktop is one line per leg;
+   phones use two lines (manager and result, then the pick with odds and submit time). */
+.pl-leg { display:grid;grid-template-columns:150px minmax(0,1fr) auto 76px;align-items:baseline;gap:4px 14px;padding:10px 0;border-bottom:1px solid var(--line); }
+.pl-leg:last-child { border-bottom:0; }
+.pl-mgr { min-width:0;font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.pl-pick { min-width:0;font-size:13.5px;overflow-wrap:anywhere; }
+.pl-odds { color:var(--accent);font-weight:700;font-size:12.5px;white-space:nowrap; }
+.pl-time { font-size:12px;color:var(--ink-3);white-space:nowrap;text-align:right; }
+.pl-res { justify-self:end;font-size:11px;font-weight:800;letter-spacing:.04em;padding:2px 7px;border-radius:6px;color:var(--ink-3);background:var(--surface-2); }
+.pl-res.win { color:var(--win);background:color-mix(in srgb,var(--win) 15%,transparent); }
+.pl-res.loss { color:var(--loss);background:color-mix(in srgb,var(--loss) 15%,transparent); }
+.pl-admin { grid-column:1/-1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px; }
+@media(max-width:700px) {
+  .pl-leg { grid-template-columns:minmax(0,1fr) auto;gap:5px 12px; }
+  .pl-mgr { grid-column:1;grid-row:1;font-size:14px; }
+  .pl-res { grid-column:2;grid-row:1; }
+  .pl-pick { grid-column:1;grid-row:2; }
+  .pl-time { grid-column:2;grid-row:2; }
+  .pl-admin { grid-row:3;flex-wrap:nowrap;gap:6px; }
+  /* The select keeps its own label for screen readers; the visible "Result" word is dropped to fit one row. */
+  .pl-admin label { font-size:0;flex:1 1 auto;min-width:0; }
+  .pl-admin select { width:100%;min-width:0;font-size:16px; }
+  .pl-admin .btn { flex:none;min-height:38px;padding:6px 12px;font-size:13px; }
+}
