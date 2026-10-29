@@ -697,15 +697,6 @@ export function installManagerExperience(api) {
       );
       if (rosterCard)
         rosterCard.insertAdjacentHTML("afterend", coveragePanel(id));
-      const parlay = v.querySelector(".manager-history");
-      if (parlay) {
-        const fold = document.createElement("details");
-        fold.className = "fold";
-        fold.innerHTML = "<summary>Manager parlay history</summary>";
-        parlay.replaceWith(fold);
-        fold.appendChild(parlay);
-        fold.parentElement.appendChild(fold);
-      }
     }
     return v;
   };

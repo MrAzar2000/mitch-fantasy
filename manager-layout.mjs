@@ -90,6 +90,7 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
     records:[['history','History'],['analytics','Stats'],['shame','Hall of Shame']],
     draft:[['myteam','My team'],['players','Players'],['history','History']],
     parlay:[['dash','Home'],['matchup','Matchup'],['rules','Rules']],
+    parlayresults:[['parlay','Parlay'],['teams','All teams'],['shame','Hall of Shame']],
     rules:[['standings','Standings'],['faab','Waivers'],['parlay','Parlay']],
     shame:[['records','Record book'],['history','History'],['defense','Manager Defense']],
     defense:[['analytics','Stats'],['shame','Hall of Shame'],['standings','Standings']],

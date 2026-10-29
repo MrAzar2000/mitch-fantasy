@@ -1293,7 +1293,6 @@ body.phone .lx-row{align-items:stretch}
 .news-item small{display:block;color:var(--ink-3);margin-top:5px}
 .team-rank{color:var(--accent);font-size:12px;font-weight:800}
 .trade-help{margin-bottom:16px}.trade-help>summary{min-height:32px;font-weight:600}
-.manager-history{margin-top:16px}.history-pick{padding:12px 0;border-bottom:1px solid var(--line);font-size:13px}.history-pick small{display:block;color:var(--ink-3);margin-top:4px}
 @media(max-width:700px){.player-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.player-metric b{font-size:22px}.lu-bench>.row{align-items:flex-start}.lu-bench .row>span:first-child{min-width:0;flex:1}.lu-bench .row>.num{flex:0 0 48px}.player-context{font-size:12px}}
 
 
@@ -1546,7 +1545,7 @@ function powerRanks(){
 
 /* ---------- routing ---------- */
 const NAV=[
-  ["League","league","home",[["dash","Home"],["standings","Standings"],["power","Power Rankings"],["odds","Playoff Odds"],["history","History"],["parlay","Parlay"],["rules","Rules"],["feedback","Problems & Suggestions"],["feedbackinbox","P&S Inbox"],["siteactivity","Site Log"]]],
+  ["League","league","home",[["dash","Home"],["standings","Standings"],["power","Power Rankings"],["odds","Playoff Odds"],["history","History"],["parlay","Parlay"],["parlayresults","Parlay Results"],["rules","Rules"],["feedback","Problems & Suggestions"],["feedbackinbox","P&S Inbox"],["siteactivity","Site Log"]]],
   ["Matchup","matchup","swords",[["matchup","Matchup"],["scoreboard","Scoreboard"],["h2h","Head-to-Head"]]],
   ["Team","team","users",[["myteam","My Team"],["inbox","Inbox"],["teams","All Teams"],["block","Trade Block"],["draft","Draft"]]],
   ["Stats","stats","line",[["analytics","Analytics"],["outlook","Outlook"],["records","Record Book"],["defense","Manager Defense"],["shame","Hall of Shame"]]],
@@ -1736,7 +1735,7 @@ function birthdayBanner(){const n=new Date();if(!(n.getMonth()===9&&n.getDate()=
 /* ================= VIEWS ================= */
 const VIEWS={};
 VIEWS.more=function(){
- const groups=[['League',['standings','scoreboard','power','odds','teams']],['Roster & trades',['inbox','block','outlook']],['Work in Progress',['players','faab']],['Analysis & history',['analytics','h2h','history','records','draft']],['League fun',['parlay','shame','defense']],['Help',['rules','feedback']],...(ADMIN?[['Admin',['feedbackinbox','siteactivity']]]:[])];
+ const groups=[['League',['standings','scoreboard','power','odds','teams']],['Roster & trades',['inbox','block','outlook']],['Work in Progress',['players','faab']],['Analysis & history',['analytics','h2h','history','records','draft']],['League fun',['parlay','parlayresults','shame','defense']],['Help',['rules','feedback']],...(ADMIN?[['Admin',['feedbackinbox','siteactivity']]]:[])];
  const v=el(shead('Your league, organized','More')+`<div class="manager-menu">${groups.map(([title,ids])=>`<section class="card card-p"><h3>${title}</h3>${ids.map(id=>`<button class="manager-menu-link" data-goto="${id}">${esc(LABELS[id])}<span aria-hidden="true">›</span></button>`).join('')}</section>`).join('')}<section class="card card-p"><h3>Settings & setup</h3><button class="manager-menu-link" data-switch-team>Switch team</button><button class="manager-menu-link" data-settings="notifyBtn">Notification preferences</button><button class="manager-menu-link" data-theme-toggle>Switch to ${document.documentElement.getAttribute("data-theme")==="light"?"dark":"light"} mode</button><a class="manager-menu-link" href="/tutorial.html">Install & notification guide</a><button class="more-admin" data-admin type="button">${icon("shield")} Admin controls</button></section></div>`);
  v.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>setTab(b.dataset.goto));v.querySelectorAll('[data-settings]').forEach(b=>b.onclick=()=>document.getElementById(b.dataset.settings).click());v.querySelector('[data-theme-toggle]').onclick=()=>{toggleTheme();setTab('more');};v.querySelector('[data-admin]').onclick=adminLogin;v.querySelector('[data-switch-team]').onclick=pickTeamModal;return v;
 };
@@ -1961,6 +1960,9 @@ VIEWS.myteam=function(){
   html+=`<div id="teamDetail" class="myteam"></div>`;
   const v=el(html);
   showTeam(t.id,v,true);
+  // My Team has its own hero, so the parlay dropdown moves out of the team header into its own card.
+  const parlay=v.querySelector("#teamDetail > .team-detail-header > .team-parlay");
+  if(parlay){parlay.classList.add("card","card-p");v.querySelector("#teamDetail").append(parlay);}
   v.querySelector("#teamDetail > .team-detail-header")?.remove();
   v.querySelector("#teamDetail > #tdh")?.remove();
   return v;
@@ -2449,12 +2451,11 @@ function showTeam(id,v,quiet){
        ${tstat(ST.started?fmt(s.pf,1):"—","Points For")}
        ${tstat(ST.started?fmt(s.ppg,1):"—","PPG")}
        ${tstat(ST.started?streakBare(s.streak):"—","Streak")}
-     </div></div>`;
+     </div><details class="fold team-parlay" data-manager-history="${id}">${managerHistoryHtml(id)}</details></div>`;
   {const W=D.meta.currentScoringPeriod,wkFinal=D.schedule.filter(x=>x.week===W).every(x=>x.winner&&x.winner!=="UNDECIDED");
     if(!wkFinal){const need={QB:1,RB:2,WR:2,TE:1,FLEX:1,DST:1,K:1},have={};starters.forEach(p=>have[p.slot]=(have[p.slot]||0)+1);
       const emp=[];Object.entries(need).forEach(([k,n])=>{for(let i=have[k]||0;i<n;i++)emp.push(k==="DST"?"D/ST":k);});
       h+=alertBox(lineupAlerts(starters.map(p=>({name:p.name,pro:p.proTeam,pid:p.playerId})),emp,W),t);}}
-  h+=`<section class="card card-p manager-history"><div class="sub-h" style="margin-top:0">${esc(t.owner||t.name)} · Parlay</div><div data-manager-history="${id}">${managerHistoryHtml(id)}</div></section>`;
   h+=teamTrend(id);
   h+=lineupAdvice(id);
   h+=`<div class="grid g-2" style="margin-top:14px">`;
@@ -3148,7 +3149,7 @@ async function fetchParlayHistory(){
   const detailsResponse=await fetch('/api/parlay?season='+D.meta.season+'&details=weeks');if(!detailsResponse.ok)throw new Error('Week details unavailable');
   parlayWeekDetails=await detailsResponse.json();renderParlayDetails();
   parlayHistory=await r.json();parlayPicks=parlayHistory.filter(p=>p.week===parlayWeek).sort((a,b)=>Date.parse(a.created_at)-Date.parse(b.created_at)||a.id-b.id);parlayLoaded=true;parlayError='';renderPicksList();
-  document.querySelectorAll('[data-manager-history]').forEach(n=>{n.innerHTML=managerHistoryHtml(+n.dataset.managerHistory);});
+  refreshParlayResults();
 }
 async function __initParlay(client){
   __sb=client;parlayWeek=parlayWk();
@@ -3162,17 +3163,53 @@ async function __initParlay(client){
       }
     }
     await fetchParlayHistory();
-  }catch{parlayError='Parlay history is unavailable. Please try again.';const e=document.getElementById('lbMiss');if(e)e.textContent=parlayError;const box=document.getElementById('plList');if(box)box.textContent=parlayError;document.querySelectorAll('[data-manager-history]').forEach(n=>{n.innerHTML=managerHistoryHtml(+n.dataset.managerHistory);});}
-  if(!__initParlay.poll){__initParlay.poll=setInterval(()=>{if(!document.hidden&&["dash","parlay","myteam","teams"].includes(cur))fetchParlayHistory().catch(()=>{});},10000);}
+  }catch{parlayError='Parlay history is unavailable. Please try again.';const e=document.getElementById('lbMiss');if(e)e.textContent=parlayError;const box=document.getElementById('plList');if(box)box.textContent=parlayError;refreshParlayResults();}
+  if(!__initParlay.poll){__initParlay.poll=setInterval(()=>{if(!document.hidden&&["dash","parlay","parlayresults","myteam","teams"].includes(cur))fetchParlayHistory().catch(()=>{});},10000);}
 }
-function managerHistoryHtml(tid){
-  const rows=parlayHistory.filter(p=>p.teamId===tid).sort((a,b)=>b.week-a.week||Date.parse(b.created_at)-Date.parse(a.created_at)||b.id-a.id),latest=[];const weeks=new Set();
+// One leg per week (the latest submission counts); success rate is hits over graded legs.
+function parlayRecord(tid){
+  const rows=parlayHistory.filter(p=>p.teamId===tid).sort((a,b)=>b.week-a.week||Date.parse(b.created_at)-Date.parse(a.created_at)||b.id-a.id),latest=[],weeks=new Set();
   rows.forEach(p=>{if(!weeks.has(p.week)){weeks.add(p.week);latest.push(p);}});
-  if(!parlayLoaded)return `<p class="metricnote">${parlayError||'Loading parlay history…'}</p>`;
-  if(!latest.length)return '<p class="metricnote">No picks submitted this season.</p>';
   const wins=latest.filter(p=>p.result==='won').length,losses=latest.filter(p=>p.result==='lost').length,voids=latest.filter(p=>p.result==='void').length,settled=wins+losses;
-  const row=p=>`<div class="history-pick"><b>Week ${p.week}</b> · ${esc(p.pick)}${p.odds?' <span style="color:var(--t-amber)">'+esc(p.odds)+'</span>':''}<small style="color:${p.result==='won'?'var(--win)':p.result==='lost'?'var(--loss)':'var(--ink-3)'}">${({won:'Hit',lost:'Miss',void:'Void',pending:'Pending result'})[p.result]||'Pending result'}</small></div>`;
-  return `<p class="metricnote">${wins} hits · ${losses} misses${voids?' · '+voids+' voids':''} · ${settled?fmt(wins/settled*100,0)+'% hit rate':'No graded legs yet'}. Latest pick per week; pending and void legs excluded.</p>${row(latest[0])}${latest.length>1?`<details class="fold"><summary>Earlier picks · ${latest.length-1} weeks</summary><div class="fold-b">${latest.slice(1).map(row).join('')}</div></details>`:''}`;
+  return {latest,wins,losses,voids,pending:latest.length-settled-voids,settled,rate:settled?wins/settled:null};
+}
+const PARLAY_RESULT={won:['Hit','var(--win)'],lost:['Miss','var(--loss)'],void:['Void','var(--ink-3)'],pending:['Pending','var(--ink-3)']};
+// Team profile dropdown: the summary line is the record, the body lists every week's pick.
+function managerHistoryHtml(tid){
+  if(!parlayLoaded)return `<summary><span>Parlay results</span><small>${parlayError?'Unavailable':'Loading…'}</small></summary><p class="metricnote">${parlayError||'Loading parlay history…'}</p>`;
+  const r=parlayRecord(tid);
+  if(!r.latest.length)return '<summary><span>Parlay results</span><small>No picks yet</small></summary><p class="metricnote">No picks submitted this season.</p>';
+  const row=p=>{const [label,tone]=PARLAY_RESULT[p.result]||PARLAY_RESULT.pending;
+    return `<div class="tp-row"><span class="tp-wk">Wk ${p.week}</span><span class="tp-pick">${esc(p.pick)}${p.odds?` <em>${esc(p.odds)}</em>`:''}</span><b style="color:${tone}">${label}</b></div>`;};
+  return `<summary><span>Parlay results</span><small>${r.wins}-${r.losses}${r.settled?' · '+fmt(r.rate*100,0)+'%':''}</small></summary>
+    <div class="tp-body"><p class="metricnote">${r.settled?`${fmt(r.rate*100,0)}% success rate · ${r.wins} ${r.wins===1?'hit':'hits'}, ${r.losses} ${r.losses===1?'miss':'misses'}`:'No graded picks yet'}${r.voids?` · ${r.voids} void`:''}${r.pending?` · ${r.pending} pending`:''}. Pending and void picks don't count toward the rate.</p>${r.latest.map(row).join('')}</div>`;
+}
+
+/* ---- PARLAY RESULTS: success rate by manager ---- */
+function parlayResultsHtml(){
+  if(!parlayLoaded)return `<div class="card card-p"><p class="metricnote" style="margin:0">${parlayError||'Loading parlay history…'}</p></div>`;
+  const rows=D.teams.map(t=>({t,...parlayRecord(t.id)})).sort((a,b)=>(b.rate??-1)-(a.rate??-1)||b.wins-a.wins||a.losses-b.losses||(a.t.owner||a.t.name).localeCompare(b.t.owner||b.t.name));
+  const wins=rows.reduce((n,r)=>n+r.wins,0),settled=rows.reduce((n,r)=>n+r.settled,0);
+  if(!settled)return emptyState('dice','No graded picks yet','Success rates appear once the first week of parlay picks is graded.');
+  const weeks=[...new Set(parlayHistory.map(p=>p.week))].sort((a,b)=>a-b).map(w=>({w,legs:currentParlayLegs(parlayHistory.filter(p=>p.week===w))}));
+  const graded=weeks.filter(x=>{const active=x.legs.filter(p=>p.result!=='void');return active.some(p=>p.result==='lost')||(active.length&&active.every(p=>p.result==='won'));});
+  const cashed=graded.filter(x=>!x.legs.some(p=>p.result==='lost')).length;
+  let h=`<div class="card card-p pr-tiles">${tstat(fmt(wins/settled*100,0)+'%','League hit rate')}${tstat(`${wins} of ${settled}`,'Legs hit')}${tstat(`${cashed} of ${graded.length}`,'Parlays cashed')}</div>`;
+  h+=`<section class="card card-p pr-chart"><h3>Success rate by manager</h3><p class="metricnote" style="margin:0 0 6px">Share of graded picks that hit. Tap a manager to see their picks.</p>`;
+  h+=rows.map(r=>`<div class="barrow" data-tid="${r.t.id}" role="link" tabindex="0" aria-label="${esc(r.t.owner||r.t.name)}: ${r.settled?fmt(r.rate*100,0)+'% success, '+r.wins+' of '+r.settled+' picks hit':'no graded picks'}"><span class="bl">${esc(r.t.owner||r.t.name)}</span><div class="bartrk"><div class="barfil" style="width:${r.rate?Math.max(2,r.rate*100):0}%"></div></div><span class="bv">${r.settled?`<b>${fmt(r.rate*100,0)}%</b> <small>${r.wins}-${r.losses}</small>`:'<small>No graded picks</small>'}</span></div>`).join('');
+  h+=`</section>`;
+  h+=`<section class="card card-p pr-weeks"><h3>Week by week</h3>${weeks.slice().reverse().map(x=>{const st=parlayStatus(x.legs),hit=x.legs.filter(p=>p.result==='won').length,waiting=x.legs.filter(p=>!p.result||p.result==='pending').length;
+    return `<div class="pr-week"><b>Week ${x.w}</b><span>${hit} of ${x.legs.length} legs hit${waiting?` · ${waiting} pending`:''}</span><small style="color:${st.tone}">${esc(st.label.split(' · ')[0])}</small></div>`;}).join('')}</section>`;
+  return h;
+}
+VIEWS.parlayresults=function(){
+  const v=el(shead('League fun','Parlay Results','Who picks winners')+`<div data-parlay-results>${parlayResultsHtml()}</div>`);
+  v.querySelector('[data-parlay-results]').onkeydown=e=>{const n=e.target.closest('[data-tid]');if(n&&(e.key==='Enter'||e.key===' ')){e.preventDefault();goTeam(+n.dataset.tid);}};
+  return v;
+};
+function refreshParlayResults(){
+  document.querySelectorAll('[data-manager-history]').forEach(n=>{n.innerHTML=managerHistoryHtml(+n.dataset.managerHistory);});
+  document.querySelectorAll('[data-parlay-results]').forEach(n=>{n.innerHTML=parlayResultsHtml();});
 }
 
 /* ---- PLAYOFF ODDS ---- */
@@ -4266,7 +4303,7 @@ function adminParlayManage(initialWeek=parlayWeek){
     content.querySelectorAll('.apm-save').forEach(btn=>btn.onclick=async()=>{
       const row=btn.closest('[data-pid]'),id=+row.dataset.pid,pick=row.querySelector('.apm-pick').value.trim(),odds=row.querySelector('.apm-odds').value.trim()||null,result=row.querySelector('.apm-result').value;
       if(!pick){msg.textContent='Pick text is required.';return;}
-      await save(btn,{id,pick,odds,result},u=>{[parlayHistory,parlayPicks].forEach(rows=>{const p=rows.find(p=>p.id===id);if(p)Object.assign(p,u);});renderPicksList();document.querySelectorAll('[data-manager-history]').forEach(n=>n.innerHTML=managerHistoryHtml(+n.dataset.managerHistory));});
+      await save(btn,{id,pick,odds,result},u=>{[parlayHistory,parlayPicks].forEach(rows=>{const p=rows.find(p=>p.id===id);if(p)Object.assign(p,u);});renderPicksList();refreshParlayResults();});
     });
     content.querySelectorAll('.apm-del').forEach(btn=>btn.onclick=async()=>{
       if(!confirm('Delete this pick?'))return;

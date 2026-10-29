@@ -1070,3 +1070,33 @@ body .lx-row:not(.lx-hd) > .lx-slot,body.phone .lx-row:not(.lx-hd) > .lx-slot { 
 
 /* Footer: how often league data refreshes. */
 .site-release .site-refresh-note { flex-basis:100%;width:100%;margin:0;font-size:12px;line-height:1.5;color:var(--ink-3); }
+
+/* Team profile: parlay results dropdown along the bottom of the team header. */
+.team-detail-header > .team-parlay { flex-basis:100%;width:100%;margin:2px 0 -4px;padding-top:12px;border-top:1px solid var(--line); }
+#teamDetail > .team-parlay { margin-top:14px; }
+.team-parlay > summary { min-height:36px;gap:10px;font-size:13px;font-weight:700; }
+.team-parlay > summary small { margin-left:auto;font-size:13px;font-weight:700;color:var(--ink-2);font-variant-numeric:tabular-nums; }
+.team-parlay .tp-body { margin-top:4px; }
+.team-parlay .tp-body > .metricnote { margin:0 0 4px; }
+.tp-row { display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:baseline;gap:10px;padding:9px 0;border-top:1px solid var(--line);font-size:13px; }
+.tp-wk { color:var(--ink-3);font-weight:700;font-variant-numeric:tabular-nums; }
+.tp-pick { min-width:0;overflow-wrap:anywhere; }
+.tp-pick em { font-style:normal;color:var(--t-amber);white-space:nowrap; }
+.tp-row b { font-size:12px;letter-spacing:.04em;text-transform:uppercase; }
+
+/* Parlay Results page */
+.pr-tiles { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;text-align:center;margin-bottom:14px; }
+.pr-chart,.pr-weeks { margin-bottom:14px; }
+.pr-chart .barrow { cursor:pointer;border-radius:8px; }
+.pr-chart .barrow:focus-visible { outline:2px solid var(--accent);outline-offset:2px; }
+.pr-chart .barrow .bl { width:130px; }
+.pr-chart .barrow .bv { width:auto;min-width:86px;white-space:nowrap;font-variant-numeric:tabular-nums; }
+.pr-chart .barrow .bv b { color:var(--ink); }
+.pr-chart .barrow .bv small { margin-left:4px;color:var(--ink-3); }
+.pr-week { display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:baseline;gap:12px;padding:10px 0;border-top:1px solid var(--line);font-size:13px; }
+.pr-week:first-of-type { border-top:0; }
+.pr-week span { color:var(--ink-2); }
+.pr-week small { font-weight:800;letter-spacing:.04em; }
+body.phone .pr-chart .barrow .bl { width:auto; }
+body.phone .pr-chart .barrow .bv { min-width:0; }
+@media(max-width:360px) { .pr-tiles { gap:8px; } }

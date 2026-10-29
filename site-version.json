@@ -1,12 +1,20 @@
 {
-  "version": "1.5.1",
-  "title": "Cleaner top banner",
+  "version": "1.6.0",
+  "title": "Parlay results",
   "updatedAt": null,
   "changes": [
-    "The top banner shows just the week, and your team name gets room first so it fits in full on most phones.",
-    "The notification bell moved off the banner; turn alerts on or off from More > Notification preferences."
+    "New Parlay Results page under More charts every manager's parlay success rate, with league totals and a week-by-week recap.",
+    "Each team's profile has a Parlay results dropdown at the bottom of its main box with that manager's picks all season and their success rate."
   ],
   "history": [
+    {
+      "version": "1.5.1",
+      "title": "Cleaner top banner",
+      "changes": [
+        "The top banner shows just the week, and your team name gets room first so it fits in full on most phones.",
+        "The notification bell moved off the banner; turn alerts on or off from More > Notification preferences."
+      ]
+    },
     {
       "version": "1.5.0",
       "title": "One Matchup page & easier navigation",
