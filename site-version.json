@@ -1,15 +1,23 @@
 {
-  "version": "1.5.0",
-  "title": "One Matchup page & easier navigation",
+  "version": "1.5.1",
+  "title": "Cleaner top banner",
   "updatedAt": null,
   "changes": [
-    "Matchup and Lineups are now one Matchup page: player cards for both lineups, the win probability graph, and the what-if calculator, with a compact week picker at the top.",
-    "The page buttons under each tab stay inside that tab and fit on one line.",
-    "Pull down from anywhere on the page, including matchup cards, to refresh.",
-    "Tables on phones no longer cut off numbers and names at the edge.",
-    "A slimmer top banner shows the current week on one line, and player sheets show the player's photo."
+    "The top banner shows just the week, and your team name gets room first so it fits in full on most phones.",
+    "The notification bell moved off the banner; turn alerts on or off from More > Notification preferences."
   ],
   "history": [
+    {
+      "version": "1.5.0",
+      "title": "One Matchup page & easier navigation",
+      "changes": [
+        "Matchup and Lineups are now one Matchup page: player cards for both lineups, the win probability graph, and the what-if calculator, with a compact week picker at the top.",
+        "The page buttons under each tab stay inside that tab and fit on one line.",
+        "Pull down from anywhere on the page, including matchup cards, to refresh.",
+        "Tables on phones no longer cut off numbers and names at the edge.",
+        "A slimmer top banner shows the current week on one line, and player sheets show the player's photo."
+      ]
+    },
     {
       "version": "1.4.0",
       "title": "Team inboxes & mobile matchups",

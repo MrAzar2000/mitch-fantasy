@@ -1324,7 +1324,7 @@ body.phone .lx-p{padding:11px 8px}.full-context{font-size:13px}.full-context .ga
     <div class="ab-in">
       <button class="ab-brand" id="abBrand" aria-label="League home">
         <div class="mark" id="mark">MFL</div>
-        <span class="ab-week" id="headerWeek" hidden><span class="abw-main"><small>Week</small><b id="headerWeekNumber"></b></span><span class="abw-sub" id="headerWeekSub"></span></span>
+        <span class="ab-week" id="headerWeek" hidden><span class="abw-main"><small>Week</small><b id="headerWeekNumber"></b></span></span>
         <div class="ab-id"><h1 id="lgname">League</h1><div class="sub" id="lgsub">—</div></div>
       </button>
       <nav class="ptabs" id="ptabs" aria-label="Sections"></nav>
@@ -4493,9 +4493,7 @@ function initialsMark(name){const w=name.split(/\s+/).filter(Boolean);return (w.
 /* ---------- live auto-refresh (polls the DB; re-renders only when data changed) ---------- */
 function setFresh(){
   const week=Number(D.meta.currentScoringPeriod),badge=document.getElementById('headerWeek');
-  if(badge){badge.hidden=!Number.isInteger(week)||week<1;document.getElementById('headerWeekNumber').textContent=badge.hidden?'':String(week);
-    const rs=Number(D.meta.regularSeasonWeeks),sub=document.getElementById('headerWeekSub');
-    if(sub)sub.innerHTML=badge.hidden||!(rs>0)?'':week>rs?'Playoffs':`of ${rs}<span class="abw-more"> · regular season</span>`;}
+  if(badge){badge.hidden=!Number.isInteger(week)||week<1;document.getElementById('headerWeekNumber').textContent=badge.hidden?'':String(week);}
   renderTicker(false);
 }
 
