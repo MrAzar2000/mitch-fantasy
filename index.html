@@ -3202,12 +3202,12 @@ function parlayResultsHtml(){
   h+=`<section class="card card-p pr-chart"><h3>Success rate by manager</h3><p class="metricnote" style="margin:0 0 6px">Share of graded picks that hit. Tap a manager to see their picks.</p>`;
   h+=rows.map(r=>`<div class="barrow" data-tid="${r.t.id}" role="link" tabindex="0" aria-label="${esc(r.t.owner||r.t.name)}: ${r.settled?fmt(r.rate*100,0)+'% success, '+r.wins+' of '+r.settled+' picks hit':'no graded picks'}"><span class="bl">${esc(r.t.owner||r.t.name)}</span><div class="bartrk"><div class="barfil" style="width:${r.rate?Math.max(2,r.rate*100):0}%"></div></div><span class="bv">${r.settled?`<b>${fmt(r.rate*100,0)}%</b> <small>${r.wins}-${r.losses}</small>`:'<small>No graded picks</small>'}</span></div>`).join('');
   h+=`</section>`;
-  h+=`<section class="card card-p pr-weeks"><h3>Week by week</h3>${weeks.slice().reverse().map(x=>{const st=parlayStatus(x.legs),hit=x.legs.filter(p=>p.result==='won').length,waiting=x.legs.filter(p=>!p.result||p.result==='pending').length;
+  h+=`<section class="card card-p pr-weeks"><h3>Week by week</h3>${weeks.filter(x=>x.w===parlayWeek||x.legs.some(p=>p.result&&p.result!=='pending')).reverse().map(x=>{const st=parlayStatus(x.legs),hit=x.legs.filter(p=>p.result==='won').length,waiting=x.legs.filter(p=>!p.result||p.result==='pending').length;
     return `<div class="pr-week"><b>Week ${x.w}</b><span>${hit} of ${x.legs.length} legs hit${waiting?` · ${waiting} pending`:''}</span><small style="color:${st.tone}">${esc(st.label.split(' · ')[0])}</small></div>`;}).join('')}</section>`;
   return h;
 }
 VIEWS.parlayresults=function(){
-  const v=el(shead('League fun','Parlay Results','Who picks winners')+`<div data-parlay-results>${parlayResultsHtml()}</div>`);
+  const v=el(shead('Extras','Parlay Results','Who picks winners')+`<div data-parlay-results>${parlayResultsHtml()}</div>`);
   v.querySelector('[data-parlay-results]').onkeydown=e=>{const n=e.target.closest('[data-tid]');if(n&&(e.key==='Enter'||e.key===' ')){e.preventDefault();goTeam(+n.dataset.tid);}};
   return v;
 };
