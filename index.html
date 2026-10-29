@@ -1547,7 +1547,7 @@ function powerRanks(){
 /* ---------- routing ---------- */
 const NAV=[
   ["League","league","home",[["dash","Home"],["standings","Standings"],["power","Power Rankings"],["odds","Playoff Odds"],["history","History"],["parlay","Parlay"],["rules","Rules"],["feedback","Problems & Suggestions"],["feedbackinbox","P&S Inbox"],["siteactivity","Site Log"]]],
-  ["Matchup","matchup","swords",[["matchup","Matchup"],["lineups","Lineups"],["scoreboard","Scoreboard"],["h2h","Head-to-Head"]]],
+  ["Matchup","matchup","swords",[["matchup","Matchup"],["scoreboard","Scoreboard"],["h2h","Head-to-Head"]]],
   ["Team","team","users",[["myteam","My Team"],["inbox","Inbox"],["teams","All Teams"],["block","Trade Block"],["draft","Draft"]]],
   ["Stats","stats","line",[["analytics","Analytics"],["outlook","Outlook"],["records","Record Book"],["defense","Manager Defense"],["shame","Hall of Shame"]]],
 ];
@@ -1562,8 +1562,8 @@ const SECTION_ROOTS=["dash","myteam","matchup","analytics","more"];
 const SECTION_PAGES={
   dash:[["dash","Home"],["parlay","Parlay"],["standings","Standings"],["scoreboard","Scoreboard"]],
   myteam:[["myteam","My team"],["teams","All teams"],["block","Trade block"],["standings","Standings"]],
-  matchup:[["matchup","Matchup"],["lineups","Lineups"],["scoreboard","Scoreboard"],["h2h","Head-to-head"]],
-  analytics:[["analytics","Stats"],["standings","Standings"],["power","Power rankings"],["odds","Playoff odds"],["outlook","Outlook"]],
+  matchup:[["matchup","Matchup"],["scoreboard","Scoreboard"],["h2h","Head-to-head"]],
+  analytics:[["analytics","Stats"],["standings","Standings"],["power","Power"],["odds","Playoffs"],["outlook","Outlook"]],
 };
 let SECTION="dash";
 function homeSection(id){return SECTION_ROOTS.includes(id)?id:(Object.keys(SECTION_PAGES).find(s=>SECTION_PAGES[s].some(p=>p[0]===id))||"more");}
@@ -1594,6 +1594,7 @@ function setTab(id,fresh=false,section){
   if(id!=="teams")viewedTeamId=null;
   if((id==='siteactivity'||id==='feedbackinbox')&&!ADMIN)id='dash';
   if(id==='other')id='useless';
+  if(id==='lineups')id='matchup'; // Lineups is now part of the Matchup page
   if(!VIEWS[id])id='dash'; // retired pages (Trade Analyzer, Stat Fixes, casino games) fall back to Home
   if(id!==setTab.activityPage){setTab.activityPage=id;trackSite("page_view",id);}
   if(id!==cur&&!swipingBack){VIEW_BACK.push(cur);if(VIEW_BACK.length>30)VIEW_BACK.shift();}
@@ -1630,7 +1631,7 @@ function setTab(id,fresh=false,section){
   // shareable link to this page, e.g. mitch-fantasy.netlify.app/#standings
   try{ const existing=(location.hash||'').slice(1).split('?')[0];const state={mflSection:SECTION};if(existing!==id){const url=id==='dash'?location.pathname:'#'+id;history[navigationFromHistory||sameView?'replaceState':'pushState'](state,'',url);}else if(history.state?.mflSection!==SECTION)history.replaceState(state,'',location.href); }catch(e){}
   if(id==='players')EXPERIENCE?.updateUrl();
-  if((id==='matchup'||id==='lineups')&&mxWeek!=null)try{history.replaceState(history.state,'','#'+id+'?week='+mxWeek);}catch(e){}
+  if(id==='matchup'&&mxWeek!=null)try{history.replaceState(history.state,'','#'+id+'?week='+mxWeek);}catch(e){}
   if(!sameView){el.tabIndex=-1;if(document.body.classList.contains("keyboard-nav"))el.focus({preventScroll:true});}
 }
 // Home button and MFL mark: always the top of Home, with its sections in their default state
@@ -1855,7 +1856,7 @@ function tbHomeNote(v){
   if(!TB.sub)initTradeBlock();
   let tries=0;const t=setInterval(()=>{tries++;if(TB.loaded||tries>16){clearInterval(t);fill();}},300);
 }
-/* ---- MY MATCHUP: the what-if matchup page and the slot-by-slot lineups ---- */
+/* ---- MY MATCHUP: my lineup against my opponent's, slot by slot ---- */
 let mxWeek=null;
 function lineupTotals(rows){if(!rows)return null;const st=rows.filter(r=>r.slot!==20&&r.slot!==21);
   return {pts:st.reduce((a,r)=>a+(r.pts||0),0),proj:st.some(r=>r.proj!=null)?st.reduce((a,r)=>a+(r.proj!=null?r.proj:(r.pts||0)),0):null};}
@@ -1887,13 +1888,18 @@ function rosterOwnership(pid){
   const pct=v=>Number.isFinite(v)?fmt(v,0)+'%':'—';
   return `<b>${pct(p?.owned)}</b> Rostered <span class="ownership-separator">|</span> <b>${pct(p?.started)}</b> Start`;
 }
-function luSide(r,won,right,W,blank){
+function luSide(r,won,right,W,blank,wi){
   if(!r)return `<div class="lx-p ${right?'r':''} emp"><div class="lx-nm">${blank?'':'Empty'}</div></div>`;
   const pending=playerScorePending(r,W),feed=EXPERIENCE?.researchPlayer(r.pid),stats=W===D.meta.currentScoringPeriod?feed?.currentStats:feed?.log?.find(row=>row.week===W)?.stats;
   const statline=playerStatLine(r.pos,stats),bye=byeWk(r.pro);
-  return `<div class="lx-p ${right?'r':''}"><div class="lx-txt"><div class="lx-nm"><button type="button" class="pclick" data-pid="${r.pid}" aria-label="Analyze ${esc(r.name)}" title="${esc(r.name)}">${esc(shortPlayerName(r.name))}</button></div><div class="lx-sub"><span class="tag-${String(r.pos).toLowerCase()}">${esc(r.pos)}</span> · ${esc(r.pro||'FA')}${bye?' ('+bye+')':''}${pFlags(r.pid,r.pro,W)}</div></div><div class="lx-pts ${pending?'pending':won?'won':''}"><span aria-label="${pending?'No points recorded yet':'Fantasy points'}">${playerScoreText(r,W)}</span><span class="lx-proj" aria-label="Projected points">${r.proj!=null?fmt(r.proj,1):'—'}</span></div><div class="lx-game">${playerGameLine(r,W)}</div>${statline?`<div class="lx-statline">${esc(statline)}</div>`:''}</div>`;
+  const score=`<span aria-label="${pending?'No points recorded yet':'Fantasy points'}">${playerScoreText(r,W)}</span><span class="lx-proj" aria-label="Projected points">${r.proj!=null?fmt(r.proj,1):'—'}</span>`;
+  // wi: what-if calculator; players still to play get an entry box, the rest count as fixed points
+  let pts=`<div class="lx-pts ${pending?'pending':won?'won':''}"${wi?` data-fx="${wi.side}" data-v="${r.pts}"`:''}>${score}</div>`;
+  if(wi&&wi.open){const def=Math.max(r.pts,r.proj!=null?r.proj:r.pts),guess=calcOverride[wi.key]!=null?calcOverride[wi.key]:def;
+    pts=`<div class="lx-pts ${pending?'pending':''}"><span class="wi-off">${score}</span><span class="wi-cell"><input class="wi" type="number" step="0.1" inputmode="decimal" data-side="${wi.side}" data-k="${wi.key}" data-pts="${r.pts}" data-def="${def.toFixed(1)}" value="${(+guess).toFixed(1)}" aria-label="${esc(r.name)} final points"><small>now ${playerScoreText(r,W)}</small></span></div>`;}
+  return `<div class="lx-p ${right?'r':''}"><div class="lx-txt"><div class="lx-nm"><button type="button" class="pclick" data-pid="${r.pid}" aria-label="Analyze ${esc(r.name)}" title="${esc(r.name)}">${esc(shortPlayerName(r.name))}</button></div><div class="lx-sub"><span class="tag-${String(r.pos).toLowerCase()}">${esc(r.pos)}</span> · ${esc(r.pro||'FA')}${bye?' ('+bye+')':''}${pFlags(r.pid,r.pro,W)}</div></div>${pts}<div class="lx-game">${playerGameLine(r,W)}</div>${statline?`<div class="lx-statline">${esc(statline)}</div>`:''}</div>`;
 }
-// Your games this season; also settles which week the Matchup and Lineups pages show.
+// Your games this season; also settles which week the Matchup page shows.
 function myGames(){
   const games=D.schedule.filter(x=>x.homeTeamId===MEID||x.awayTeamId===MEID).sort((a,b)=>a.week-b.week);
   if(mxWeek==null||!games.some(g=>g.week===mxWeek))mxWeek=(myGame(focusWeek())||games[games.length-1]||{}).week;
@@ -1902,47 +1908,41 @@ function myGames(){
 function myWeekSeg(games){return `<div class="wkbar"><div class="seg" id="mxseg">${games.map(g=>`<button class="${g.week===mxWeek?"on":""}" data-w="${g.week}">W${g.week}</button>`).join("")}</div></div>`;}
 function wireMyWeeks(v,page){v.querySelectorAll("#mxseg button").forEach(b=>b.onclick=()=>{mxWeek=+b.dataset.w;setTab(page);});}
 let mxWhatIf=false; // the calculator stays open when live scores redraw the Matchup page
+/* ---- MATCHUP: my lineup against my opponent's, slot by slot, with the win chance and what-if calculator ---- */
 VIEWS.matchup=function(){
   if(!meTeam()){const v=el(pickPrompt("your matchup"));wirePicker(v);return v;}
-  const games=myGames(),x=games.find(g=>g.week===mxWeek),d=x?matchupDetail(x):null;
-  const when=!x?"":x.winner&&x.winner!=="UNDECIDED"?"Final":d&&d.s.live?'<span class="pill live"><span class="livedot"></span>LIVE</span>':x.week===D.meta.currentScoringPeriod?"This week":x.week>D.meta.currentScoringPeriod?"Upcoming":"";
-  const tools=d?`${d.whatif?`<button class="wi-reset" id="wiToggle" type="button">${mxWhatIf?"Hide what-if":"What-if calculator"}</button>`:""}${d.s.show?`<button class="wi-reset" id="shareBtn" type="button">Share card</button>`:""}`:"";
-  let html=`<div class="shead mx-title"><div><div class="eyebrow">${x?`Week ${x.week}`:"Your schedule"}${when?` <span class="mx-when">${when}</span>`:""}</div><h2>Matchup</h2></div>${tools?`<div class="mx-title-tools">${tools}</div>`:""}</div>`+myWeekSeg(games);
-  if(!d)html+=emptyState("calendar","No matchup","There's no game on your schedule for this week.");
-  else html+=`<div class="mx-page ${d.whatif&&mxWhatIf?"wi-on":""}">${d.content}</div>`;
-  const v=el(html);wireMyWeeks(v,"matchup");
-  if(d)wireMatchupDetail(v,v.querySelector(".mx-page"),x,d,on=>{mxWhatIf=on;});
-  return v;
-};
-/* ---- LINEUPS (my lineup against my opponent's, slot by slot) ---- */
-VIEWS.lineups=function(){
-  if(!meTeam()){const v=el(pickPrompt("your lineups"));wirePicker(v);return v;}
-  const games=myGames();
-  let html=myWeekSeg(games);
-  const x=games.find(g=>g.week===mxWeek);
-  if(!x){html+=emptyState("calendar","No matchup","There's no game on your schedule for this week.");const v=el(html);wireMyWeeks(v,"lineups");return v;}
-  html+=matchupHero(x,true)+wpGraph(x,true);
+  const games=myGames(),x=games.find(g=>g.week===mxWeek);
+  let html=`<div class="shead mx-title"><h2>Matchup</h2>${myWeekSeg(games)}</div>`;
+  if(!x){html+=emptyState("calendar","No matchup","There's no game on your schedule for this week.");const v=el(html);wireMyWeeks(v,"matchup");return v;}
+  const W=x.week,st=mstate(x),final=x.winner&&x.winner!=="UNDECIDED",cur=W===D.meta.currentScoringPeriod&&!final;
   const meHome=x.homeTeamId===MEID,me=teamById[MEID],op=teamById[meHome?x.awayTeamId:x.homeTeamId];
-  const M=lineupRows(MEID,x.week),O=lineupRows(op.id,x.week);
-  if(M||O){const lm=luPick(M),lo=luPick(O);
-    html+=matchupConditions([...(M||[]),...(O||[])],x.week);
+  const M=lineupRows(MEID,W),O=lineupRows(op.id,W),lm=luPick(M),lo=luPick(O);
+  const open=r=>cur&&r&&["pre","live"].includes(gameStatus(r.pro,W));
+  const whatif=!!(M||O)&&[...lm,...lo].some(open);
+  const wi=(r,side)=>whatif&&r?{side,key:x.id+"_"+r.pid,open:open(r)}:null;
+  const tools=`${whatif?`<button class="wi-reset" id="wiToggle" type="button">${mxWhatIf?"Hide what-if":"What-if calculator"}</button>`:""}${st.show?`<button class="wi-reset" id="shareBtn" type="button">Share card</button>`:""}`;
+  html+=`<div class="mx-page ${whatif&&mxWhatIf?"wi-on":""}">`+matchupHero(x,true)+wpGraph(x)+(tools?`<div class="mx-tools">${tools}</div>`:"")+(whatif?whatIfBox():"");
+  if(M||O){
+    if(cur){const emp=rows=>STARTER_ORDER.map((sl,i)=>rows[i]?null:SLOTNAME[sl]).filter(Boolean);
+      if(M)html+=alertBox(lineupAlerts(lm.filter(Boolean),emp(lm),W),me);
+      if(O)html+=alertBox(lineupAlerts(lo.filter(Boolean),emp(lo),W),op);}
+    html+=matchupConditions([...(M||[]),...(O||[])],W);
     html+=`<div class="sub-h">Starters</div><div class="lx">`;
     STARTER_ORDER.forEach((sl,i)=>{const p=lm[i],q=lo[i],pp=p?p.pts||0:-1,qq=q?q.pts||0:-1;
-      html+=`<div class="lx-row">${luSide(p,pp>qq&&pp>0,false,x.week)}<div class="lx-slot slot-${String(SLOTNAME[sl]).toLowerCase().replace(/[^a-z]/g,'')}">${SLOTNAME[sl]}</div>${luSide(q,qq>pp&&qq>0,true,x.week)}</div>`;});
+      html+=`<div class="lx-row">${luSide(p,pp>qq&&pp>0,false,W,false,wi(p,"a"))}<div class="lx-slot slot-${String(SLOTNAME[sl]).toLowerCase().replace(/[^a-z]/g,'')}">${SLOTNAME[sl]}</div>${luSide(q,qq>pp&&qq>0,true,W,false,wi(q,"h"))}</div>`;});
     html+=`</div>`;
     const bn=(rows,sl)=>(rows||[]).filter(r=>r.slot===sl).sort((u,w)=>(w.proj??w.pts??0)-(u.proj??u.pts??0)),bm=bn(M,20),bo=bn(O,20),im=bn(M,21),io=bn(O,21);
     html+=`<div class="sub-h">Bench</div><div class="lx lx-bench"><div class="lx-row lx-hd"><div class="lx-p">${esc(me.name)}</div><div></div><div class="lx-p r">${esc(op.name)}</div></div>`;
     for(let i=0;i<Math.max(bm.length,bo.length,1);i++)
-      html+=`<div class="lx-row">${luSide(bm[i],false,false,x.week,true)}<div class="lx-slot">BN</div>${luSide(bo[i],false,true,x.week,true)}</div>`;
+      html+=`<div class="lx-row">${luSide(bm[i],false,false,W,true)}<div class="lx-slot">BN</div>${luSide(bo[i],false,true,W,true)}</div>`;
     // the IR spot is always last and only shown when either team is using it
     for(let i=0;i<Math.max(im.length,io.length);i++)
-      html+=`<div class="lx-row">${luSide(im[i],false,false,x.week,true)}<div class="lx-slot">IR</div>${luSide(io[i],false,true,x.week,true)}</div>`;
+      html+=`<div class="lx-row">${luSide(im[i],false,false,W,true)}<div class="lx-slot">IR</div>${luSide(io[i],false,true,W,true)}</div>`;
     html+=`</div>`;
   } else html+=`<div style="margin-top:16px">${emptyState("users","Lineups not available yet","Player-by-player lineups show up once ESPN publishes this week's rosters.")}</div>`;
-  html+=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px"><button class="btn" data-goto="matchup">${icon("calculator")} What-if calculator</button><button class="btn ghost" data-goto="scoreboard">All Week ${x.week} games</button></div>`;
-  const v=el(html);wireMyWeeks(v,"lineups");
-  v.querySelectorAll(".hx[data-mid]").forEach(b=>b.onclick=()=>setTab("matchup"));
-  v.querySelectorAll("[data-goto]").forEach(a=>a.onclick=()=>setTab(a.dataset.goto));
+  const v=el(html+`</div>`);wireMyWeeks(v,"matchup");
+  // for the calculator, "a" is my side (left) and "h" my opponent's (right)
+  wireMatchupDetail(v,v.querySelector(".mx-page"),x,{a:me,h:op,whatif},on=>{mxWhatIf=on;});
   return v;
 };
 
@@ -3272,7 +3272,7 @@ function wxFor(pro,W){
   if(g.wx)return {vs,txt:`${wxIcon(g.wx)} ${g.temp!=null?Math.round(g.temp)+"° ":""}${g.wx}`,title:where,bad:/rain|shower|snow|storm|thunder|sleet|wind|flurr|drizzle/i.test(g.wx)};
   return {vs,txt:`📍 ${g.city||"Outdoors"} · forecast soon`,title:where};
 }
-// Both lineups side by side with the what-if calculator: the Matchup page and the scoreboard's matchup sheet.
+// Both lineups side by side with the what-if calculator: the scoreboard's matchup sheet.
 function matchupDetail(x){
   const a=teamById[x.awayTeamId],h=teamById[x.homeTeamId];if(!a||!h)return null;
   const s=mstate(x),W=x.week,final=x.winner&&x.winner!=="UNDECIDED",cur=W===D.meta.currentScoringPeriod&&!final;
@@ -3310,12 +3310,13 @@ function matchupDetail(x){
   const status=final?"Final":s.live?'<span class="pill live"><span class="livedot"></span>LIVE</span>':cur?"This week":"Week "+W;
   const panel=(t,score,pj,cls)=>`<div class="mx-team ${cls}"><div class="id">${badge(t,"lg")}<div><div class="nm" style="font-weight:800">${esc(t.name)}</div><div class="ow">${esc(t.owner)}</div></div></div>
     <div class="sc">${s.show?fmt(score,1):cur?"0.0":"—"}</div><div class="pj">${final?"Was projected":"Projected"} <b>${pj!=null?fmt(pj,1):"—"}</b></div></div>`;
-  const wiBox=whatif?`<div class="whatif"><div class="wi-h">What if?</div>
-    <div class="wi-how">Like a what-if grade calculator: type what you think any player whose game has not finished will finish with, and see who wins. Boxes start at ESPN's projection. Players marked DONE are locked.</div>
-    <div class="wi-res" id="wiRes"></div><button type="button" class="wi-reset" id="wiReset">Reset to projections</button></div>`:"";
+  const wiBox=whatif?whatIfBox():"";
   return {a,h,s,W,status,whatif,content:`<div class="mx-head">${panel(a,s.as,pjA,"a")}<div class="mx-vs">vs</div>${panel(h,s.hs,pjH,"h")}</div>
     ${wpBar(x,a,h)}${wpGraph(x)}${wiBox}${body}`};
 }
+function whatIfBox(){return `<div class="whatif"><div class="wi-h">What if?</div>
+    <div class="wi-how">Like a what-if grade calculator: type what you think any player whose game has not finished will finish with, and see who wins. Boxes start at ESPN's projection. Players whose games are done are locked.</div>
+    <div class="wi-res" id="wiRes"></div><button type="button" class="wi-reset" id="wiReset">Reset to projections</button></div>`;}
 // box holds the wi-on class that shows the calculator; onToggle remembers it for the Matchup page.
 function wireMatchupDetail(wrap,box,x,d,onToggle){
   const {a,h,whatif}=d;
@@ -4475,7 +4476,7 @@ function boot(){
   const isPhone=()=>mq.matches||(/iPhone|iPod|Android.+Mobile|Windows Phone/i.test(navigator.userAgent)&&window.innerWidth<900);
   const applyPhone=()=>document.body.classList.toggle("phone",isPhone());
   applyPhone();installMobileViewport();(mq.addEventListener?mq.addEventListener("change",applyPhone):mq.addListener(applyPhone));window.addEventListener("resize",applyPhone);
-  const fromHash=()=>{let h=(location.hash||"").slice(1).split("?")[0];if(h==="calc")h="scoreboard";if(h==="other")h="useless";return VIEWS[h]?h:null;};
+  const fromHash=()=>{let h=(location.hash||"").slice(1).split("?")[0];if(h==="calc")h="scoreboard";if(h==="other")h="useless";if(h==="lineups")h="matchup";return VIEWS[h]?h:null;};
   {const q=new URLSearchParams((location.hash.split('?')[1]||''));const w=Number(q.get('week'));if(Number.isInteger(w)&&w>0&&w<=22)mxWeek=w;}readTeamRoute();EXPERIENCE?.route();SECTION=homeSection(fromHash()||"dash");renderNav();navigationFromHistory=true;setTab(fromHash()||"dash");navigationFromHistory=false;
   window.addEventListener("popstate",()=>{readTeamRoute();EXPERIENCE?.route();const h=fromHash()||"dash";navigationFromHistory=true;try{setTab(h);}finally{navigationFromHistory=false;}});
   window.addEventListener("hashchange",()=>{const h=fromHash();if(h&&(h!==cur||h==="teams")){readTeamRoute();EXPERIENCE?.route();navigationFromHistory=true;try{setTab(h);}finally{navigationFromHistory=false;}}});

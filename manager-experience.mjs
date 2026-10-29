@@ -215,19 +215,8 @@ export function installManagerExperience(api) {
       })
       .join("")}</section>`;
   }
-  function fresh() {
-    const updated = kickoffTime(data().meta.lastUpdated),
-      old = !updated || Date.now() - updated > 10 * 60000;
-    const feed = knownFeed();
-    const feedOld = feed && (!kickoffTime(research.updatedAt) || Date.now() - kickoffTime(research.updatedAt) > 10 * 60000);
-    const warning=old || feedOld || researchError || api.getRefreshError();
-    return `<details class="mx-fresh ${old || feedOld || researchError || api.getRefreshError() ? "mx-warning" : ""}" ><summary>${warning?"Data needs attention":"Data status"} · ${stamp(data().meta.lastUpdated)}</summary><div role="status"><span>League data: ${stamp(data().meta.lastUpdated)}${old ? " · data over 10 minutes old" : ""}${api.getRefreshError() ? " · last refresh failed; showing previous data" : ""}</span><span>Player feed: ${feed ? stamp(research.updatedAt) : researchPending ? "Loading…" : researchError ? "Unavailable" : "Not loaded"}${feedOld ? " · data over 10 minutes old" : ""}${feed && researchError ? " · last refresh failed; showing previous data" : ""}${feed && researchPending ? " · refreshing…" : ""}</span><button class="wi-reset" type="button" data-mx-refresh>Refresh</button></div></details>`;
-  }
-  function updateFreshness() {
-    document.querySelectorAll("#app .mx-fresh").forEach((node) => {
-      const open=node.open;node.outerHTML = fresh();if(open)document.querySelector("#app .mx-fresh").open=true;
-    });
-  }
+  // The page-level data status panel was retired; index.html still calls this after each refresh.
+  function updateFreshness() {}
   function weeklyCenter() {
     const id = me();
     if (id == null || !data().teams.some((t) => t.id === id))
@@ -260,7 +249,7 @@ export function installManagerExperience(api) {
         ? [`${empty} empty starting slot${empty === 1 ? "" : "s"}`]
         : []),
     ];
-    return `<section class="card card-p mx-center" data-roster-issues="${issues.length}"><div class="mx-heading"><div><div class="eyebrow">${phase} · Week ${week()}</div><h2>This week, ${esc(data().teams.find((t) => t.id === id)?.owner || "manager")}.</h2></div><span class="pill ${issues.length ? "l" : "w"}">${issues.length ? `${issues.length} to check` : "Roster check"}</span></div>${issues.length ? `<ul class="mx-alerts">${issues.slice(0,3).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>${issues.length>3?`<p class="metricnote">${issues.length-3} more issues · review your lineup for all alerts.</p>`:""}` : "<p>No empty slots or unavailable unlocked starters found.</p>"}${upcoming ? `<p class="metricnote">Next roster kickoff: ${stamp(upcoming.kickoff)}. Players lock at their individual game times.</p>` : '<p class="metricnote">Check player lock times in ESPN before making changes.</p>'}<div class="mx-actions">${button("Review my lineup", 'data-mx-go="myteam"', "")}${button("Find a replacement", `data-mx-waivers data-mx-position="${esc(warnings[0]?.pos||"")}"`)}${button("My matchup", 'data-mx-go="matchup"')}${button("Watchlist", "data-mx-watchlist")}</div>${fresh()}</section>`;
+    return `<section class="card card-p mx-center" data-roster-issues="${issues.length}"><div class="mx-heading"><div><div class="eyebrow">${phase} · Week ${week()}</div><h2>This week, ${esc(data().teams.find((t) => t.id === id)?.owner || "manager")}.</h2></div><span class="pill ${issues.length ? "l" : "w"}">${issues.length ? `${issues.length} to check` : "Roster check"}</span></div>${issues.length ? `<ul class="mx-alerts">${issues.slice(0,3).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>${issues.length>3?`<p class="metricnote">${issues.length-3} more issues · review your lineup for all alerts.</p>`:""}` : "<p>No empty slots or unavailable unlocked starters found.</p>"}${upcoming ? `<p class="metricnote">Next roster kickoff: ${stamp(upcoming.kickoff)}. Players lock at their individual game times.</p>` : '<p class="metricnote">Check player lock times in ESPN before making changes.</p>'}<div class="mx-actions">${button("Review my lineup", 'data-mx-go="myteam"', "")}${button("Find a replacement", `data-mx-waivers data-mx-position="${esc(warnings[0]?.pos||"")}"`)}${button("My matchup", 'data-mx-go="matchup"')}${button("Watchlist", "data-mx-watchlist")}</div></section>`;
   }
   function allPlayers() {
     const map = new Map();
@@ -303,7 +292,7 @@ export function installManagerExperience(api) {
       !force &&
       researchKey === key &&
       research &&
-      Date.now() - Date.parse(research.updatedAt) < (["matchup","lineups","myteam"].includes(api.getCurrent())?60000:300000)
+      Date.now() - Date.parse(research.updatedAt) < (["matchup","myteam"].includes(api.getCurrent())?60000:300000)
     )
       return;
     if (!force && Date.now() - lastResearchAttempt < 30000) return;
@@ -328,7 +317,7 @@ export function installManagerExperience(api) {
       } finally {
         researchPending = null;
         if (
-          ["players", "faab", "dash", "myteam", "matchup", "lineups", "teams"].includes(api.getCurrent()) &&
+          ["players", "faab", "dash", "myteam", "matchup", "teams"].includes(api.getCurrent()) &&
           !document.querySelector(
             "#app input:focus,#app select:focus,#app textarea:focus",
           )
@@ -460,7 +449,7 @@ export function installManagerExperience(api) {
         )
         .join(
           "",
-        )}</select></label><label class="mx-check"><input type="checkbox" name="watch" ${filters.watch ? "checked" : ""}> Watchlist</label>${button("More filters", 'data-mx-filter-toggle aria-expanded="false"')}${button("Reset", "data-mx-reset")}</form><div id="mxResearchStatus" role="status"></div><div class="mx-heading"><span id="mxPlayerCount" class="metricnote"></span><div class="mx-actions">${button(details ? "Compact columns" : "More columns", "data-mx-columns")}${button("Export CSV", "data-mx-export-players")}</div></div>${comparison()}<div id="mxPlayers"></div>${fresh()}`,
+        )}</select></label><label class="mx-check"><input type="checkbox" name="watch" ${filters.watch ? "checked" : ""}> Watchlist</label>${button("More filters", 'data-mx-filter-toggle aria-expanded="false"')}${button("Reset", "data-mx-reset")}</form><div id="mxResearchStatus" role="status"></div><div class="mx-heading"><span id="mxPlayerCount" class="metricnote"></span><div class="mx-actions">${button(details ? "Compact columns" : "More columns", "data-mx-columns")}${button("Export CSV", "data-mx-export-players")}</div></div>${comparison()}<div id="mxPlayers"></div>`,
     );
     const render = () => {
       const rows = filteredPlayers();
@@ -694,7 +683,7 @@ export function installManagerExperience(api) {
     if(center?.dataset.rosterIssues==='0') center.remove();
     return v;
   };
-  for(const page of ["matchup","lineups","teams"]){const base=views[page];views[page]=()=>{void ensureResearch();return base();};}
+  for(const page of ["matchup","teams"]){const base=views[page];views[page]=()=>{void ensureResearch();return base();};}
   const myTeam = views.myteam;
   views.myteam = () => {
     void ensureResearch();
@@ -918,7 +907,6 @@ export function installManagerExperience(api) {
   function enhanceView(root) {
     api.enhanceLayout?.(root);
     api.enhanceTables?.(root);
-    if(!root.querySelector(".mx-fresh"))root.insertAdjacentHTML("beforeend",fresh());
     // Turn static team targets into keyboard-operable controls without changing visual styling.
     root.querySelectorAll("[data-tid]:not(button):not(a)").forEach((n) => {
       if (n.closest("button,a,[data-mid],[data-goto],[data-team]")) return;
@@ -962,7 +950,6 @@ export function installManagerExperience(api) {
       b.disabled = true;
       await Promise.allSettled([ensureResearch(true), api.refreshData()]);
       b.disabled = false;
-      updateFreshness();
       showToast(
         api.getRefreshError()
           ? "League refresh failed; showing previous data"
@@ -1199,10 +1186,9 @@ export function installManagerExperience(api) {
   setInterval(() => {
     if (document.hidden || document.getElementById("mdl")) return;
     if (
-      ["dash", "players", "myteam", "faab", "matchup", "lineups", "teams"].includes(api.getCurrent())
+      ["dash", "players", "myteam", "faab", "matchup", "teams"].includes(api.getCurrent())
     )
       void ensureResearch();
-    updateFreshness();
     const id = me();
     if (id == null) return;
     const lockKey =

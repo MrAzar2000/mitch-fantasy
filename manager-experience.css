@@ -994,39 +994,46 @@ body.phone .ab-in { min-height:58px;height:auto;padding-top:7px;padding-bottom:7
   body.phone .ab-act { gap:6px; }
 }
 
-/* The week banner takes the space between the logo and your team. */
-body.phone .ab-brand { flex:1 1 0%;min-width:132px; }
+/* The top banner is one line: logo, a slim week strip that takes the spare space, then your team. */
+body.phone .ab-brand { flex:1 1 0%;min-width:122px; }
 body.phone .ab-act { flex:0 1 auto;min-width:0; }
-body.phone .ab-week { flex:1 1 auto;min-width:0;align-items:flex-start;gap:2px;min-height:40px;padding:4px 12px;border-radius:12px; }
-body.phone .abw-main { display:flex;align-items:baseline;gap:6px;white-space:nowrap; }
+body.phone .ab-week { flex:1 1 auto;flex-direction:row;align-items:center;justify-content:flex-start;gap:8px;min-width:0;min-height:34px;padding:2px 10px;border-radius:10px;overflow:hidden; }
+body.phone .abw-main { display:flex;align-items:baseline;gap:5px;flex:none;white-space:nowrap; }
 body.phone .ab-week small { font-size:10px;letter-spacing:.1em; }
-body.phone .ab-week b { font-size:19px;line-height:1; }
-body.phone .abw-sub { max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 11px/1.2 var(--font-ui);color:var(--ink-3); }
+body.phone .ab-week b { font-size:17px;line-height:1; }
+body.phone .abw-sub { flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 11px/1.2 var(--font-ui);color:var(--ink-3); }
 body.phone .abw-sub:empty { display:none; }
 body.phone .ab-week { container-type:inline-size; }
-@container (max-width:150px) { .abw-more { display:none; } }
-/* Very small phones keep the compact stacked badge so your team name has room. */
+@container (max-width:170px) { .abw-more { display:none; } }
+body.phone .mebtn { flex-wrap:nowrap;white-space:nowrap; }
+body.phone .mebtn .nm { display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 @media(max-width:360px) {
-  body.phone .ab-brand { flex:0 0 auto;min-width:0; }
-  body.phone .ab-act { flex:1 1 auto;min-width:0;justify-content:flex-end; }
-  body.phone .ab-week { container-type:normal;flex:0 0 auto;align-items:center;min-width:38px;min-height:0;padding:3px 7px;border-radius:9px; }
-  body.phone .abw-main { flex-direction:column;align-items:center;gap:2px; }
-  body.phone .ab-week small { font-size:8px;letter-spacing:.09em; }
-  body.phone .ab-week b { font-size:17px;line-height:1.1; }
+  body.phone .ab-brand { min-width:108px; }
   body.phone .abw-sub { display:none; }
 }
 
 /* Page buttons under a tab: the page you are on is filled in. */
 body .manager-quick-actions .btn.on { background:var(--accent);border-color:var(--accent);color:var(--accent-ink); }
 
-/* Matchup page: the side-by-side lineups with the what-if calculator. */
-.mx-title { align-items:flex-end;justify-content:space-between;flex-wrap:wrap; }
-.mx-title .eyebrow { display:flex;align-items:center;gap:8px;flex-wrap:wrap; }
-.mx-when { color:var(--ink-3);font-weight:700; }
-.mx-when .pill { letter-spacing:.04em; }
-.mx-title-tools { display:flex;flex-wrap:wrap;gap:8px; }
-.mx-title-tools .wi-reset { margin:0; }
-.mx-page { margin-top:14px; }
+/* Matchup page: the title shares its row with a compact week picker. */
+.shead.mx-title,body.phone .shead.mx-title { display:flex;flex-wrap:nowrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px; }
+.mx-title h2 { min-width:0; }
+.mx-title .wkbar { flex:none;margin:0; }
+.mx-title .manager-week { gap:4px; }
+body .mx-title .manager-week button { min-width:34px;width:34px;min-height:34px;height:34px;padding:0;border-radius:10px; }
+body .mx-title .manager-week select { min-width:0;width:auto;height:34px;min-height:34px;padding:0 6px;font-size:16px;border-radius:10px; }
+.mx-tools { display:flex;flex-wrap:wrap;gap:8px;margin:12px 0; }
+.mx-tools .wi-reset { margin:0; }
+.mx-page .hx[data-mid] { cursor:default; }
+.mx-page .hx[data-mid]:active { transform:none; }
+/* Slot badges fill their middle column so they never cover the scores beside them. */
+body .lx-row:not(.lx-hd) > .lx-slot,body.phone .lx-row:not(.lx-hd) > .lx-slot { width:100%;min-width:0;overflow:hidden; }
+@media(max-width:380px) { body .lx-row:not(.lx-hd) { grid-template-columns:minmax(0,1fr) 30px minmax(0,1fr); } }
+/* What-if entry boxes inside the player cards. */
+.lx-pts .wi-cell small { display:block;margin-top:3px;font:500 10px/1.3 var(--font-ui);letter-spacing:0;color:var(--ink-3); }
+.lx-pts input.wi { width:58px;font:inherit;font-size:16px;font-weight:800;padding:3px 5px;border-radius:7px;border:1.5px solid var(--line-2);background:var(--surface);color:var(--ink);text-align:right;-moz-appearance:textfield; }
+.lx-p.r .lx-pts input.wi { text-align:left; }
+.lx-pts input.wi::-webkit-inner-spin-button,.lx-pts input.wi::-webkit-outer-spin-button { -webkit-appearance:none;margin:0; }
 .mx-page.wi-on .whatif { display:block; }
 .mx-page.wi-on .wi-cell { display:inline-block; }
 .mx-page.wi-on .wi-off { display:none; }
@@ -1049,15 +1056,22 @@ body .manager-quick-actions .btn.on { background:var(--accent);border-color:var(
   .sheet-id > .player-portrait { width:60px;height:60px; }
 }
 
-/* Phones: every page button in the row stays fully visible, and long names get two lines. */
+/* Phones: page buttons stay on one row and share it; long names get two lines. */
 @media(max-width:700px) {
-  body.phone .manager-quick-actions { flex-wrap:wrap;overflow-x:visible; }
-  body.phone .manager-quick-actions .btn { min-height:40px;padding:8px 13px;font-size:13px; }
+  body.phone .manager-quick-actions { flex-wrap:nowrap;overflow-x:auto;gap:5px; }
+  body.phone .manager-quick-actions .btn { flex:1 0 auto;min-height:38px;padding:7px 7px;font-size:12px;letter-spacing:-.01em; }
   body.phone .hx-nm { white-space:normal;overflow-wrap:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical; }
   body.phone .lu .pl { white-space:normal;overflow-wrap:break-word;text-overflow:clip; }
+}
+@media(max-width:340px) {
+  body.phone .manager-quick-actions { gap:4px; }
+  body.phone .manager-quick-actions .btn { padding:6px 5px;font-size:11px; }
 }
 
 /* Trade block rows: a long name shortens so injury and bye tags stay whole. */
 .tbp-n { display:flex;align-items:center;min-width:0; }
 .tbp-n .pclick { min-width:0;overflow:hidden;text-overflow:ellipsis; }
 .tbp-n .inj { flex:none; }
+
+/* Footer: how often league data refreshes. */
+.site-release .site-refresh-note { flex-basis:100%;width:100%;margin:0;font-size:12px;line-height:1.5;color:var(--ink-3); }

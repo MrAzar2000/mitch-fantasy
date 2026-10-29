@@ -1,5 +1,12 @@
 // This footer loads independently of the league feed, including on load failures.
 const footer = document.getElementById('siteRelease');
+// Shown last in the footer, whether or not the release details load.
+function refreshNote() {
+  const note = document.createElement('p');
+  note.className = 'site-refresh-note';
+  note.textContent = 'League data updates every minute while a game is live and once an hour the rest of the time.';
+  return note;
+}
 if (footer) {
   try {
     const response = await fetch('/site-version.json', { cache: 'no-cache' });
@@ -42,7 +49,9 @@ if (footer) {
       details.prepend(summary);
       footer.append(details);
     }
+    footer.append(refreshNote());
   } catch {
     footer.textContent = 'Website version temporarily unavailable';
+    footer.append(refreshNote());
   }
 }

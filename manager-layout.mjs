@@ -106,7 +106,7 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
       if(id===page){b.classList.add('on');b.setAttribute('aria-current','page');}
       b.onclick=()=>setTab(id,id===page);bar.append(b);});
     const hero=view.querySelector('.hero.hx');
-    if(['dash','lineups'].includes(page)&&hero)view.prepend(hero);
+    if(page==='dash'&&hero)view.prepend(hero);
     view.prepend(bar);
   }
   if(page==='dash'){
@@ -148,8 +148,8 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
     const updates=view.querySelector('#updBanner');
     if(updates){const items=[...updates.querySelectorAll('.ub-i')];if(items.length>1)foldNodes(items.slice(1),'Older announcements');}
   }
-  if(page==='matchup'||page==='lineups'||page==='scoreboard')weekPicker(view,page==='scoreboard'?'#wkseg':'#mxseg');
-  if(page==='lineups') {
+  if(page==='matchup'||page==='scoreboard')weekPicker(view,page==='scoreboard'?'#wkseg':'#mxseg');
+  if(page==='matchup') {
     const bench=view.querySelector('.lx-bench');if(bench)foldNodes([bench.previousElementSibling,bench],'Bench & IR');
   }
   if(page==='standings') {
@@ -167,7 +167,8 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
     select.oninput=()=>rows.forEach(row=>{const target=row.querySelector(`[data-tid="${Number(team)}"]`);row.classList.toggle('me',!!target);row.hidden=select.value==='mine'&&!target;});select.oninput();
   }
   if(page==='feedback'){const input=view.querySelector('[name="page"]');if(input&&!input.value)input.value=feedbackPage;}
-  view.querySelectorAll('[data-mid]:not(button):not(a)').forEach(n=>{n.tabIndex=0;n.setAttribute('role','button');n.setAttribute('aria-label','Open matchup details');n.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();n.click();}};});
+  // The Matchup page's own score card is not a link to another sheet.
+  view.querySelectorAll('[data-mid]:not(button):not(a)').forEach(n=>{if(page==='matchup'&&n.matches('.hx'))return;n.tabIndex=0;n.setAttribute('role','button');n.setAttribute('aria-label','Open matchup details');n.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();n.click();}};});
   view.querySelectorAll('a[data-goto]:not([href])').forEach(n=>{n.href='#'+n.dataset.goto;});
 
 }

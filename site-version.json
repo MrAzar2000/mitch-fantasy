@@ -1,13 +1,25 @@
 {
-  "version": "1.4.0",
+  "version": "1.5.0",
+  "title": "One Matchup page & easier navigation",
   "updatedAt": null,
   "changes": [
-    "Team inboxes keep your notifications in one place, with unread badges beside your team name.",
-    "Redesigned mobile matchups and rosters make player scores, projections, game details, and ownership easier to scan.",
-    "My Team now includes more scoring, lineup-efficiency, matchup, and FAAB metrics.",
-    "Player analysis includes position-specific weekly charts and add/drop trends."
+    "Matchup and Lineups are now one Matchup page: player cards for both lineups, the win probability graph, and the what-if calculator, with a compact week picker at the top.",
+    "The page buttons under each tab stay inside that tab and fit on one line.",
+    "Pull down from anywhere on the page, including matchup cards, to refresh.",
+    "Tables on phones no longer cut off numbers and names at the edge.",
+    "A slimmer top banner shows the current week on one line, and player sheets show the player's photo."
   ],
   "history": [
+    {
+      "version": "1.4.0",
+      "title": "Team inboxes & mobile matchups",
+      "changes": [
+        "Team inboxes keep your notifications in one place, with unread badges beside your team name.",
+        "Redesigned mobile matchups and rosters make player scores, projections, game details, and ownership easier to scan.",
+        "My Team now includes more scoring, lineup-efficiency, matchup, and FAAB metrics.",
+        "Player analysis includes position-specific weekly charts and add/drop trends."
+      ]
+    },
     {
       "version": "1.3.0",
       "title": "Offline access & league rules",
