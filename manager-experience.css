@@ -1072,8 +1072,7 @@ body .lx-row:not(.lx-hd) > .lx-slot,body.phone .lx-row:not(.lx-hd) > .lx-slot { 
 .site-release .site-refresh-note { flex-basis:100%;width:100%;margin:0;font-size:12px;line-height:1.5;color:var(--ink-3); }
 
 /* Team profile: parlay results dropdown along the bottom of the team header. */
-.team-detail-header > .team-parlay { flex-basis:100%;width:100%;margin:2px 0 -4px;padding-top:12px;border-top:1px solid var(--line); }
-#teamDetail > .team-parlay { margin-top:14px; }
+.team-detail-header > .team-parlay,.hm > .team-parlay { flex-basis:100%;width:100%;margin:2px 0 -4px;padding-top:12px;border-top:1px solid var(--line); }
 .team-parlay > summary { min-height:36px;gap:10px;font-size:13px;font-weight:700; }
 .team-parlay > summary small { margin-left:auto;font-size:13px;font-weight:700;color:var(--ink-2);font-variant-numeric:tabular-nums; }
 .team-parlay .tp-body { margin-top:4px; }

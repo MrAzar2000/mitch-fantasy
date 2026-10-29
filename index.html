@@ -1722,7 +1722,7 @@ function lowBanner(){
       <div class="lb-team">${esc(tm.name)}<span class="lb-score">${fmt(last.score,1)} pts</span></div>
       <div class="lb-sub">${esc(tm.owner)} funds this week · Week ${last.week} low score</div>
     </div></div>
-    <div class="lb-cta"><button class="lb-cta-btn" data-goto="parlay">Enter your pick</button><div class="parlay-progress" id="parlayProgress" role="status"></div><details class="fold parlay-wait"><summary>Participation details</summary><div class="lb-miss fold-b" id="lbMiss">Checking who's in…</div></details></div>
+    <div class="lb-cta"><button class="lb-cta-btn" data-goto="parlay">${parlayCta()}</button><div class="parlay-progress" id="parlayProgress" role="status"></div><details class="fold parlay-wait"><summary>Participation details</summary><div class="lb-miss fold-b" id="lbMiss">Checking who's in…</div></details></div>
   </div>`;
 }
 
@@ -1747,7 +1747,7 @@ VIEWS.dash=function(){
   const wk1=D.schedule.filter(x=>x.week===focusWk);
   let html=shead("2026 Season","League Home",ST.started?("Data through Week "+Math.max(...ST.weeks)):(D.meta.liveWeek?`<span class="pill prog"><span class="progdot"></span>Week ${D.meta.liveWeek} · in progress</span>`:"Data through preseason"));
   html+=myHome();
-  html+=`<section class="home-parlay" aria-label="Weekly parlay">${lowBanner()||`<div class="card card-p"><div class="eyebrow">Week ${parlayWk()} parlay</div><h3>The league's weekly picks</h3><p class="metricnote">Add your leg and check the week's submissions.</p><button class="btn" data-goto="parlay">Enter your pick</button><div class="parlay-progress" id="parlayProgress" role="status"></div><details class="fold parlay-wait"><summary>Participation details</summary><div id="lbMiss">Checking who's in…</div></details></div>`}</section>`;
+  html+=`<section class="home-parlay" aria-label="Weekly parlay">${lowBanner()||`<div class="card card-p"><div class="eyebrow">Week ${parlayWk()} parlay</div><h3>The league's weekly picks</h3><p class="metricnote">Add your leg and check the week's submissions.</p><button class="btn" data-goto="parlay">${parlayCta()}</button><div class="parlay-progress" id="parlayProgress" role="status"></div><details class="fold parlay-wait"><summary>Participation details</summary><div id="lbMiss">Checking who's in…</div></details></div>`}</section>`;
   html+=updatesBanner()+birthdayBanner();
   // this week's games first, in the same card style as the Scoreboard
   const ranks=Object.fromEntries(standOrder().map((t,i)=>[t.id,i+1]));
@@ -1960,9 +1960,9 @@ VIEWS.myteam=function(){
   html+=`<div id="teamDetail" class="myteam"></div>`;
   const v=el(html);
   showTeam(t.id,v,true);
-  // My Team has its own hero, so the parlay dropdown moves out of the team header into its own card.
+  // My Team has its own hero, so the parlay dropdown moves from the team header to the bottom of the hero.
   const parlay=v.querySelector("#teamDetail > .team-detail-header > .team-parlay");
-  if(parlay){parlay.classList.add("card","card-p");v.querySelector("#teamDetail").append(parlay);}
+  if(parlay)v.querySelector(".hero.hm").append(parlay);
   v.querySelector("#teamDetail > .team-detail-header")?.remove();
   v.querySelector("#teamDetail > #tdh")?.remove();
   return v;
@@ -3051,8 +3051,11 @@ let parlayWeekDetails=[], parlayPicks=[], parlayHistory=[], parlayWeek=1, __sb=n
 const parlayWk=()=>D.meta.currentScoringPeriod||(ST.started?Math.max(...ST.weeks)+1:1);
 function __pt(ts){if(!ts)return"";try{return new Date(ts).toLocaleString(undefined,{weekday:"short",hour:"numeric",minute:"2-digit"});}catch(e){return"";}}
 let parlayLoaded=false;
+// Home's parlay button: once your own pick is in for the week it opens the picks instead.
+function parlayCta(){const mine=meTeam();return parlayLoaded&&mine&&parlayPicks.some(p=>p.teamId===mine.id)?"View parlay picks":"Enter your pick";}
 function updParlayMissing(){const e=document.getElementById("lbMiss");if(!e)return;
   if(!parlayLoaded){e.textContent=__sb?"Checking who's in…":"";return;}
+  document.querySelectorAll('.home-parlay [data-goto="parlay"]').forEach(b=>{b.textContent=parlayCta();});
   const got=new Set(parlayPicks.map(p=>p.manager)),all=D.teams.map(t=>t.owner||t.name),miss=all.filter(n=>!got.has(n)).sort((a,b)=>a.localeCompare(b));
   const progress=document.getElementById("parlayProgress");if(progress)progress.innerHTML=`<span><b>${all.length-miss.length}/${all.length}</b> managers in</span><progress aria-label="Parlay picks submitted" value="${all.length-miss.length}" max="${all.length}"></progress>`;
   e.innerHTML=miss.length?`<b>Still waiting on ${miss.length} of ${all.length}:</b> `+miss.map(n=>`<span class="mchip">${esc(n)}</span>`).join(""):`<span class="ok">All ${all.length} picks submitted</span>`;

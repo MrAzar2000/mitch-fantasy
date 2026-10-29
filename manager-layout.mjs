@@ -101,7 +101,9 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
   // Inside a bottom-bar tab the buttons are that tab's pages; under More they are related pages, never another tab.
   const tabPages=section&&section!=='more'?sectionPages?.[section]:null;
   const links=tabPages||(shortcuts[page]||[]).filter(([id])=>!["players","faab","useless","dash","myteam","matchup","analytics"].includes(id));
-  if(links.length){
+  // A team's profile keeps only its All Teams back button at the top.
+  const teamProfile=page==='teams'&&view.querySelector(':scope > .team-back');
+  if(links.length&&!teamProfile){
     const bar=document.createElement('nav');bar.className='manager-quick-actions';bar.setAttribute('aria-label',tabPages?'Pages':'Related pages');
     links.forEach(([id,label])=>{const b=document.createElement('button');b.type='button';b.className='btn ghost';b.textContent=label;
       if(id===page){b.classList.add('on');b.setAttribute('aria-current','page');}
