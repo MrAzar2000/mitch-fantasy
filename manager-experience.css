@@ -994,14 +994,14 @@ body.phone .ab-in { min-height:58px;height:auto;padding-top:7px;padding-bottom:7
   body.phone .ab-act { gap:6px; }
 }
 
-/* The top banner is one line. Your team name gets its full width first; the week strip
-   ("Week 8") keeps its own size and only grows into space the team name leaves over. */
-body.phone .ab-brand { flex:1 0 auto;min-width:auto; }
+/* The top banner is one line: logo, then the week as plain type beside a thin divider, and your team
+   on the right. The team name gets its full width first; spare space stays empty between the two. */
+body.phone .ab-brand { flex:1 1 auto;min-width:auto;gap:12px; }
 body.phone .ab-act { flex:0 1 auto;min-width:0; }
-body.phone .ab-week { flex:1 0 auto;flex-direction:row;align-items:center;justify-content:flex-start;min-width:0;min-height:34px;padding:2px 10px;border-radius:10px; }
-body.phone .abw-main { display:flex;align-items:baseline;gap:5px;flex:none;white-space:nowrap; }
-body.phone .ab-week small { font-size:10px;letter-spacing:.1em; }
-body.phone .ab-week b { font-size:17px;line-height:1; }
+body.phone .ab-week { flex:none;flex-direction:row;align-items:center;min-width:0;min-height:0;height:24px;padding:0 0 0 12px;border:0;border-left:1px solid var(--line-2);border-radius:0;background:none;box-shadow:none; }
+body.phone .abw-main { display:flex;align-items:baseline;gap:6px;flex:none;white-space:nowrap; }
+body.phone .ab-week small { font:650 10px/1 var(--font-ui);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3); }
+body.phone .ab-week b { font:750 19px/1 var(--font-display);font-variant-numeric:tabular-nums;letter-spacing:-.02em;color:var(--ink); }
 body.phone .mebtn { flex-wrap:nowrap;white-space:nowrap; }
 body.phone .mebtn .nm { display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 /* Notification preferences open from More; the bell no longer sits in the banner. */
