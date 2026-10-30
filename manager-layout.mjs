@@ -67,7 +67,7 @@ function weekPicker(root,selector) {
   select.onchange=()=>buttons[Number(select.value)].click();prev.onclick=()=>buttons[active-1]?.click();next.onclick=()=>buttons[active+1]?.click();
   group.append(prev,select,next);seg.replaceWith(group);
 }
-export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPage,section,sectionPages}) {
+export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPage,section,sectionPages,goBack}) {
   const view=root.querySelector('.view');if(!view||view.dataset.layoutReady)return;
   view.dataset.layoutReady='true';
   view.querySelectorAll('details').forEach(fold=>{if(fold.matches('[data-lineup-mode]')||fold.querySelector('table,svg,.rank-history-list,[data-lineup-mode]'))fold.open=true;});
@@ -103,7 +103,11 @@ export function enhanceManagerLayout(root,{page,team,data,setTab,esc,feedbackPag
   const links=tabPages||(shortcuts[page]||[]).filter(([id])=>!["players","faab","useless","dash","myteam","matchup","analytics"].includes(id));
   // A team's profile keeps only its All Teams back button at the top.
   const teamProfile=page==='teams'&&view.querySelector(':scope > .team-back');
-  if(links.length&&!teamProfile){
+  if(!teamProfile&&!tabPages&&page!=='more'&&goBack){
+    // Pages opened from More get a small back button instead of a row of links to other pages.
+    const back=document.createElement('button');back.type='button';back.className='btn ghost more-back';
+    back.innerHTML='<svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg> Back';back.onclick=goBack;view.prepend(back);
+  }else if(links.length&&!teamProfile){
     const bar=document.createElement('nav');bar.className='manager-quick-actions';bar.setAttribute('aria-label',tabPages?'Pages':'Related pages');
     links.forEach(([id,label])=>{const b=document.createElement('button');b.type='button';b.className='btn ghost';b.textContent=label;
       if(id===page){b.classList.add('on');b.setAttribute('aria-current','page');}

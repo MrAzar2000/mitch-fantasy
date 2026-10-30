@@ -3283,7 +3283,7 @@ function pProj(pid,W){W=W||D.meta.currentScoringPeriod;const wk=(D.weekly||{})[S
 function byeTxt(pro,W){W=W||D.meta.currentScoringPeriod;const b=byeWk(pro);return !b?"":b===W?"on bye":b>W?"bye W"+b:"";}
 function injTag(st){const s=INJ_SHORT[st];return s?`<span class="inj inj-${s==="Q"||s==="P"||s==="DTD"?"q":"o"}" title="${esc(String(st).replace(/_/g," ").toLowerCase())}">${injLabel(st)}</span>`:"";}
 function playsToday(pro,W){if(W!==D.meta.currentScoringPeriod)return false;const k=(D.meta.proGames||{})[pro];if(!k||gameStatus(pro,W)==="done")return false;return new Date(k).toDateString()===new Date().toDateString();}
-function todayTag(pro,W){if(!playsToday(pro,W))return "";const st=gameStatus(pro,W);return `<span class="gdtag">${st==="live"?"ON THE FIELD":"TODAY "+new Date(D.meta.proGames[pro]).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"})}</span>`;}
+function todayTag(pro,W){if(!playsToday(pro,W))return "";const st=gameStatus(pro,W);return `<span class="gdtag">${st==="live"?"GAME LIVE":"TODAY "+new Date(D.meta.proGames[pro]).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"})}</span>`;}
 // lineup problems this week: byes, OUT/IR/doubtful starters, empty slots
 function lineupAlerts(starters,empties,W){const a=[];empties.forEach(sl=>a.push(`empty ${sl} slot`));
   starters.forEach(p=>{const st=gameStatus(p.pro,W);if(st==="bye"){a.push(`${p.name} is on bye`);return;}if(st==="done")return;
@@ -3319,7 +3319,7 @@ function matchupDetail(x){
   const s=mstate(x),W=x.week,final=x.winner&&x.winner!=="UNDECIDED",cur=W===D.meta.currentScoringPeriod&&!final;
   const A=lineupRows(a.id,W),H=lineupRows(h.id,W);
   const gst=r=>cur?gameStatus(r.pro,W):"done";
-  const stTag=r=>{if(!cur)return "";const g=gst(r);if(g==="pre")return "";return ` · <span class="st st-${g}">${g==="live"?"PLAYING":g==="bye"?"BYE":"DONE"}</span>`;};
+  const stTag=r=>{if(!cur)return "";const g=gst(r);if(g==="pre")return "";return ` · <span class="st st-${g}">${g==="live"?"GAME LIVE":g==="bye"?"BYE":"DONE"}</span>`;};
   const pick=(rows)=>{const used=new Set();return STARTER_ORDER.map(sl=>{const i=rows.findIndex((r,j)=>!used.has(j)&&r.slot===sl);if(i<0)return null;used.add(i);return rows[i];});};
   const la=A&&H?pick(A):null,lh=A&&H?pick(H):null;
   const open=r=>cur&&r&&(gst(r)==="pre"||gst(r)==="live");
@@ -4620,10 +4620,12 @@ function showToast(msg){
   t.classList.add("show");
   clearTimeout(__toastT);__toastT=setTimeout(()=>t.classList.remove("show"),2800);
 }
+// Back button on pages opened from More: return to the page you came from, the same way a swipe back does.
+function goBackView(fallback){const target=VIEW_BACK.pop()||fallback,section=VIEW_BACK.sections?.pop();swipingBack=true;try{setTab(target,false,section);}finally{swipingBack=false;}}
 EXPERIENCE=installManagerExperience({
   views:VIEWS,labels:LABELS,esc,fmt,setTab,el,playerSeason,playerLog,openPlayer,showToast,injLabel,productionChart,
   enhanceTables:enhanceStatTables,
-  enhanceLayout:root=>enhanceManagerLayout(root,{page:cur,team:MEID,data:D,esc,feedbackPage:VIEW_BACK.filter(p=>p!=="feedback"&&p!=="more").at(-1)||"dash",section:SECTION,sectionPages:SECTION_PAGES,
+  enhanceLayout:root=>enhanceManagerLayout(root,{page:cur,team:MEID,data:D,esc,goBack:()=>goBackView('more'),feedbackPage:VIEW_BACK.filter(p=>p!=="feedback"&&p!=="more").at(-1)||"dash",section:SECTION,sectionPages:SECTION_PAGES,
     // the All teams button on a team's page goes back to the list of teams
     setTab:(id,fresh)=>{if(id==="teams"&&cur==="teams"&&viewedTeamId!=null){viewedTeamId=null;try{history.replaceState(history.state,"","#teams");}catch(e){}}setTab(id,fresh);}}),
   getRefreshError:()=>leagueRefreshError,getTradeBlock:()=>TB.rows,getData:()=>D,getMe:()=>meTeam()?.id??null,getCurrent:()=>cur,getDevice:()=>siteDevice,

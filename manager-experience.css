@@ -1124,3 +1124,7 @@ body.phone .pr-chart .barrow .bv { min-width:0; }
   .pl-admin select { width:100%;min-width:0;font-size:16px; }
   .pl-admin .btn { flex:none;min-height:38px;padding:6px 12px;font-size:13px; }
 }
+
+/* Pages opened from More: a small back button at the top. */
+.more-back { display:inline-flex;align-items:center;gap:4px;min-height:38px;padding:6px 14px 6px 8px;margin-bottom:12px;font-size:13px; }
+.more-back .glyph { width:18px;height:18px; }
