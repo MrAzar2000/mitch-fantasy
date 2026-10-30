@@ -3283,7 +3283,8 @@ function pProj(pid,W){W=W||D.meta.currentScoringPeriod;const wk=(D.weekly||{})[S
 function byeTxt(pro,W){W=W||D.meta.currentScoringPeriod;const b=byeWk(pro);return !b?"":b===W?"on bye":b>W?"bye W"+b:"";}
 function injTag(st){const s=INJ_SHORT[st];return s?`<span class="inj inj-${s==="Q"||s==="P"||s==="DTD"?"q":"o"}" title="${esc(String(st).replace(/_/g," ").toLowerCase())}">${injLabel(st)}</span>`:"";}
 function playsToday(pro,W){if(W!==D.meta.currentScoringPeriod)return false;const k=(D.meta.proGames||{})[pro];if(!k||gameStatus(pro,W)==="done")return false;return new Date(k).toDateString()===new Date().toDateString();}
-function todayTag(pro,W){if(!playsToday(pro,W))return "";const st=gameStatus(pro,W);return `<span class="gdtag">${st==="live"?"GAME LIVE":"TODAY "+new Date(D.meta.proGames[pro]).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"})}</span>`;}
+// Kickoff time for games later today; once a game starts, the GAME LIVE tag on the position line takes over.
+function todayTag(pro,W){if(!playsToday(pro,W)||gameStatus(pro,W)==="live")return "";return `<span class="gdtag">TODAY ${new Date(D.meta.proGames[pro]).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"})}</span>`;}
 // lineup problems this week: byes, OUT/IR/doubtful starters, empty slots
 function lineupAlerts(starters,empties,W){const a=[];empties.forEach(sl=>a.push(`empty ${sl} slot`));
   starters.forEach(p=>{const st=gameStatus(p.pro,W);if(st==="bye"){a.push(`${p.name} is on bye`);return;}if(st==="done")return;
