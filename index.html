@@ -3824,7 +3824,8 @@ function exactStamp(d){return d.toLocaleDateString(undefined,{weekday:"short",mo
 let UPD_NEW=false;
 function renderTicker(flash){
   const tk=document.getElementById('ticker');if(!tk)return;
-  const upd=new Date(D.meta.lastUpdated),now=Date.now(),slots=kickoffSlots(),liveSlot=slots.filter(t=>t<=now&&now-t<LIVE_WINDOW).pop(),next=slots.find(t=>t>now),stale=!!liveSlot&&now-upd.getTime()>25*60e3;
+  // "Updated" is the last time the data job checked ESPN (heartbeat), even when nothing changed
+  const chk=Math.max(new Date(D.meta.lastUpdated).getTime()||0,HB||0),upd=new Date(chk),now=Date.now(),slots=kickoffSlots(),liveSlot=slots.filter(t=>t<=now&&now-t<LIVE_WINDOW).pop(),next=slots.find(t=>t>now),stale=!!liveSlot&&now-upd.getTime()>25*60e3;
   const scheduleKnown=(Array.isArray(D.meta.nflKickoffs)&&D.meta.nflKickoffs.length)||Object.keys(D.meta.proGames||{}).length;
   const shortTime=next?new Date(next).toLocaleDateString(undefined,{weekday:'short'})+' '+new Date(next).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'';
   tk.innerHTML=`<span class="update-inline ${stale?'stale':''}" title="${esc(exactStamp(upd))}"><span class="status-dot"></span>${stale?'Scores may be delayed · ':''}Updated ${esc(agoText(upd.getTime()))}${UPD_NEW?' · new scores':''}</span>${next?`<span class="kickoff-inline" title="${esc(dayLabel(next)+(gamesText(next)?' · '+gamesText(next):''))}">${scheduleKnown?'Kickoff':'Est. kickoff'} <b class="cd">${cdParts(next-now)}</b><span class="kickoff-time"> · ${esc(shortTime)}</span></span>`:liveSlot?'<span class="kickoff-inline live">NFL games live</span>':'<span class="kickoff-inline">Awaiting kickoff schedule</span>'}`;
@@ -4583,7 +4584,7 @@ function setFresh(){
 }
 
 let HB=null;
-async function loadHeartbeat(){try{const q=await sb.from("league_data").select("hb:data->>checked").eq("id","heartbeat").single();if(q.data&&q.data.hb)HB=new Date(q.data.hb).getTime();}catch(e){}}
+async function loadHeartbeat(){try{const q=await sb.from("league_data").select("hb:data->>checked").eq("id","heartbeat").single();if(q.data&&q.data.hb){const t=new Date(q.data.hb).getTime();if(t&&t!==HB){HB=t;renderTicker(false);}}}catch(e){}}
 let __refreshing=false;let leagueRefreshError=false;
 async function refreshData(preloaded){
   if(__refreshing||(document.hidden&&!preloaded)) return;
