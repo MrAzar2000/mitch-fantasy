@@ -1577,6 +1577,9 @@ function readTeamRoute(){
   const id=Number(new URLSearchParams(query).get('team'));
   viewedTeamId=page==='teams'&&teamById[id]?id:null;
 }
+// Inside a matchup card, a team's badge or name opens that team instead of the matchup.
+document.addEventListener("click",e=>{const n=e.target.closest&&e.target.closest("[data-mid] [data-tid]");if(!n||e.target.closest("button,a,input,select"))return;
+  const tid=+n.dataset.tid;if(!teamById[tid])return;e.preventDefault();e.stopPropagation();goTeam(tid);},true);
 document.addEventListener("click",e=>{const n=e.target.closest("[data-tid]");if(!n||n.closest("[data-mid]")||n.closest("[data-team]")||n.closest("[data-goto]"))return;
   if(e.target.closest("button,a,input,select"))return;const tid=+n.dataset.tid;if(!teamById[tid])return;e.preventDefault();goTeam(tid);});
 // hover a section title to see what it means
@@ -1731,6 +1734,24 @@ async function loadUpdates(){try{const {data,error}=await sb.from("league_update
   const b=document.getElementById("updBanner");if(b)b.outerHTML=updatesBanner();}catch(e){UPDATES=[];}}
 function updatesBanner(){if(!UPDATES||!UPDATES.length)return '<div id="updBanner"></div>';
   return `<div class="upd-banner" id="updBanner"><div class="ub-h">League updates</div>${UPDATES.map(u=>`<div class="ub-i"><span class="ub-d">${new Date(u.created_at).toLocaleDateString(undefined,{month:"short",day:"numeric"})}</span>${esc(u.message)}</div>`).join("")}</div>`;}
+// One-time congratulations for Drew's winless run; shows again each time the streak grows and never once he wins.
+function drewStreakPopup(tries=0){
+  const t=D.teams.find(x=>x.owner==="Drew Michalek"),s=t&&ST.S[t.id];
+  if(!s||s.w!==0||s.tie||s.l<8)return;
+  let seen=0;try{seen=+localStorage.getItem("mfl-drew-streak-seen")||0;}catch(e){}
+  if(seen>=s.l)return;
+  if(document.getElementById("mdl")){if(tries<20)setTimeout(()=>drewStreakPopup(tries+1),3000);return;}
+  try{localStorage.setItem("mfl-drew-streak-seen",String(s.l));}catch(e){}
+  const wrap=document.createElement("div");wrap.className="mdl";wrap.id="mdl";wrap.setAttribute("role","dialog");wrap.setAttribute("aria-modal","true");wrap.setAttribute("aria-label","Congratulations, Drew");
+  wrap.innerHTML=`<div class="mdl-box drew-streak"><div class="mdl-top"><div class="eyebrow">Making history</div><button class="x" aria-label="Close" type="button">&#x2715;</button></div>
+    <div class="ds-body">${badge(t,"xl")}<h2>Congratulations, ${esc(t.owner)}</h2><div class="ds-rec">0-${s.l}</div>
+    <p>${esc(t.name)} is 0-${s.l} and the winless streak is still alive. No team in league history has ever finished a season without a win, and ${esc(t.owner.split(" ")[0])} is on pace to be the first.</p>
+    <div class="ds-actions"><button class="btn" type="button" data-ds-team>View ${esc(t.owner.split(" ")[0])}'s team</button><button class="btn ghost" type="button" data-ds-close>Close</button></div></div></div>`;
+  const close=()=>closeMatchup();
+  wrap.querySelector(".x").onclick=close;wrap.querySelector("[data-ds-close]").onclick=close;wrap.onclick=e=>{if(e.target===wrap)close();};
+  wrap.querySelector("[data-ds-team]").onclick=()=>{closeMatchup();goTeam(t.id);};
+  document.body.appendChild(wrap);document.body.classList.add("mdl-open");document.addEventListener("keydown",mdlKey);
+}
 function birthdayBanner(){const n=new Date();if(!(n.getMonth()===9&&n.getDate()===21))return "";return `<div class="bday-banner"><span class="bd-ic">${icon("sparkle")}</span><div><b>Happy birthday, Sam!</b> Most of the league is wishing you a happy birthday today.</div></div>`;}
 /* ================= VIEWS ================= */
 const VIEWS={};
@@ -1862,7 +1883,7 @@ function lineupTotals(rows){if(!rows)return null;const st=rows.filter(r=>r.slot!
 function luPick(rows){if(!rows)return STARTER_ORDER.map(()=>null);const used=new Set();
   return STARTER_ORDER.map(sl=>{const i=rows.findIndex((r,j)=>!used.has(j)&&r.slot===sl);if(i<0)return null;used.add(i);return rows[i];});}
 function heroSide(t,score,proj,win,right){const s=ST.S[t.id];
-  return `<div class="hx-side ${right?"r":""} ${win?"win":""}" data-tid="${t.id}">${badge(t,"xl")}<div class="hx-nm">${esc(t.name)}</div><div class="hx-ow">${esc(t.owner||"")} · ${recStr(s)}</div>
+  return `<div class="hx-side ${right?"r":""} ${win?"win":""}">${badge(t,"xl")}<div class="hx-nm" data-tid="${t.id}">${esc(t.name)}</div><div class="hx-ow" data-tid="${t.id}">${esc(t.owner||"")} · ${recStr(s)}</div>
     ${score!=null?`<div class="hx-sc sc">${fmt(score,2)}</div>${proj!=null?`<div class="hx-pj">proj ${fmt(proj,1)}</div>`:""}`
       :`<div class="hx-sc pre">${proj!=null?fmt(proj,1):"0.0"}</div><div class="hx-pj">${proj!=null?"projected":"not started"}</div>`}</div>`;}
 function matchupHero(x,meFirst){
@@ -2376,8 +2397,8 @@ function scoreCard(x,ranks){
     const rec=t=>ST.S[t.id]?recStr(ST.S[t.id]):"";
     return `<div class="mcard mx2 ${a.id===MEID||h.id===MEID?"mine":""}" data-mid="${x.id}">
       <div class="m2">
-        <div class="m2-t ${s.aw?"wn":s.hw?"ls":""}">${badge(a,"lg")}<div class="m2-id"><div class="nm"><span class="team-rank">#${ranks[a.id]}</span> ${esc(a.name)}</div><div class="ow">${esc(a.owner)} · ${rec(a)}</div></div><span class="sc">${s.show?fmt(s.as,1):""}</span></div>
-        <div class="m2-t r ${s.hw?"wn":s.aw?"ls":""}"><span class="sc">${s.show?fmt(s.hs,1):""}</span><div class="m2-id"><div class="nm"><span class="team-rank">#${ranks[h.id]}</span> ${esc(h.name)}</div><div class="ow">${esc(h.owner)} · ${rec(h)}</div></div>${badge(h,"lg")}</div>
+        <div class="m2-t ${s.aw?"wn":s.hw?"ls":""}">${badge(a,"lg")}<div class="m2-id" data-tid="${a.id}"><div class="nm"><span class="team-rank">#${ranks[a.id]}</span> ${esc(a.name)}</div><div class="ow">${esc(a.owner)} · ${rec(a)}</div></div><span class="sc">${s.show?fmt(s.as,1):""}</span></div>
+        <div class="m2-t r ${s.hw?"wn":s.aw?"ls":""}"><span class="sc">${s.show?fmt(s.hs,1):""}</span><div class="m2-id" data-tid="${h.id}"><div class="nm"><span class="team-rank">#${ranks[h.id]}</span> ${esc(h.name)}</div><div class="ow">${esc(h.owner)} · ${rec(h)}</div></div>${badge(h,"lg")}</div>
       </div>
       ${wpBar(x,a,h)}
       <div class="m2-foot">${foot}</div>
@@ -3350,7 +3371,7 @@ function matchupDetail(x){
     if(cur&&!D.meta.nflGames)body+=`<div class="metricnote">Game-day weather is currently unavailable.</div>`;
   }
   const status=final?"Final":s.live?'<span class="pill live"><span class="livedot"></span>LIVE</span>':cur?"This week":"Week "+W;
-  const panel=(t,score,pj,cls)=>`<div class="mx-team ${cls}"><div class="id">${badge(t,"lg")}<div><div class="nm" style="font-weight:800">${esc(t.name)}</div><div class="ow">${esc(t.owner)}</div></div></div>
+  const panel=(t,score,pj,cls)=>`<div class="mx-team ${cls}"><div class="id">${badge(t,"lg")}<div data-tid="${t.id}"><div class="nm" style="font-weight:800">${esc(t.name)}</div><div class="ow">${esc(t.owner)}</div></div></div>
     <div class="sc">${s.show?fmt(score,1):cur?"0.0":"—"}</div><div class="pj">${final?"Was projected":"Projected"} <b>${pj!=null?fmt(pj,1):"—"}</b></div></div>`;
   const wiBox=whatif?whatIfBox():"";
   return {a,h,s,W,status,whatif,content:`<div class="mx-head">${panel(a,s.as,pjA,"a")}<div class="mx-vs">vs</div>${panel(h,s.hs,pjH,"h")}</div>
@@ -4646,5 +4667,6 @@ if(__LD_FROM_CACHE)__netLD.then(nd=>{if(nd&&nd.meta)refreshData(nd);}).catch(()=
 updateConnection();
 EXPERIENCE.preferences();
 __initParlay(sb);
+setTimeout(drewStreakPopup,1500);
 }
 </script>

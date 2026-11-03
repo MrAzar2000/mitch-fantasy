@@ -1128,3 +1128,12 @@ body.phone .pr-chart .barrow .bv { min-width:0; }
 /* Pages opened from More: a small back button at the top. */
 .more-back { display:inline-flex;align-items:center;gap:4px;min-height:38px;padding:6px 14px 6px 8px;margin-bottom:12px;font-size:13px; }
 .more-back .glyph { width:18px;height:18px; }
+
+/* Drew's winless-streak congratulations */
+.drew-streak { max-width:420px; }
+.drew-streak .ds-body { display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:4px 4px 6px; }
+.drew-streak h2 { margin:4px 0 0;font:800 22px/1.2 var(--font-display); }
+.drew-streak .ds-rec { font:900 44px/1 var(--font-display);color:var(--loss);font-variant-numeric:tabular-nums;letter-spacing:-.02em; }
+.drew-streak p { margin:0;font-size:14px;line-height:1.55;color:var(--ink-2); }
+.drew-streak .ds-actions { display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:6px; }
+.drew-streak .ds-actions .btn { min-height:44px; }
