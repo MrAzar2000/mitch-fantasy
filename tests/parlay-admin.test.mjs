@@ -29,6 +29,14 @@ test('saves and clears weekly participants and total odds independently of picks
   await h.handler(patch({weekDetails:{week:1,participants:'',totalOdds:null}}));
   assert.equal(h.writes[1].values.totalOdds,null);
 });
+test('checks a week off as placed without touching its casino details',async()=>{
+  const h=harness();
+  assert.equal((await h.handler(patch({weekPlaced:{week:4,placed:true}}))).status,200);
+  assert.deepEqual({...h.writes[0].values},{season:2026,week:4,placed:true});
+  assert.deepEqual({...h.writes[0].conflict.set},{placed:true});
+  for(const body of [{weekPlaced:{week:4,placed:'yes'}},{weekPlaced:{week:0,placed:false}}])assert.equal((await h.handler(patch(body))).status,400);
+  assert.equal(h.writes.length,1);
+});
 test('rejects invalid details, empty picks and invalid grades without writes',async()=>{
   const h=harness();
   for(const body of [{id:7,pick:' '},{id:7,result:'hit'},{weekDetails:{week:23,participants:'Mitch',totalOdds:null}},{grades:[{id:7,result:'won'},{id:8,result:'bad'}]}])assert.equal((await h.handler(patch(body))).status,400);

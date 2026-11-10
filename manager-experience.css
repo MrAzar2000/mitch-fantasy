@@ -1137,3 +1137,9 @@ body.phone .pr-chart .barrow .bv { min-width:0; }
 .drew-streak p { margin:0;font-size:14px;line-height:1.55;color:var(--ink-2); }
 .drew-streak .ds-actions { display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:6px; }
 .drew-streak .ds-actions .btn { min-height:44px; }
+
+/* Parlay placed at the casino */
+.pl-placed { margin-top:6px;font-size:13px;font-weight:700;color:var(--ink-3); }
+.pl-placed.on { color:var(--win); }
+.pl-check { display:flex;align-items:center;gap:10px;min-height:44px;margin:6px 0 2px;font-weight:700;cursor:pointer; }
+.pl-check input { width:22px;height:22px;margin:0;accent-color:var(--win);flex:0 0 auto; }

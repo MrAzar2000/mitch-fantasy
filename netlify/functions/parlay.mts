@@ -31,6 +31,12 @@ export default async (req: Request) => {
         const [saved] = await db.insert(parlayWeeks).values({ season, week, ...details }).onConflictDoUpdate({ target: [parlayWeeks.season, parlayWeeks.week], set: details }).returning();
         return Response.json(saved);
       }
+      if (input.weekPlaced) {
+        const { week, placed } = input.weekPlaced;
+        if (!Number.isInteger(week) || week < 1 || week > 22 || typeof placed !== 'boolean') return Response.json({ error: 'Invalid week' }, { status: 400 });
+        const [saved] = await db.insert(parlayWeeks).values({ season, week, placed }).onConflictDoUpdate({ target: [parlayWeeks.season, parlayWeeks.week], set: { placed } }).returning();
+        return Response.json(saved);
+      }
       if (Array.isArray(input.grades)) {
         const valid = ['won', 'lost', 'void', 'pending'];
         const grades = input.grades.filter((g: any) => g && Number.isInteger(g.id) && valid.includes(g.result));

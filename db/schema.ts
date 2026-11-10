@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, serial, integer, text, timestamp, uniqueIndex, boolean } from 'drizzle-orm/pg-core';
 export const parlayLegs = pgTable('parlay_legs', {
   id: serial('id').primaryKey(), season: integer('season').notNull(), week: integer('week').notNull(),
   teamId: integer('team_id').notNull(), manager: text('manager').notNull(), pick: text('pick').notNull(),
@@ -33,6 +33,7 @@ export const tradeDigestRuns = pgTable('trade_digest_runs', {
 export const parlayWeeks = pgTable('parlay_weeks', {
   id: serial('id').primaryKey(), season: integer('season').notNull(), week: integer('week').notNull(),
   participants: text('participants').notNull().default(''), totalOdds: text('total_odds'),
+  placed: boolean('placed').notNull().default(false),
 }, t => [uniqueIndex('parlay_week_season').on(t.season, t.week)]);
 
 export const rosterAlertDeliveries = pgTable('roster_alert_deliveries', {

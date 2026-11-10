@@ -3069,6 +3069,7 @@ VIEWS.faab=function(){
 
 /* ---- PARLAY: season history in Netlify Database ---- */
 let parlayWeekDetails=[], parlayPicks=[], parlayHistory=[], parlayWeek=1, __sb=null, parlayError="";
+let parlayPlacedSeq=0, parlayPlacedPending=0; // a poll that started before a placed save must not undo it
 const parlayWk=()=>D.meta.currentScoringPeriod||(ST.started?Math.max(...ST.weeks)+1:1);
 function __pt(ts){if(!ts)return"";try{return new Date(ts).toLocaleString(undefined,{weekday:"short",hour:"numeric",minute:"2-digit"});}catch(e){return"";}}
 let parlayLoaded=false;
@@ -3100,7 +3101,9 @@ function parlayStatus(picks){
 function renderParlayStatus(){
   const box=document.getElementById('plStatus');if(!box)return;
   const status=parlayStatus(parlayPicks);box.style.color=status.tone;
-  box.textContent=parlayError?'Status unavailable — retrying…':!parlayLoaded?'Loading parlay status…':status.label;
+  if(parlayError||!parlayLoaded){box.textContent=parlayError?'Status unavailable — retrying…':'Loading parlay status…';return;}
+  const placed=parlayPlaced(parlayWeek);
+  box.innerHTML=`${esc(status.label)}<div class="pl-placed${placed?' on':''}">${placed?'Bet placed · this parlay is live':'Not placed yet · this week won\'t count until the bet is placed'}</div>`;
 }
 async function saveParlayResult(id,result,button){
   if(!ADMIN)return;
@@ -3170,9 +3173,10 @@ VIEWS.parlay=function(){
   return v;
 };
 async function fetchParlayHistory(){
+  const seq=parlayPlacedSeq;
   const r=await fetch('/api/parlay?season='+D.meta.season);if(!r.ok)throw new Error('History unavailable');
   const detailsResponse=await fetch('/api/parlay?season='+D.meta.season+'&details=weeks');if(!detailsResponse.ok)throw new Error('Week details unavailable');
-  parlayWeekDetails=await detailsResponse.json();renderParlayDetails();
+  const weeks=await detailsResponse.json();if(!parlayPlacedPending&&seq===parlayPlacedSeq)parlayWeekDetails=weeks;renderParlayDetails();
   parlayHistory=await r.json();parlayPicks=parlayHistory.filter(p=>p.week===parlayWeek).sort((a,b)=>Date.parse(a.created_at)-Date.parse(b.created_at)||a.id-b.id);parlayLoaded=true;parlayError='';renderPicksList();
   refreshParlayResults();
 }
@@ -3191,9 +3195,20 @@ async function __initParlay(client){
   }catch{parlayError='Parlay history is unavailable. Please try again.';const e=document.getElementById('lbMiss');if(e)e.textContent=parlayError;const box=document.getElementById('plList');if(box)box.textContent=parlayError;refreshParlayResults();}
   if(!__initParlay.poll){__initParlay.poll=setInterval(()=>{if(!document.hidden&&["dash","parlay","parlayresults","myteam","teams"].includes(cur))fetchParlayHistory().catch(()=>{});},10000);}
 }
+// A week only counts once an admin checks it off as placed; unplaced weeks stay out of every record.
+const parlayPlaced=w=>parlayWeekDetails.some(d=>d.week===w&&d.placed===true);
+async function saveParlayPlaced(week,placed){
+  parlayPlacedSeq++;parlayPlacedPending++;
+  try{
+    const r=await fetch('/api/parlay?season='+D.meta.season,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({weekPlaced:{week,placed}})});
+    if(!r.ok)throw new Error('Not saved. Please try again.');
+    const saved=await r.json();parlayWeekDetails=parlayWeekDetails.filter(w=>w.week!==week).concat([saved]);
+    renderParlayStatus();renderParlayDetails();refreshParlayResults();return saved;
+  }finally{parlayPlacedPending--;}
+}
 // One leg per week (the latest submission counts); success rate is hits over graded legs.
 function parlayRecord(tid){
-  const rows=parlayHistory.filter(p=>p.teamId===tid).sort((a,b)=>b.week-a.week||Date.parse(b.created_at)-Date.parse(a.created_at)||b.id-a.id),latest=[],weeks=new Set();
+  const rows=parlayHistory.filter(p=>p.teamId===tid&&parlayPlaced(p.week)).sort((a,b)=>b.week-a.week||Date.parse(b.created_at)-Date.parse(a.created_at)||b.id-a.id),latest=[],weeks=new Set();
   rows.forEach(p=>{if(!weeks.has(p.week)){weeks.add(p.week);latest.push(p);}});
   const wins=latest.filter(p=>p.result==='won').length,losses=latest.filter(p=>p.result==='lost').length,voids=latest.filter(p=>p.result==='void').length,settled=wins+losses;
   return {latest,wins,losses,voids,pending:latest.length-settled-voids,settled,rate:settled?wins/settled:null};
@@ -3203,11 +3218,11 @@ const PARLAY_RESULT={won:['Hit','var(--win)'],lost:['Miss','var(--loss)'],void:[
 function managerHistoryHtml(tid){
   if(!parlayLoaded)return `<summary><span>Parlay results</span><small>${parlayError?'Unavailable':'Loading…'}</small></summary><p class="metricnote">${parlayError||'Loading parlay history…'}</p>`;
   const r=parlayRecord(tid);
-  if(!r.latest.length)return '<summary><span>Parlay results</span><small>No picks yet</small></summary><p class="metricnote">No picks submitted this season.</p>';
+  if(!r.latest.length)return '<summary><span>Parlay results</span><small>No picks yet</small></summary><p class="metricnote">No picks in a placed parlay yet this season.</p>';
   const row=p=>{const [label,tone]=PARLAY_RESULT[p.result]||PARLAY_RESULT.pending;
     return `<div class="tp-row"><span class="tp-wk">Wk ${p.week}</span><span class="tp-pick">${esc(p.pick)}${p.odds?` <em>${esc(p.odds)}</em>`:''}</span><b style="color:${tone}">${label}</b></div>`;};
   return `<summary><span>Parlay results</span><small>${r.wins}-${r.losses}${r.settled?' · '+fmt(r.rate*100,0)+'%':''}</small></summary>
-    <div class="tp-body"><p class="metricnote">${r.settled?`${fmt(r.rate*100,0)}% success rate · ${r.wins} ${r.wins===1?'hit':'hits'}, ${r.losses} ${r.losses===1?'miss':'misses'}`:'No graded picks yet'}${r.voids?` · ${r.voids} void`:''}${r.pending?` · ${r.pending} pending`:''}. Pending and void picks don't count toward the rate.</p>${r.latest.map(row).join('')}</div>`;
+    <div class="tp-body"><p class="metricnote">${r.settled?`${fmt(r.rate*100,0)}% success rate · ${r.wins} ${r.wins===1?'hit':'hits'}, ${r.losses} ${r.losses===1?'miss':'misses'}`:'No graded picks yet'}${r.voids?` · ${r.voids} void`:''}${r.pending?` · ${r.pending} pending`:''}. Pending and void picks don't count toward the rate, and weeks the parlay wasn't placed are left out.</p>${r.latest.map(row).join('')}</div>`;
 }
 
 /* ---- PARLAY RESULTS: success rate by manager ---- */
@@ -3216,14 +3231,14 @@ function parlayResultsHtml(){
   const rows=D.teams.map(t=>({t,...parlayRecord(t.id)})).sort((a,b)=>(b.rate??-1)-(a.rate??-1)||b.wins-a.wins||a.losses-b.losses||(a.t.owner||a.t.name).localeCompare(b.t.owner||b.t.name));
   const wins=rows.reduce((n,r)=>n+r.wins,0),settled=rows.reduce((n,r)=>n+r.settled,0);
   if(!settled)return emptyState('dice','No graded picks yet','Success rates appear once the first week of parlay picks is graded.');
-  const weeks=[...new Set(parlayHistory.map(p=>p.week))].sort((a,b)=>a-b).map(w=>({w,legs:currentParlayLegs(parlayHistory.filter(p=>p.week===w))}));
+  const weeks=[...new Set(parlayHistory.map(p=>p.week))].filter(parlayPlaced).sort((a,b)=>a-b).map(w=>({w,legs:currentParlayLegs(parlayHistory.filter(p=>p.week===w))}));
   const graded=weeks.filter(x=>{const active=x.legs.filter(p=>p.result!=='void');return active.some(p=>p.result==='lost')||(active.length&&active.every(p=>p.result==='won'));});
   const cashed=graded.filter(x=>!x.legs.some(p=>p.result==='lost')).length;
   let h=`<div class="card card-p pr-tiles">${tstat(fmt(wins/settled*100,0)+'%','League hit rate')}${tstat(`${wins} of ${settled}`,'Legs hit')}${tstat(`${cashed} of ${graded.length}`,'Parlays cashed')}</div>`;
   h+=`<section class="card card-p pr-chart"><h3>Success rate by manager</h3><p class="metricnote" style="margin:0 0 6px">Share of graded picks that hit. Tap a manager to see their picks.</p>`;
   h+=rows.map(r=>`<div class="barrow" data-tid="${r.t.id}" role="link" tabindex="0" aria-label="${esc(r.t.owner||r.t.name)}: ${r.settled?fmt(r.rate*100,0)+'% success, '+r.wins+' of '+r.settled+' picks hit':'no graded picks'}"><span class="bl">${esc(r.t.owner||r.t.name)}</span><div class="bartrk"><div class="barfil" style="width:${r.rate?Math.max(2,r.rate*100):0}%"></div></div><span class="bv">${r.settled?`<b>${fmt(r.rate*100,0)}%</b> <small>${r.wins}-${r.losses}</small>`:'<small>No graded picks</small>'}</span></div>`).join('');
   h+=`</section>`;
-  h+=`<section class="card card-p pr-weeks"><h3>Week by week</h3>${weeks.filter(x=>x.w===parlayWeek||x.legs.some(p=>p.result&&p.result!=='pending')).reverse().map(x=>{const st=parlayStatus(x.legs),hit=x.legs.filter(p=>p.result==='won').length,waiting=x.legs.filter(p=>!p.result||p.result==='pending').length;
+  h+=`<section class="card card-p pr-weeks"><h3>Week by week</h3><p class="metricnote" style="margin:0 0 6px">Only weeks the parlay was placed. Unplaced weeks don't count toward anyone's rate.</p>${weeks.slice().reverse().map(x=>{const st=parlayStatus(x.legs),hit=x.legs.filter(p=>p.result==='won').length,waiting=x.legs.filter(p=>!p.result||p.result==='pending').length;
     return `<div class="pr-week"><b>Week ${x.w}</b><span>${hit} of ${x.legs.length} legs hit${waiting?` · ${waiting} pending`:''}</span><small style="color:${st.tone}">${esc(st.label.split(' · ')[0])}</small></div>`;}).join('')}</section>`;
   return h;
 }
@@ -4312,7 +4327,7 @@ function adminParlayManage(initialWeek=parlayWeek){
   closeMatchup();
   const wrap=document.createElement('div');wrap.className='mdl';wrap.id='mdl';wrap.setAttribute('role','dialog');wrap.setAttribute('aria-modal','true');wrap.setAttribute('aria-label','Manage weekly parlay');
   wrap.innerHTML=`<div class="mdl-box" style="max-width:720px"><div class="mdl-top"><b>Manage weekly parlay</b><button class="x" aria-label="Close" type="button">&#x2715;</button></div>
-    <label class="fieldlbl" for="apmWk">Week</label><select class="txt" id="apmWk">${Array.from({length:22},(_,i)=>`<option value="${i+1}">Week ${i+1}${i+1===parlayWk()?' · Current':''}</option>`).join('')}</select>
+    <label class="fieldlbl" for="apmWk">Week</label><select class="txt" id="apmWk">${Array.from({length:22},(_,i)=>`<option value="${i+1}">Week ${i+1}${i+1===parlayWk()?' · Current':''}${parlayPlaced(i+1)?' · Placed':''}</option>`).join('')}</select>
     <div id="apmContent"></div><div id="apmMsg" role="status" style="margin-top:12px"></div></div>`;
   wrap.querySelector('.x').onclick=closeMatchup;wrap.onclick=e=>{if(e.target===wrap)closeMatchup();};
   document.body.appendChild(wrap);document.body.classList.add('mdl-open');document.addEventListener('keydown',mdlKey);
@@ -4325,10 +4340,15 @@ function adminParlayManage(initialWeek=parlayWeek){
     // Admins can add a manager's pick to any week, including weeks that have already been played.
     const managers=D.teams.slice().sort((a,b)=>(a.owner||a.name).localeCompare(b.owner||b.name)),missing=managers.filter(t=>!picks.some(p=>p.teamId===t.id));
     content.innerHTML+=`<div class="card card-p" id="apmAdd" style="margin:14px 0"><b>Add a pick for Week ${week}</b><p class="metricnote">Adding a pick for a manager who already has one this week replaces it as their leg; the earlier pick stays listed above.</p><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><select aria-label="Manager" class="txt apm-new-team" style="flex:1 1 100%">${managers.map(t=>`<option value="${t.id}"${t===missing[0]?' selected':''}>${esc(t.owner||t.name)}${missing.includes(t)?'':' · has a pick'}</option>`).join('')}</select><input aria-label="New pick" class="txt apm-new-pick" maxlength="160" style="flex:1;min-width:150px" placeholder="Pick, e.g. Bears ML"><input aria-label="New pick odds" class="txt apm-new-odds" maxlength="14" style="width:90px" placeholder="Odds"><select aria-label="New pick result" class="txt apm-new-result">${[['pending','Pending'],['won','HIT'],['lost','MISS'],['void','Void']].map(([v,label])=>`<option value="${v}">${label}</option>`).join('')}</select><button class="btn" id="apmAddBtn" type="button">Add pick</button></div></div>`;
-    content.innerHTML+=`<div class="card card-p" style="margin:14px 0"><b>Casino purchase details</b><p class="metricnote">Record who placed the whole parlay at the casino and the total odds printed on the purchase receipt. These details apply to the entire week's parlay.</p><label class="fieldlbl" for="apmPlayers">Placed by</label><input class="txt" id="apmPlayers" maxlength="2000" style="width:100%" placeholder="Name of the person who placed the parlay" value="${esc(details.participants||'')}"><label class="fieldlbl" for="apmTotal">Casino receipt total odds</label><input class="txt" id="apmTotal" maxlength="40" placeholder="Total odds as printed on the receipt, e.g. +4500" style="width:100%" value="${esc(details.totalOdds||'')}"><button class="btn" id="apmDetails" type="button" style="margin-top:12px">Save casino purchase details</button></div>`;
+    content.innerHTML+=`<div class="card card-p" style="margin:14px 0"><b>Casino purchase details</b><label class="pl-check"><input type="checkbox" id="apmPlaced"${details.placed?' checked':''}> Parlay placed at the casino</label><p class="metricnote">Leave this unchecked for a week the bet was never placed. That week is left out of every manager's hit rate and profile.</p><p class="metricnote">Record who placed the whole parlay at the casino and the total odds printed on the purchase receipt. These details apply to the entire week's parlay.</p><label class="fieldlbl" for="apmPlayers">Placed by</label><input class="txt" id="apmPlayers" maxlength="2000" style="width:100%" placeholder="Name of the person who placed the parlay" value="${esc(details.participants||'')}"><label class="fieldlbl" for="apmTotal">Casino receipt total odds</label><input class="txt" id="apmTotal" maxlength="40" placeholder="Total odds as printed on the receipt, e.g. +4500" style="width:100%" value="${esc(details.totalOdds||'')}"><button class="btn" id="apmDetails" type="button" style="margin-top:12px">Save casino purchase details</button></div>`;
     content.querySelector('#apmDetails').onclick=async function(){
       const weekDetails={week,participants:content.querySelector('#apmPlayers').value,totalOdds:content.querySelector('#apmTotal').value.trim()||null};
       await save(this,{weekDetails},saved=>{parlayWeekDetails=parlayWeekDetails.filter(w=>w.week!==week).concat([saved]);renderParlayDetails();});
+    };
+    content.querySelector('#apmPlaced').onchange=async function(){
+      const placed=this.checked;this.disabled=true;select.disabled=true;msg.textContent='Saving…';
+      try{await saveParlayPlaced(week,placed);select.options[week-1].textContent=`Week ${week}${week===parlayWk()?' · Current':''}${placed?' · Placed':''}`;msg.textContent=placed?`Week ${week} marked as placed.`:`Week ${week} marked as not placed. It no longer counts toward anyone's rate.`;}
+      catch(e){this.checked=!placed;msg.textContent=e.message;}finally{this.disabled=false;select.disabled=false;}
     };
     content.querySelector('#apmAddBtn').onclick=async function(){
       const add=content.querySelector('#apmAdd'),team=teamById[+add.querySelector('.apm-new-team').value],pick=add.querySelector('.apm-new-pick').value.trim(),odds=add.querySelector('.apm-new-odds').value.trim()||null,result=add.querySelector('.apm-new-result').value;
@@ -4372,10 +4392,15 @@ function renderParlayDetails(){
   // Polling must not overwrite an admin's unsaved casino details.
   if(box.dataset.editing==='true'&&ADMIN)return;
   const d=parlayWeekDetails.find(w=>w.week===parlayWeek)||{};
-  box.innerHTML=`<b>Casino purchase details</b><p>Placed by: ${esc(d.participants||'Not recorded')}</p><p>Casino receipt total odds: <b class="mono">${esc(d.totalOdds||'Not recorded')}</b></p>`;
+  box.innerHTML=`<b>Casino purchase details</b>${ADMIN?`<label class="pl-check"><input type="checkbox" id="plPlaced"${d.placed?' checked':''}> Parlay placed at the casino</label><div id="plPlacedMsg" role="status" class="metricnote"></div>`:''}<p>Placed by: ${esc(d.participants||'Not recorded')}</p><p>Casino receipt total odds: <b class="mono">${esc(d.totalOdds||'Not recorded')}</b></p>`;
   if(!ADMIN)return;
   box.insertAdjacentHTML('beforeend',`<div style="display:grid;gap:10px"><label>Placed by<input class="txt" id="plPlacedBy" maxlength="2000" style="display:block;width:100%" value="${esc(d.participants||'')}"></label><label>Casino receipt total odds<input class="txt" id="plReceiptOdds" maxlength="40" style="display:block;width:100%" value="${esc(d.totalOdds||'')}" placeholder="e.g. +4500"></label><button class="btn" id="plSaveDetails" type="button">Save casino purchase details</button><div id="plDetailsMsg" role="status"></div></div>`);
-  box.oninput=()=>{box.dataset.editing='true';};
+  box.oninput=e=>{if(e.target.id!=='plPlaced')box.dataset.editing='true';};
+  box.querySelector('#plPlaced').onchange=async function(){
+    const placed=this.checked;let msg=box.querySelector('#plPlacedMsg');this.disabled=true;msg.textContent='Saving…';
+    try{await saveParlayPlaced(parlayWeek,placed);msg=box.querySelector('#plPlacedMsg')||msg;msg.textContent=placed?'Marked as placed. Everyone sees it as a live bet.':'Marked as not placed. This week no longer counts toward anyone\'s rate.';}
+    catch(e){this.checked=!placed;msg.textContent=e.message;}finally{this.disabled=false;}
+  };
   box.querySelector('#plSaveDetails').onclick=async function(){
     const week=parlayWeek,msg=box.querySelector('#plDetailsMsg');this.disabled=true;msg.textContent='Saving casino details…';
     try{
