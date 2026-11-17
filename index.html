@@ -1734,24 +1734,6 @@ async function loadUpdates(){try{const {data,error}=await sb.from("league_update
   const b=document.getElementById("updBanner");if(b)b.outerHTML=updatesBanner();}catch(e){UPDATES=[];}}
 function updatesBanner(){if(!UPDATES||!UPDATES.length)return '<div id="updBanner"></div>';
   return `<div class="upd-banner" id="updBanner"><div class="ub-h">League updates</div>${UPDATES.map(u=>`<div class="ub-i"><span class="ub-d">${new Date(u.created_at).toLocaleDateString(undefined,{month:"short",day:"numeric"})}</span>${esc(u.message)}</div>`).join("")}</div>`;}
-// One-time congratulations for Drew's winless run; shows again each time the streak grows and never once he wins.
-function drewStreakPopup(tries=0){
-  const t=D.teams.find(x=>x.owner==="Drew Michalek"),s=t&&ST.S[t.id];
-  if(!s||s.w!==0||s.tie||s.l<8)return;
-  let seen=0;try{seen=+localStorage.getItem("mfl-drew-streak-seen")||0;}catch(e){}
-  if(seen>=s.l)return;
-  if(document.getElementById("mdl")){if(tries<20)setTimeout(()=>drewStreakPopup(tries+1),3000);return;}
-  try{localStorage.setItem("mfl-drew-streak-seen",String(s.l));}catch(e){}
-  const wrap=document.createElement("div");wrap.className="mdl";wrap.id="mdl";wrap.setAttribute("role","dialog");wrap.setAttribute("aria-modal","true");wrap.setAttribute("aria-label","Congratulations, Drew");
-  wrap.innerHTML=`<div class="mdl-box drew-streak"><div class="mdl-top"><div class="eyebrow">Making history</div><button class="x" aria-label="Close" type="button">&#x2715;</button></div>
-    <div class="ds-body">${badge(t,"xl")}<h2>Congratulations, ${esc(t.owner)}</h2><div class="ds-rec">0-${s.l}</div>
-    <p>${esc(t.name)} is 0-${s.l} and the winless streak is still alive. No team in league history has ever finished a season without a win, and ${esc(t.owner.split(" ")[0])} is on pace to be the first.</p>
-    <div class="ds-actions"><button class="btn" type="button" data-ds-team>View ${esc(t.owner.split(" ")[0])}'s team</button><button class="btn ghost" type="button" data-ds-close>Close</button></div></div></div>`;
-  const close=()=>closeMatchup();
-  wrap.querySelector(".x").onclick=close;wrap.querySelector("[data-ds-close]").onclick=close;wrap.onclick=e=>{if(e.target===wrap)close();};
-  wrap.querySelector("[data-ds-team]").onclick=()=>{closeMatchup();goTeam(t.id);};
-  document.body.appendChild(wrap);document.body.classList.add("mdl-open");document.addEventListener("keydown",mdlKey);
-}
 function birthdayBanner(){const n=new Date();if(!(n.getMonth()===9&&n.getDate()===21))return "";return `<div class="bday-banner"><span class="bd-ic">${icon("sparkle")}</span><div><b>Happy birthday, Sam!</b> Most of the league is wishing you a happy birthday today.</div></div>`;}
 /* ================= VIEWS ================= */
 const VIEWS={};
@@ -4693,6 +4675,5 @@ if(__LD_FROM_CACHE)__netLD.then(nd=>{if(nd&&nd.meta)refreshData(nd);}).catch(()=
 updateConnection();
 EXPERIENCE.preferences();
 __initParlay(sb);
-setTimeout(drewStreakPopup,1500);
 }
 </script>
